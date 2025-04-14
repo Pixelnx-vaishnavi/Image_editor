@@ -3,10 +3,15 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_editor/Const/color_const.dart';
-import 'package:image_editor/screens_ui/image_editor/image_editor_controller.dart';
+import 'package:image_editor/screens_ui/image_editor/controllers/image_filter.dart';
+import 'package:image_editor/screens_ui/image_editor/controllers/imagefilter_editor.dart';
+import 'package:image_editor/screens_ui/image_editor/controllers/rotate_mirror.dart';
+
 
 class ImageEditorScreen extends StatelessWidget {
   final ImageEditorController _controller = Get.put(ImageEditorController());
+  final ImageFilterController filtercontroller = Get.put(ImageFilterController());
+
 
   @override
   Widget build(BuildContext context) {
@@ -35,33 +40,62 @@ class ImageEditorScreen extends StatelessWidget {
           )
         ],
       ),
-      body: Obx(() {
-        return Column(
+      body:
+
+      Obx(() {
+        final Uint8List? memoryImage = _controller.editedImageBytes.value;
+        final File? fileImage = _controller.editedImage.value;
+
+        return Stack(
           children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 25),
-                child: Obx(() {
-                  final Uint8List? memoryImage = _controller.editedImageBytes.value;
-                  return Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(5),
-                      child: memoryImage != null
-                          ? Image.memory(memoryImage, fit: BoxFit.contain)
-                          : Image.file(_controller.editedImage.value, fit: BoxFit.contain),
+            Column(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding:  EdgeInsets.symmetric(horizontal: 25),
+                    child: Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(5),
+                        child: memoryImage != null
+                            ? Image.memory(memoryImage, fit: BoxFit.contain)
+                            : (fileImage != null && fileImage.path.isNotEmpty
+                            ? Image.file(fileImage, fit: BoxFit.contain)
+                            :  Text("No image loaded")),
+                      ),
                     ),
-                  );
-                }),
-              ),
+                  ),
+                ),
+                 SizedBox(height: 15),
+                if (!_controller.showEditOptions.value) _buildToolBar(),
+                if (_controller.showEditOptions.value) _controller.buildEditControls(),
+              ],
             ),
-            SizedBox(height: 15),
-            if (!_controller.showEditOptions.value)
-              _buildToolBar(),
-            if (_controller.showEditOptions.value)
-              _controller.buildEditControls(),
+
+            if (_controller.isFlipping.value)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child:  Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 6.0,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+
+
+
           ],
         );
-      }),
+      })
+
+
+
+
+
+
+
     );
   }
 
@@ -92,7 +126,9 @@ class ImageEditorScreen extends StatelessWidget {
             SizedBox(width: 40),
             _controller.buildToolButton('Camera', 'assets/camera.png', () {}),
             SizedBox(width: 40),
-            _controller.buildToolButton('Filter', 'assets/filter.png', () {}),
+            _controller.buildToolButton('Filter', 'assets/filter.png', () {
+              ImageFilterEditor(originalImageBytes: _controller.editedImageBytes.value!);
+            }),
             SizedBox(width: 40),
             _controller.buildToolButton('Sticker', 'assets/elements.png', () {}),
           ],
