@@ -2,26 +2,251 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:photofilters/photofilters.dart';
+import 'dart:async';
+import 'package:path/path.dart';
+
 
 class ImageEditorController extends GetxController {
   Rx<File> editedImage = File('').obs;
   Rx<Uint8List?> editedImageBytes = Rx<Uint8List?>(null);
   Rx<Uint8List?> flippedImageBytes = Rx<Uint8List?>(null);
   RxBool showEditOptions = false.obs;
+  RxBool showStickerEditOptions = false.obs;
+  RxBool showFilterEditOptions = false.obs;
+  RxBool selectedtapped = false.obs;
   final Rx<Uint8List?> flippedBytes = Rx<Uint8List?>(null);
   final RxBool isFlipping = false.obs;
+  Rxn<img.Image> decodedImage = Rxn<img.Image>();
+
+  String? fileName;
+  List<Filter> filters = presetFiltersList;
+  final picker = ImagePicker();
+  File? selectedImage;
+  final originalImageBytes = Rxn<Uint8List>();
+  final selectedFilter = Rxn<Filter>();
+  final ValueNotifier<String> selectedCategory = ValueNotifier<String>("Natural");
+  final Rxn<Uint8List> thumbnailBytes = Rxn<Uint8List>();
 
 
 
-  void setInitialImage(File image) {
+  final Map<String, List<Filter>> filterCategories = {
+    "Natural": [NoFilter(), AdenFilter(), AmaroFilter()],
+    "Warm": [MayfairFilter(), RiseFilter(), ValenciaFilter()],
+    "Cool": [HudsonFilter(), InkwellFilter(), LoFiFilter()],
+    "Vivid": [XProIIFilter(), NashvilleFilter(), EarlybirdFilter()],
+    "Soft": [SierraFilter(), ToasterFilter(), BrannanFilter()],
+  };
+
+  final Map<String, List<String>> shapeCategories = {
+    'abstract_shapes': [
+      'assets/abstract_shapes/ab-1.svg',
+      'assets/abstract_shapes/ab-2.svg',
+      'assets/abstract_shapes/ab-3.svg',
+      'assets/abstract_shapes/ab-4.svg',
+      'assets/abstract_shapes/ab-5.svg',
+      'assets/abstract_shapes/ab-6.svg',
+      'assets/abstract_shapes/ab-7.svg',
+      'assets/abstract_shapes/ab-8.svg',
+      'assets/abstract_shapes/ab-9.svg',
+      'assets/abstract_shapes/ab-10.svg',
+      'assets/abstract_shapes/ab-11.svg',
+      'assets/abstract_shapes/ab-12.svg',
+      'assets/abstract_shapes/ab-13.svg',
+      'assets/abstract_shapes/ab-14.svg',
+      'assets/abstract_shapes/ab-15.svg',
+      'assets/abstract_shapes/ab-16.svg',
+      'assets/abstract_shapes/ab-17.svg',
+
+    ],
+    'arrow': [
+      'assets/arrow/arrow01.svg',
+      'assets/arrow/arrow02.svg',
+      'assets/arrow/arrow03.svg',
+      'assets/arrow/arrow04.svg',
+      'assets/arrow/arrow05.svg',
+      'assets/arrow/arrow06.svg',
+      'assets/arrow/arrow07.svg',
+      'assets/arrow/arrow08.svg',
+      'assets/arrow/arrow09.svg',
+      'assets/arrow/arrow010.svg',
+      'assets/arrow/arrow011.svg',
+      'assets/arrow/arrow012.svg',
+      'assets/arrow/arrow013.svg',
+      'assets/arrow/arrow014.svg',
+      'assets/arrow/arrow015.svg',
+      'assets/arrow/arrow016.svg',
+      'assets/arrow/arrow017.svg',
+      'assets/arrow/arrow018.svg',
+      'assets/arrow/arrow019.svg',
+      'assets/arrow/arrow020.svg',
+      'assets/arrow/arrow021svg',
+      'assets/arrow/arrow022.svg',
+      'assets/arrow/arrow023.svg',
+      'assets/arrow/arrow024.svg',
+      'assets/arrow/arrow025.svg',
+      'assets/arrow/arrow026.svg',
+      'assets/arrow/arrow027.svg',
+      'assets/arrow/arrow028.svg',
+      'assets/arrow/arrow029svg',
+      'assets/arrow/arrow030.svg',
+    ],
+    'badges': [
+      'assets/badges/Badge(1).svg',
+      'assets/badges/Badge(2).svg',
+      'assets/badges/Badge(3).svg',
+      'assets/badges/Badge(4).svg',
+      'assets/badges/Badge(5).svg',
+      'assets/badges/Badge(6).svg',
+      'assets/badges/Badge(7).svg',
+      'assets/badges/Badge(8).svg',
+      'assets/badges/Badge(9).svg',
+      'assets/badges/Badge(10).svg',
+      'assets/badges/Badge(11).svg',
+      'assets/badges/Badge(12).svg',
+      'assets/badges/Badge(13).svg',
+      'assets/badges/Badge(14).svg',
+      'assets/badges/Badge(15).svg',
+      'assets/badges/Badge(16).svg',
+      'assets/badges/best offer.svg',
+      'assets/badges/best price.svg',
+      'assets/badges/Best-price.svg',
+      'assets/badges/big sale.svg',
+      'assets/badges/big-stock.svg'
+    ],
+    'banners':[
+      'assets/banners/best offer.svg',
+      'assets/banners/Big-sale.svg',
+      'assets/banners/mega sale.svg',
+      'assets/banners/offer-1.svg',
+      'assets/banners/offer-01.svg',
+      'assets/banners/offer-2.svg',
+      'assets/banners/offer-02.svg',
+      'assets/banners/sale...svg',
+      'assets/banners/Sale.svg',
+      'assets/banners/sale 40.svg',
+      'assets/banners/sales-01.svg',
+      'assets/banners/sales-02.svg',
+      'assets/banners/sales-03.svg',
+      'assets/banners/sales-04.svg',
+      'assets/banners/sales-05.svg'
+      'assets/banners/sales-06.svg'
+      'assets/banners/sales-07.svg'
+      'assets/banners/sales-08.svg'
+      'assets/banners/sales-09.svg'
+      'assets/banners/sales-10.svg'
+      'assets/banners/sales-11.svg'
+      'assets/banners/sales-12.svg'
+      'assets/banners/sales-13.svg'
+      'assets/banners/sales-14.svg'
+      'assets/banners/sales-15.svg'
+      'assets/banners/sales-16.svg'
+      'assets/banners/sales-17.svg'
+      'assets/banners/sales-18.svg'
+      'assets/banners/sales-19.svg'
+      'assets/banners/sales-20.svg'
+      'assets/banners/sales-21.svg'
+      'assets/banners/sales-22.svg'
+      'assets/banners/sales-23.svg'
+      'assets/banners/sales-24svg'
+      'assets/banners/sales-25.svg'
+      'assets/banners/sales-26.svg'
+      'assets/banners/sales-27.svg'
+      'assets/banners/sales-28.svg'
+      'assets/banners/sales-29svg'
+      'assets/banners/sales-30.svg'
+      'assets/banners/sales-31.svg'
+      'assets/banners/sales-32.svg'
+      'assets/banners/sales-33.svg'
+      'assets/banners/sales-34.svg'
+      'assets/banners/sales-35.svg'
+    ],
+    'basic_shapes':[
+      'assets/basic_shapes/add27.svg',
+      'assets/basic_shapes/add 27.svg',
+      'assets/basic_shapes/adjust contrast 22.svg',
+      'assets/basic_shapes/bars 34.svg',
+      'assets/basic_shapes/bell.svg',
+      'assets/basic_shapes/bookmark 15.svg',
+      'assets/basic_shapes/border01.svg',
+      'assets/basic_shapes/Box_stroke.svg',
+      'assets/basic_shapes/c6ef7fb8.svg',
+      'assets/basic_shapes/c6ef7fb81.svg',
+      'assets/basic_shapes/Circle.svg',
+      'assets/basic_shapes/Circle_stroke.svg',
+      'assets/basic_shapes/Circle_with_stroke.svg',
+      'assets/basic_shapes/Close.svg',
+      'assets/basic_shapes/correct-symbol.svg',
+      'assets/basic_shapes/Cube.svg',
+      'assets/basic_shapes/dots 35.svg',
+      'assets/basic_shapes/download 26.svg',
+      'assets/basic_shapes/Forbidden.svg',
+      'assets/basic_shapes/half-circle.svg',
+
+
+      
+
+    ]
+  };
+
+
+  
+
+  void setInitialImage(File image) async {
     editedImage.value = image;
     editedImageBytes.value = null;
+
+    final bytes = await image.readAsBytes();
+    originalImageBytes.value = bytes;
+
+    final img.Image? decoded = img.decodeImage(bytes);
+    if (decoded != null) {
+      final img.Image thumb = img.copyResize(decoded, width: 120);
+      thumbnailBytes.value = Uint8List.fromList(img.encodeJpg(thumb));
+    }
   }
+
+
+  Future<void> decodeEditedImage() async {
+    if (editedImage.value.path.isNotEmpty) {
+      final bytes = await editedImage.value.readAsBytes();
+
+      originalImageBytes.value = bytes;
+    }
+  }
+
+  void applyFullResolutionFilter(Filter filter) {
+    isFlipping.value = true;
+    if (originalImageBytes.value == null) return;
+    print('entered');
+
+
+    final img.Image? image = img.decodeImage(originalImageBytes.value!);
+    if (image == null) return;
+
+    // final image = img.decodeImage(originalImageBytes.value!);
+    final resized = img.copyResize(image, width: 400);
+    final pixels = resized.getBytes();
+    filter.apply(pixels, resized.width, resized.height);
+
+    // final Uint8List pixels = image.getBytes();
+    // filter.apply(pixels, image.width, image.height);
+
+    final img.Image filteredImage = img.Image.fromBytes(resized.width, resized.height, pixels);
+    final Uint8List resultBytes = Uint8List.fromList(img.encodeJpg(filteredImage));
+
+    editedImageBytes.value = resultBytes;
+    selectedFilter.value = filter;
+    isFlipping.value = false;
+  }
+
 
   Future<void> rotateImage() async {
     final Uint8List input = editedImageBytes.value ?? await editedImage.value.readAsBytes();
@@ -48,8 +273,6 @@ class ImageEditorController extends GetxController {
 
     return Uint8List.fromList(img.encodeJpg(flipped, quality: 80));
   }
-
-
 
 
   Future<void> mirrorImage() async {
@@ -86,10 +309,310 @@ class ImageEditorController extends GetxController {
     }
   }
 
+  Future<void> applyFiltersToEditedImage(BuildContext context) async {
+    final file = editedImage.value;
 
+    if (file.path.isNotEmpty && await file.exists()) {
+      fileName = basename(file.path);
+      final imageBytes = await file.readAsBytes();
+      var image = img.decodeImage(imageBytes);
 
+      if (image != null) {
+        image = img.copyResize(image, width: 600);
 
+        final filteredResult = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PhotoFilterSelector(
+              // appBarColor: Color(ColorConst.),
+              title:  Text("Apply Filters",style: TextStyle(color: Colors.white),),
+              image: image!,
+              filters: filters,
+              filename: fileName!,
+              loader:  Center(child: CircularProgressIndicator()),
+              fit: BoxFit.contain,
 
+            ),
+          ),
+        );
+
+        if (filteredResult != null && filteredResult.containsKey('image_filtered')) {
+          final File filteredFile = filteredResult['image_filtered'];
+          final Uint8List resultBytes = await filteredFile.readAsBytes();
+          editedImageBytes.value = resultBytes;
+        }
+      }
+    }
+  }
+
+  Widget buildFilterControlsSheet({required VoidCallback onClose}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 40,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: filterCategories.keys.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      final categoryName = filterCategories.keys.elementAt(index);
+                      return ValueListenableBuilder(
+                        valueListenable: selectedCategory,
+                        builder: (context, value, _) {
+                          final isSelected = value == categoryName;
+                          return GestureDetector(
+                            onTap: () => selectedCategory.value = categoryName,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.white : Colors.grey[800],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                categoryName,
+                                style: TextStyle(
+                                  color: isSelected ? Colors.black : Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: onClose,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Filters based on selected category
+        ValueListenableBuilder(
+          valueListenable: selectedCategory,
+          builder: (context, category, _) {
+            final filters = filterCategories[category]!;
+            return SizedBox(
+              height: 100,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: filters.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final filter = filters[index];
+                  final img.Image? thumb = img.decodeImage(thumbnailBytes.value!);
+                  if (thumb == null) return const SizedBox();
+
+                  final Uint8List thumbPixels = thumb.getBytes();
+                  filter.apply(thumbPixels, thumb.width, thumb.height);
+                  final img.Image filteredThumb = img.Image.fromBytes(thumb.width, thumb.height, thumbPixels);
+                  final Uint8List filteredBytes = Uint8List.fromList(img.encodeJpg(filteredThumb));
+
+                  return GestureDetector(
+                    onTap: () {
+                      applyFullResolutionFilter(filter);
+                    },
+                    child: Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            filteredBytes,
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          filter.name,
+                          style: const TextStyle(fontSize: 12, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget buildShapeSelectorSheet() {
+    final selectedTabIndex = ValueNotifier<int>(0);
+
+    return DefaultTabController(
+      length: shapeCategories.keys.length,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Color(ColorConst.bottomBarcolor),
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(20),
+            topLeft: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 300,
+              child: TabBarView(
+                children: shapeCategories.values.map((imagePaths) {
+                  return GridView.builder(
+                    padding:  EdgeInsets.all(12),
+                    itemCount: imagePaths.length,
+                    gridDelegate:  SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1,
+                    ),
+                    itemBuilder: (context, index) {
+                      final path = imagePaths[index];
+                      return GestureDetector(
+                        onTap: () {
+                          print('Selected: $path');
+                          // Add to canvas here
+                        },
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                color: Colors.grey.shade800,
+                              ),
+                              child:  SvgPicture.asset(
+                                path,
+                              ),
+                            ),
+                            // const SizedBox(height: 4),
+                            // Text(
+                            //   path.split('/').last,
+                            //   style: const TextStyle(fontSize: 12, color: Colors.white),
+                            //   overflow: TextOverflow.ellipsis,
+                            // ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+            ValueListenableBuilder<int>(
+              valueListenable: selectedTabIndex,
+              builder: (context, currentIndex, _) {
+                return TabBar(
+                  onTap: (index) {
+                    selectedTabIndex.value = index;
+                  },
+                  isScrollable: true,
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  indicatorColor: Colors.transparent,
+                  dividerColor: Colors.transparent,
+                  tabs: shapeCategories.keys.toList().asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final category = entry.value;
+                    return Tab(
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: index == currentIndex
+                              ? Color(ColorConst.tabhighlightbutton)
+                              : Color(ColorConst.tabdefaultcolor),
+                          borderRadius: BorderRadius.circular(30),
+                          // border: Border.all(
+                          //   color: index == currentIndex ? Colors.purple.withOpacity(0.4) : Colors.grey,
+                          // ),
+                        ),
+                        child: Text(
+                          category,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: index == currentIndex ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+            SizedBox(height: 20),
+            Padding(
+              padding: EdgeInsets.only(left: 10, right: 10, bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      flippedBytes.value = null;
+                      showEditOptions.value = false;
+                      editedImageBytes.value = null;
+                    },
+                    child: SizedBox(
+                      height: 40,
+                      child: Image.asset('assets/cross.png'),
+                    ),
+                  ),
+                  Text(
+                    'Sticker',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 20,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () async {
+                      showEditOptions.value = false;
+
+                      if (flippedBytes.value != null) {
+                        final tempDir = await getTemporaryDirectory();
+                        final path =
+                            '${tempDir.path}/confirmed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                        final file = File(path);
+                        await file.writeAsBytes(flippedBytes.value!);
+
+                        editedImage.value = file;
+                        editedImageBytes.value = null;
+                        flippedBytes.value = null;
+                      }
+
+                      Get.toNamed('/ImageEditorScreen', arguments: editedImage.value);
+                    },
+                    child: SizedBox(
+                      height: 40,
+                      child: Image.asset('assets/right.png'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget buildEditControls() {
     return Container(

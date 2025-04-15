@@ -35,12 +35,14 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  flutter_image_filters: ^0.0.26
+#  flutter_image_filters: ^0.0.26
   get: ^4.7.2
   image_picker: ^1.1.2
   path_provider: ^2.1.5
   flutter_image_compress: ^2.4.0
   image: ^3.0.1
+  photofilters: ^3.0.1
+  flutter_svg: ^2.0.17
 
 
 
@@ -68,7 +70,20 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-     - assets/logo.png
+     - assets/
+     - assets/abstract_shapes/
+     - assets/arrow/
+     - assets/badges/
+     - assets/banners/
+     - assets/basic_shapes/
+     - assets/button/
+     - assets/dividers/
+     - assets/ecommerce/
+     - assets/emoji/
+     - assets/holiday/
+     - assets/object/
+     - assets/seasonal/
+     - assets/social/
      - assets/background_image.png
      - assets/templates_image.png
      - assets/cross.png
@@ -87,7 +102,78 @@ flutter:
      - assets/filter.png
      - assets/tune.png
      - assets/text.png
-  #   - images/a_dot_ham.jpeg
+     - assets/abstract_shapes/ab-1.svg
+     - assets/abstract_shapes/ab-2.svg
+     - assets/abstract_shapes/ab-3.svg
+     - assets/abstract_shapes/ab-4.svg
+     - assets/abstract_shapes/ab-5.svg
+     - assets/abstract_shapes/ab-6.svg
+     - assets/abstract_shapes/ab-7.svg
+     - assets/abstract_shapes/ab-8.svg
+     - assets/abstract_shapes/ab-9.svg
+     - assets/abstract_shapes/ab-10.svg
+     - assets/abstract_shapes/ab-11.svg
+     - assets/abstract_shapes/ab-12.svg
+     - assets/abstract_shapes/ab-13.svg
+     - assets/abstract_shapes/ab-14.svg
+     - assets/abstract_shapes/ab-15.svg
+     - assets/abstract_shapes/ab-16.svg
+     - assets/abstract_shapes/ab-17.svg
+     - assets/arrow/arrow01.svg
+     - assets/arrow/arrow02.svg
+     - assets/arrow/arrow03.svg
+     - assets/arrow/arrow04.svg
+     - assets/arrow/arrow05.svg
+     - assets/arrow/arrow06.svg
+     - assets/arrow/arrow07.svg
+     - assets/arrow/arrow08.svg
+     - assets/arrow/arrow09.svg
+     - assets/arrow/arrow10.svg
+     - assets/arrow/arrow11.svg
+     - assets/arrow/arrow12.svg
+     - assets/arrow/arrow13.svg
+     - assets/arrow/arrow14.svg
+     - assets/arrow/arrow15.svg
+     - assets/arrow/arrow16.svg
+     - assets/arrow/arrow17.svg
+     - assets/arrow/arrow18.svg
+     - assets/arrow/arrow19.svg
+     - assets/arrow/arrow20.svg
+     - assets/arrow/arrow21.svg
+     - assets/arrow/arrow22.svg
+     - assets/arrow/arrow23.svg
+     - assets/arrow/arrow24.svg
+     - assets/arrow/arrow25.svg
+     - assets/arrow/arrow26.svg
+     - assets/arrow/arrow27.svg
+     - assets/arrow/arrow28.svg
+     - assets/arrow/arrow29.svg
+     - assets/arrow/arrow30.svg
+     - assets/badges/10off.svg
+     - assets/badges/Badge(1).svg
+     - assets/badges/Badge(2).svg
+     - assets/badges/Badge(3).svg
+     - assets/badges/Badge(4).svg
+     - assets/badges/Badge(5).svg
+     - assets/badges/Badge(6).svg
+     - assets/badges/Badge(7).svg
+     - assets/badges/Badge(8).svg
+     - assets/badges/Badge(9).svg
+     - assets/badges/Badge(10).svg
+     - assets/badges/Badge(11).svg
+     - assets/badges/Badge(12).svg
+     - assets/badges/Badge(13).svg
+     - assets/badges/Badge(14).svg
+     - assets/badges/Badge(15).svg
+     - assets/badges/Badge(16).svg
+     - assets/badges/best offer.svg
+     - assets/badges/best price.svg
+     - assets/badges/Best-price.svg
+     - assets/badges/big sale.svg
+     - assets/badges/big-stock.svg
+     - assets/badges/BUY1GET1.svg
+     - assets/badges/buyget 1 free.svg
+#     - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

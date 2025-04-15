@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_filter.dart';
-import 'package:image_editor/screens_ui/image_editor/controllers/imagefilter_editor.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/rotate_mirror.dart';
 
 
@@ -17,6 +16,8 @@ class ImageEditorScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final File image = Get.arguments;
     _controller.setInitialImage(image);
+    _controller.decodeEditedImage();
+    filtercontroller.setInitialImage(image);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -66,15 +67,20 @@ class ImageEditorScreen extends StatelessWidget {
                   ),
                 ),
                  SizedBox(height: 15),
-                if (!_controller.showEditOptions.value) _buildToolBar(),
+                if (!_controller.showEditOptions.value && !_controller.showFilterEditOptions.value && !_controller.showStickerEditOptions.value) _buildToolBar(context),
                 if (_controller.showEditOptions.value) _controller.buildEditControls(),
+                if (_controller.showStickerEditOptions.value) _controller.buildShapeSelectorSheet(),
+                if (_controller.showFilterEditOptions.value) _controller.buildFilterControlsSheet(onClose: () {
+                  _controller.showFilterEditOptions.value = false;
+
+                },),
               ],
             ),
 
-            if (_controller.isFlipping.value)
+            if (_controller.isFlipping.value == true)
               Positioned.fill(
                 child: Container(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withOpacity(0.8),
                   child:  Center(
                     child: CircularProgressIndicator(
                       strokeWidth: 6.0,
@@ -90,16 +96,10 @@ class ImageEditorScreen extends StatelessWidget {
         );
       })
 
-
-
-
-
-
-
     );
   }
 
-  Widget _buildToolBar() {
+  Widget _buildToolBar(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -127,10 +127,13 @@ class ImageEditorScreen extends StatelessWidget {
             _controller.buildToolButton('Camera', 'assets/camera.png', () {}),
             SizedBox(width: 40),
             _controller.buildToolButton('Filter', 'assets/filter.png', () {
-              ImageFilterEditor(originalImageBytes: _controller.editedImageBytes.value!);
+              _controller.showFilterEditOptions.value = true;
+              // _controller.buildFilterControlsSheet();
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Sticker', 'assets/elements.png', () {}),
+            _controller.buildToolButton('Sticker', 'assets/elements.png', () {
+              _controller.showStickerEditOptions.value = true;
+            }),
           ],
         ),
       ),
