@@ -55,7 +55,7 @@ class BottomSheetController extends GetxController {
                        },
                        child: Container(
                          height: 120,
-                         width: 170,
+                         width: 130,
                          decoration: BoxDecoration(
                              borderRadius: BorderRadius.circular(10),
                              // gradient: LinearGradient(
@@ -80,7 +80,7 @@ class BottomSheetController extends GetxController {
                                    color: Color(ColorConst.textblackcolor),
                                    fontFamily: 'Outfit',
                                    fontWeight: FontWeight.w400,
-                                   // fontSize: 22,
+                                   fontSize: 12,
                                    height: 1.0, // Line height 100%
                                    letterSpacing: 0.0,
                                  ),
@@ -94,7 +94,7 @@ class BottomSheetController extends GetxController {
                      SizedBox(width: 10,),
                      Container(
                        height: 120,
-                       width: 170,
+                       width: 130,
                        decoration: BoxDecoration(
                            borderRadius: BorderRadius.circular(10),
                            // gradient: LinearGradient(
@@ -119,7 +119,7 @@ class BottomSheetController extends GetxController {
                                  color: Color(ColorConst.textblackcolor),
                                  fontFamily: 'Outfit',
                                  fontWeight: FontWeight.w400,
-                                 // fontSize: 22,
+                                 fontSize: 12,
                                  height: 1.0, // Line height 100%
                                  letterSpacing: 0.0,
                                ),

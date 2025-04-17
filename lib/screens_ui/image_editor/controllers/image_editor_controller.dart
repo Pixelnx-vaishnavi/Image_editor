@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image/image.dart' as img;
+import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photofilters/photofilters.dart';
@@ -30,10 +31,12 @@ class ImageEditorController extends GetxController {
   List<Filter> filters = presetFiltersList;
   final picker = ImagePicker();
   File? selectedImage;
+  final Rxn<String> selectedimage = Rxn<String>();
   final originalImageBytes = Rxn<Uint8List>();
   final selectedFilter = Rxn<Filter>();
   final ValueNotifier<String> selectedCategory = ValueNotifier<String>("Natural");
   final Rxn<Uint8List> thumbnailBytes = Rxn<Uint8List>();
+  final StickerController stickerController = Get.put(StickerController());
 
 
 
@@ -191,13 +194,13 @@ class ImageEditorController extends GetxController {
       'assets/basic_shapes/half-circle.svg',
 
 
-      
+
 
     ]
   };
 
 
-  
+
 
   void setInitialImage(File image) async {
     editedImage.value = image;
@@ -486,7 +489,9 @@ class ImageEditorController extends GetxController {
                       final path = imagePaths[index];
                       return GestureDetector(
                         onTap: () {
-                          print('Selected: $path');
+                          selectedimage.value = path;
+                          print('Selected: ${selectedimage.value}');
+                          stickerController.addSticker(path);
                           // Add to canvas here
                         },
                         child: Column(
@@ -525,7 +530,7 @@ class ImageEditorController extends GetxController {
                     selectedTabIndex.value = index;
                   },
                   isScrollable: true,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  labelPadding:  EdgeInsets.symmetric(horizontal: 8),
                   indicatorColor: Colors.transparent,
                   dividerColor: Colors.transparent,
                   tabs: shapeCategories.keys.toList().asMap().entries.map((entry) {
@@ -565,8 +570,10 @@ class ImageEditorController extends GetxController {
                 children: [
                   GestureDetector(
                     onTap: () {
+                      stickerController.clearStickers();
+                      // Get.toNamed('/ImageEditorScreen', arguments: editedImage.value);
                       flippedBytes.value = null;
-                      showEditOptions.value = false;
+                      showStickerEditOptions.value = false;
                       editedImageBytes.value = null;
                     },
                     child: SizedBox(
@@ -585,6 +592,7 @@ class ImageEditorController extends GetxController {
                   GestureDetector(
                     onTap: () async {
                       showEditOptions.value = false;
+                      showStickerEditOptions.value = false;
 
                       if (flippedBytes.value != null) {
                         final tempDir = await getTemporaryDirectory();
@@ -654,7 +662,7 @@ class ImageEditorController extends GetxController {
                   editedImageBytes.value = null;
                 },
                 child: SizedBox(
-                  height: 40,
+                  height: 30,
                   child: Image.asset('assets/cross.png'),
                 ),
               ),
@@ -686,7 +694,7 @@ class ImageEditorController extends GetxController {
                   Get.toNamed('/ImageEditorScreen', arguments: editedImage.value);
                 },
                 child: SizedBox(
-                  height: 40,
+                  height: 30,
                   child: Image.asset('assets/right.png'),
                 ),
               ),
@@ -723,7 +731,7 @@ class ImageEditorController extends GetxController {
           children: [
             Icon(icon, color: Colors.white),
             SizedBox(width: 10),
-            Text(text, style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(text, style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
