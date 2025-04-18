@@ -2,11 +2,14 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image/image.dart' as img;
+import 'package:image_editor/screens_ui/image_editor/controllers/crop/crop_screen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -250,7 +253,7 @@ class ImageEditorController extends GetxController {
     isFlipping.value = false;
   }
 
-
+//==================ROTATE==============
   Future<void> rotateImage() async {
     final Uint8List input = editedImageBytes.value ?? await editedImage.value.readAsBytes();
 
@@ -266,7 +269,7 @@ class ImageEditorController extends GetxController {
   }
 
 
-
+//=============FLIP===IMAGE============
   Uint8List flipImageBytes(Uint8List input) {
     final img.Image? original = img.decodeImage(input);
     if (original == null) return input;
@@ -277,7 +280,7 @@ class ImageEditorController extends GetxController {
     return Uint8List.fromList(img.encodeJpg(flipped, quality: 80));
   }
 
-
+//=================MIRRORIMAGE=================
   Future<void> mirrorImage() async {
     try {
       isFlipping.value = true;
@@ -312,6 +315,8 @@ class ImageEditorController extends GetxController {
     }
   }
 
+
+  //====================FILTERSIMAGE===============
   Future<void> applyFiltersToEditedImage(BuildContext context) async {
     final file = editedImage.value;
 
@@ -455,7 +460,7 @@ class ImageEditorController extends GetxController {
       ],
     );
   }
-
+/////////////SHAPE========SELECTOR======IMAGE
   Widget buildShapeSelectorSheet() {
     final selectedTabIndex = ValueNotifier<int>(0);
 
@@ -622,6 +627,7 @@ class ImageEditorController extends GetxController {
     );
   }
 
+////////////===========ROTATE AND MIRROR BOTTOM SHEET=============
   Widget buildEditControls() {
     return Container(
       padding: EdgeInsets.all(20),
@@ -737,4 +743,54 @@ class ImageEditorController extends GetxController {
       ),
     );
   }
+
+
+
+  Future<void> pickAndCropImage() async {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.leanBack);
+
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: editedImage.value.path,
+      // aspectRatioPresets: [
+      //   CropAspectRatioPreset.original,
+      //   CropAspectRatioPreset.square,
+      //   CropAspectRatioPreset.ratio3x2,
+      //   CropAspectRatioPreset.ratio4x3,
+      //   CropAspectRatioPreset.ratio16x9,
+      // ],
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: '',
+          toolbarColor: Color(ColorConst.purplecolor),
+          toolbarWidgetColor: Colors.white,
+          statusBarColor: Color(ColorConst.textblackcolor),
+          activeControlsWidgetColor: Color(ColorConst.purplecolor),
+          cropFrameColor: Colors.white,
+          cropGridColor: Colors.grey,
+          hideBottomControls: false,
+          showCropGrid: true,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: true,
+        ),
+
+        IOSUiSettings(
+          title: 'Crop Image',
+        ),
+      ],
+    );
+
+    // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+    if (croppedFile != null) {
+      editedImage.value = File(croppedFile.path);
+    }
+  }
+
+
+
+
+
+
+
+
 }

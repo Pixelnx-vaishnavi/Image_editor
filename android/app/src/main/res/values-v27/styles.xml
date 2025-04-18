@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+        <style name="Ucrop.CropTheme" parent="Theme.AppCompat.Light.NoActionBar">
+                <!-- Hide status bar -->
+                <item name="android:windowFullscreen">true</item>
+
+                <!-- Allow content to extend into cutout areas (notch, nav bar) -->
+                <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+
+                <!-- Remove background system bars -->
+                <item name="android:windowTranslucentNavigation">false</item>
+                <item name="android:windowDrawsSystemBarBackgrounds">false</item>
+
+                <!-- Fully hide bottom nav bar -->
+                <item name="android:navigationBarColor">@android:color/transparent</item>
+        </style>
+</resources>
