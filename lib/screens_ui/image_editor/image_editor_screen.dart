@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:image_editor/Const/color_const.dart';
+import 'package:image_editor/screens_ui/image_editor/CropExampleScreen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_filter.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/hbstyles_container.dart';
@@ -24,7 +25,9 @@ class ImageEditorScreen extends StatelessWidget {
     filtercontroller.setInitialImage(image);
 
     return SafeArea(
+      bottom: true,
       child: Scaffold(
+   resizeToAvoidBottomInset: true,
         backgroundColor: Colors.black,
         appBar: AppBar(
           backgroundColor: Colors.black,
@@ -49,7 +52,7 @@ class ImageEditorScreen extends StatelessWidget {
         body: Obx(() {
           final Uint8List? memoryImage = _controller.editedImageBytes.value;
           final File? fileImage = _controller.editedImage.value;
-      
+
           return Stack(
             children: [
               Column(
@@ -58,30 +61,40 @@ class ImageEditorScreen extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 25),
                       child: Center(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(5),
-                          child: Container(
-                            key: stickerController.imagekey.value,
-                            child: memoryImage != null
-                                ? Image.memory(memoryImage, fit: BoxFit.contain)
-                                : (fileImage != null && fileImage.path.isNotEmpty
-                                    ? Image.file(fileImage, fit: BoxFit.contain)
-                                    : Text("No image loaded")),
-                          ),
-                        ),
+                        child:  Obx(() => ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: Container(
+                      key: stickerController.imagekey.value,
+                      child: ColorFiltered(
+                      colorFilter: ColorFilter.matrix(
+                      _controller.calculateColorMatrix(),
                       ),
+                      child: memoryImage != null
+                      ? Image.memory(memoryImage, fit: BoxFit.contain)
+                          : (fileImage != null && fileImage.path.isNotEmpty
+                      ? Image.file(fileImage, fit: BoxFit.contain)
+                          : Text("No image loaded")),
+          ),
+          ),
+          )),
+
+          ),
                     ),
                   ),
                   SizedBox(height: 15),
                   if (!_controller.showEditOptions.value &&
                       !_controller.showFilterEditOptions.value &&
-                      !_controller.showStickerEditOptions.value)
+                      !_controller.showStickerEditOptions.value && !_controller.showtuneOptions.value)
                     _buildToolBar(context),
-      
+
                   if (_controller.showEditOptions.value)
                     _controller.buildEditControls(),
                   if (_controller.showStickerEditOptions.value)
                     _controller.buildShapeSelectorSheet(),
+                  if(_controller.showtuneOptions.value)
+                    _controller.TuneEditControls(),
+
+
                   if (_controller.showFilterEditOptions.value)
                     _controller.buildFilterControlsSheet(onClose: () {
                       _controller.showFilterEditOptions.value = false;
@@ -92,7 +105,7 @@ class ImageEditorScreen extends StatelessWidget {
               Obx(() => Stack(
                 children: stickerController.stickers.map((sticker) {
                   final isSelected = sticker == stickerController.selectedSticker.value;
-      
+
                   return Positioned(
                     top: sticker.top.value,
                     left: sticker.left.value,
@@ -134,7 +147,7 @@ class ImageEditorScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-      
+
                             if (isSelected) ...[
                               Positioned(
                                 top: -3,
@@ -147,7 +160,7 @@ class ImageEditorScreen extends StatelessWidget {
                                     scale: sticker.scale.value,
                                     onPanUpdate: (details) =>
                                         stickerController.rotateSticker(0.03),
-      
+
                                   ),
                                 ),
                               ),
@@ -199,9 +212,9 @@ class ImageEditorScreen extends StatelessWidget {
                   );
                 }).toList(),
               )),
-      
-      
-      
+
+
+
               // GestureDetector(
               //     onPanUpdate: (details) {
               //       print('resizing');
@@ -214,7 +227,7 @@ class ImageEditorScreen extends StatelessWidget {
               //       height: 30,
               //         width: 39,
               //         child: SvgPicture.asset( stickerController.selectedSticker.value!.path))),
-      
+
               if (_controller.isFlipping.value == true)
                 Positioned.fill(
                   child: Container(
@@ -290,9 +303,16 @@ class ImageEditorScreen extends StatelessWidget {
               _controller.showEditOptions.value = true;
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Tune', 'assets/tune.png', () {}),
+            _controller.buildToolButton('Tune', 'assets/tune.png', () {
+              _controller.showtuneOptions.value = true;
+              // _controller.buildEditControls();
+            }),
             SizedBox(width: 40),
             _controller.buildToolButton('Crop', 'assets/crop.png', () {
+
+           // Navigator.push(context,MaterialPageRoute(builder: (context) {
+           //   return ImageCropScreen(path:_controller.editedImage.value.path);
+           // },) );
               SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
               _controller.pickAndCropImage();
             }),

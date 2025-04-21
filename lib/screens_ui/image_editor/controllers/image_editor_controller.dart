@@ -9,6 +9,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image/image.dart' as img;
+import 'package:image_editor/screens_ui/image_editor/CropExampleScreen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/crop/crop_screen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
 import 'package:path_provider/path_provider.dart';
@@ -25,10 +26,13 @@ class ImageEditorController extends GetxController {
   RxBool showEditOptions = false.obs;
   RxBool showStickerEditOptions = false.obs;
   RxBool showFilterEditOptions = false.obs;
+  RxBool showtuneOptions = false.obs;
   RxBool selectedtapped = false.obs;
   final Rx<Uint8List?> flippedBytes = Rx<Uint8List?>(null);
   final RxBool isFlipping = false.obs;
   Rxn<img.Image> decodedImage = Rxn<img.Image>();
+  var contrast = 0.0.obs;
+  var brightness = 0.0.obs;
 
   String? fileName;
   List<Filter> filters = presetFiltersList;
@@ -40,6 +44,7 @@ class ImageEditorController extends GetxController {
   final ValueNotifier<String> selectedCategory = ValueNotifier<String>("Natural");
   final Rxn<Uint8List> thumbnailBytes = Rxn<Uint8List>();
   final StickerController stickerController = Get.put(StickerController());
+  RxBool isBrushSelected = true.obs;
 
 
 
@@ -217,6 +222,18 @@ class ImageEditorController extends GetxController {
       final img.Image thumb = img.copyResize(decoded, width: 120);
       thumbnailBytes.value = Uint8List.fromList(img.encodeJpg(thumb));
     }
+  }
+
+  List<double> calculateColorMatrix() {
+    final c = 1 + contrast.value / 100;
+    final b = brightness.value * 255 / 100;
+
+    return [
+      c, 0, 0, 0, b,
+      0, c, 0, 0, b,
+      0, 0, c, 0, b,
+      0, 0, 0, 1, 0,
+    ];
   }
 
 
@@ -712,6 +729,76 @@ class ImageEditorController extends GetxController {
   }
 
 
+  ///////===================brightnedd $ Contrast
+
+  // @override
+  // Widget build(BuildContext context) {
+  //   return Scaffold(
+  //     backgroundColor: Colors.black,
+  //     body: Column(
+  //       children: [
+  //         Expanded(
+  //           child: Center(
+  //             child: Text("Image/Editor Area", style: TextStyle(color: Colors.white)),
+  //           ),
+  //         ),
+  //         const TuneControlsPanel(), // This is the fixed panel
+  //       ],
+  //     ),
+  //   );
+  // }
+
+
+
+  Widget TuneEditControls() {
+    return Container(
+      height: (isBrushSelected.value == true)
+        ? 300
+      :250,
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Color(ColorConst.bottomBarcolor),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(40),
+          topRight: Radius.circular(40),
+        ),
+      ),
+      child: ListView(
+        children: [
+          TuneControlsPanel(
+            onTuneChanged: (double contrast, double brightness) {
+              contrast = contrast;
+              brightness = brightness;
+            },
+          ),
+
+        ],
+      ),
+    );
+  }
+
+  // Widget TuneEditControls() {
+  //   return Column(
+  //     children: [
+  //       Slider(
+  //         value: contrast.value,
+  //         min: -100,
+  //         max: 100,
+  //         label: "Contrast",
+  //         onChanged: (val) => contrast.value = val,
+  //       ),
+  //       Slider(
+  //         value: brightness.value,
+  //         min: -100,
+  //         max: 100,
+  //         label: "Brightness",
+  //         onChanged: (val) => brightness.value = val,
+  //       ),
+  //     ],
+  //   );
+  // }
+
+
   Widget buildToolButton(String label, String imagePath, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -747,17 +834,12 @@ class ImageEditorController extends GetxController {
 
 
   Future<void> pickAndCropImage() async {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.leanBack);
+
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     final croppedFile = await ImageCropper().cropImage(
       sourcePath: editedImage.value.path,
-      // aspectRatioPresets: [
-      //   CropAspectRatioPreset.original,
-      //   CropAspectRatioPreset.square,
-      //   CropAspectRatioPreset.ratio3x2,
-      //   CropAspectRatioPreset.ratio4x3,
-      //   CropAspectRatioPreset.ratio16x9,
-      // ],
+
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: '',
@@ -768,23 +850,25 @@ class ImageEditorController extends GetxController {
           cropFrameColor: Colors.white,
           cropGridColor: Colors.grey,
           hideBottomControls: false,
+
           showCropGrid: true,
           initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: true,
+          lockAspectRatio: false,
         ),
-
         IOSUiSettings(
           title: 'Crop Image',
         ),
       ],
     );
 
-    // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-
     if (croppedFile != null) {
       editedImage.value = File(croppedFile.path);
     }
+
+    // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
+
+
 
 
 
