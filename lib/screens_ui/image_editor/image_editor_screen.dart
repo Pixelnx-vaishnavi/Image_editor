@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:image_editor/Const/color_const.dart';
-import 'package:image_editor/screens_ui/image_editor/CropExampleScreen.dart';
+import 'package:image_editor/screens_ui/Text/Text_controller.dart';
+import 'package:image_editor/screens_ui/image_editor/TuneControllerScreen.dart';
+import 'package:image_editor/screens_ui/image_editor/TuneScreen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_filter.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/hbstyles_container.dart';
@@ -16,6 +19,7 @@ class ImageEditorScreen extends StatelessWidget {
   final ImageFilterController filtercontroller =
       Get.put(ImageFilterController());
   final StickerController stickerController = Get.put(StickerController());
+  final TextEditorController textController = Get.put(TextEditorController());
 
   @override
   Widget build(BuildContext context) {
@@ -57,34 +61,69 @@ class ImageEditorScreen extends StatelessWidget {
             children: [
               Column(
                 children: [
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 25),
-                      child: Center(
-                        child:  Obx(() => ClipRRect(
+              Expanded(
+              child: Obx(() {
+            bool isAnyEditOpen = _controller.showEditOptions.value ||
+                _controller.showFilterEditOptions.value ||
+                _controller.showStickerEditOptions.value ||
+                _controller.showtuneOptions.value;
+
+            return AnimatedContainer(
+              duration: Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              transform: Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
+                ..scale(isAnyEditOpen ? 0.94: 1.0),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ClipRRect(
                       borderRadius: BorderRadius.circular(5),
                       child: Container(
-                      key: stickerController.imagekey.value,
-                      child: ColorFiltered(
-                      colorFilter: ColorFilter.matrix(
-                      _controller.calculateColorMatrix(),
+                        key: stickerController.imagekey.value,
+                        child: ColorFiltered(
+                          colorFilter: ColorFilter.matrix(
+                            _controller.calculateColorMatrix(),
+                          ),
+                          child: memoryImage != null
+                              ? Image.memory(memoryImage, fit: BoxFit.contain)
+                              : (fileImage != null && fileImage.path.isNotEmpty
+                              ? Image.file(fileImage, fit: BoxFit.contain)
+                              : Text("No image loaded")),
+                        ),
                       ),
-                      child: memoryImage != null
-                      ? Image.memory(memoryImage, fit: BoxFit.contain)
-                          : (fileImage != null && fileImage.path.isNotEmpty
-                      ? Image.file(fileImage, fit: BoxFit.contain)
-                          : Text("No image loaded")),
-          ),
-          ),
-          )),
-
-          ),
                     ),
-                  ),
-                  SizedBox(height: 15),
+
+                    // if (isAnyEditOpen)
+                    //   AnimatedOpacity(
+                    //     opacity: 1.0,
+                    //     duration: Duration(milliseconds: 300),
+                    //     child: Container(
+                    //       decoration: BoxDecoration(
+                    //         color: Colors.black.withOpacity(0.1), // optional overlay
+                    //         borderRadius: BorderRadius.circular(5),
+                    //       ),
+                    //       child: BackdropFilter(
+                    //         filter: ImageFilter.blur(sigmaX: 1.0, sigmaY: 1.0),
+                    //         child: Container(color: Colors.transparent),
+                    //       ),
+                    //     ),
+                    //   ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          ),
+
+
+
+
+          SizedBox(height: 15),
                   if (!_controller.showEditOptions.value &&
                       !_controller.showFilterEditOptions.value &&
-                      !_controller.showStickerEditOptions.value && !_controller.showtuneOptions.value)
+                      !_controller.showStickerEditOptions.value && !_controller.showtuneOptions.value && !_controller.TextEditOptions.value)
                     _buildToolBar(context),
 
                   if (_controller.showEditOptions.value)
@@ -94,7 +133,8 @@ class ImageEditorScreen extends StatelessWidget {
                   if(_controller.showtuneOptions.value)
                     _controller.TuneEditControls(),
 
-
+                  if(_controller.TextEditOptions.value)
+                       _controller.TextEditControls(),
                   if (_controller.showFilterEditOptions.value)
                     _controller.buildFilterControlsSheet(onClose: () {
                       _controller.showFilterEditOptions.value = false;
@@ -213,20 +253,47 @@ class ImageEditorScreen extends StatelessWidget {
                 }).toList(),
               )),
 
+              Obx(() {
+                final model = textController.model.value;
+                return Positioned(
+                  top: model.textTop,
+                  left: model.textLeft,
+                  child: GestureDetector(
+                    onPanUpdate: (details) {
+                      textController.model.update((val) {
+                        if (val != null) {
+                          val.textTop += details.delta.dy;
+                          val.textLeft += details.delta.dx;
+                        }
+                      });
+                    },
+                    child: Opacity(
+                      opacity: model.opacity,
+                      child: Container(
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: model.backgroundColor,
+                        ),
+                        child: Text(
+                          model.text,
+                          style: TextStyle(
+                            fontSize: model.fontSize,
+                            color: model.textColor,
+                            shadows: [
+                              Shadow(
+                                blurRadius: model.shadowBlur,
+                                offset: Offset(model.shadowOffsetX, model.shadowOffsetY),
+                                color: model.shadowColor,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
 
-
-              // GestureDetector(
-              //     onPanUpdate: (details) {
-              //       print('resizing');
-              //       stickerController.rotateSticker(details.delta.dy * 0.01);
-              //     },
-              //   // onTap: () {
-              //   //   stickerController.resizeSticker();
-              //   // },
-              //     child: SizedBox(
-              //       height: 30,
-              //         width: 39,
-              //         child: SvgPicture.asset( stickerController.selectedSticker.value!.path))),
 
               if (_controller.isFlipping.value == true)
                 Positioned.fill(
@@ -305,6 +372,9 @@ class ImageEditorScreen extends StatelessWidget {
             SizedBox(width: 40),
             _controller.buildToolButton('Tune', 'assets/tune.png', () {
               _controller.showtuneOptions.value = true;
+              // Navigator.push(context, MaterialPageRoute(builder: (context) {
+              //   return TuneEditControls();
+              // },));
               // _controller.buildEditControls();
             }),
             SizedBox(width: 40),
@@ -317,7 +387,9 @@ class ImageEditorScreen extends StatelessWidget {
               _controller.pickAndCropImage();
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Text', 'assets/text.png', () {}),
+            _controller.buildToolButton('Text', 'assets/text.png', () {
+              _controller.TextEditOptions.value = true;
+            }),
             SizedBox(width: 40),
             _controller.buildToolButton('Camera', 'assets/camera.png', () {}),
             SizedBox(width: 40),

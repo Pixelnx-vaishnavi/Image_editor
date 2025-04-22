@@ -68,31 +68,44 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _iconBox(Icons.close, () {
-                  setState(() {
+                GestureDetector(
+                  onTap: () {
                     _controller.contrast.value = 0;
                     _controller.brightness.value = 0;
                     _updateTune();
                     _controller.showtuneOptions.value = false;
-                  });
-                }),
+                  },
+                  child: SizedBox(
+                    height: 30,
+                    child: Image.asset('assets/cross.png'),
+                  ),
+                ),
+                // _iconBox(Icons.close, () {
+                //   setState(() {
+                //     _controller.contrast.value = 0;
+                //     _controller.brightness.value = 0;
+                //     _updateTune();
+                //     _controller.showtuneOptions.value = false;
+                //   });
+                // }),
                 Text("Tune", style: TextStyle(color: Colors.white)),
-                _iconBox(Icons.check, () {
-                  _controller.showtuneOptions.value = false;
+                GestureDetector(
+                  onTap: () async {
+    _controller.showtuneOptions.value = false;
+    },
 
-                }),
+                  child: SizedBox(
+                    height: 30,
+                    child: Image.asset('assets/right.png'),
+                  ),
+                ),
+                // _iconBox(Icons.check, () {
+                //   _controller.showtuneOptions.value = false;
+                // }),
               ],
             ),
           ],
         ),
-
-// Save image function
-
-
-
-// Save image function
-
-
     );
   }
 
@@ -142,8 +155,8 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
   Widget _buildSlider(String title, double value, double min, double max, ValueChanged<double> onChanged) {
     return Row(
       children: [
-        Text(title, style: const TextStyle(color: Colors.white)),
-        const Spacer(),
+        Text(title, style:  TextStyle(color: Colors.white)),
+         Spacer(),
         Slider(
           value: value,
           min: min,
@@ -163,7 +176,7 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
           child: Center(
             child: Text(
               value.toInt().toString(),
-              style: const TextStyle(color: Colors.white, fontSize: 12),
+              style:  TextStyle(color: Colors.white, fontSize: 12),
             ),
           ),
         ),

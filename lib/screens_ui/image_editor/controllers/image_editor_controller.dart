@@ -9,9 +9,10 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image/image.dart' as img;
-import 'package:image_editor/screens_ui/image_editor/CropExampleScreen.dart';
+import 'package:image_editor/screens_ui/image_editor/TuneScreen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/crop/crop_screen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
+import 'package:image_editor/screens_ui/image_editor/textScreens.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photofilters/photofilters.dart';
@@ -24,15 +25,18 @@ class ImageEditorController extends GetxController {
   Rx<Uint8List?> editedImageBytes = Rx<Uint8List?>(null);
   Rx<Uint8List?> flippedImageBytes = Rx<Uint8List?>(null);
   RxBool showEditOptions = false.obs;
+  RxBool TextEditOptions = false.obs;
   RxBool showStickerEditOptions = false.obs;
   RxBool showFilterEditOptions = false.obs;
   RxBool showtuneOptions = false.obs;
   RxBool selectedtapped = false.obs;
+  RxBool isAlignmentText = false.obs;
   final Rx<Uint8List?> flippedBytes = Rx<Uint8List?>(null);
   final RxBool isFlipping = false.obs;
   Rxn<img.Image> decodedImage = Rxn<img.Image>();
   var contrast = 0.0.obs;
   var brightness = 0.0.obs;
+  var opacity = 0.0.obs;
 
   String? fileName;
   List<Filter> filters = presetFiltersList;
@@ -751,10 +755,10 @@ class ImageEditorController extends GetxController {
 
 
   Widget TuneEditControls() {
-    return Container(
-      height: (isBrushSelected.value == true)
-        ? 300
-      :250,
+    return AnimatedContainer(
+      duration: Duration(seconds: 1),
+      curve: Curves.easeInOut,
+      height: (isBrushSelected.value == true) ? 300 : 250,
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Color(ColorConst.bottomBarcolor),
@@ -763,19 +767,67 @@ class ImageEditorController extends GetxController {
           topRight: Radius.circular(40),
         ),
       ),
-      child: ListView(
-        children: [
-          TuneControlsPanel(
-            onTuneChanged: (double contrast, double brightness) {
-              contrast = contrast;
-              brightness = brightness;
-            },
-          ),
-
-        ],
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 50.0, end: 0.0),
+        duration: Duration(milliseconds: 400),
+        curve: Curves.easeOut,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: (50.0 - value) / 50.0,
+            child: Transform.translate(
+              offset: Offset(0, value),
+              child: child,
+            ),
+          );
+        },
+        child: ListView(
+          children: [
+            TuneControlsPanel(
+              onTuneChanged: (double contrast, double brightness) {
+                contrast = contrast;
+                brightness = brightness;
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
+
+
+  Widget TextEditControls() {
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 0),
+      curve: Curves.easeInOut,
+      height: (isAlignmentText.value == true) ? 350 : 400,
+      padding: EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Color(ColorConst.bottomBarcolor),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(40),
+          topRight: Radius.circular(40),
+        ),
+      ),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 50.0, end: 0.0),
+        duration: Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: (50.0 - value) / 50.0,
+            child: Transform.translate(
+              offset: Offset(0, value),
+              child: child,
+            ),
+          );
+        },
+        child: TextUIWithTabsScreen(),
+      ),
+    );
+  }
+
+
+
 
   // Widget TuneEditControls() {
   //   return Column(

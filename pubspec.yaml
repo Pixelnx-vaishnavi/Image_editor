@@ -180,6 +180,12 @@ flutter:
      - assets/badges/big-stock.svg
      - assets/badges/BUY1GET1.svg
      - assets/badges/buyget 1 free.svg
+     - assets/text/textAlignment_horizontal.png
+     - assets/text/textAlignment_vertical.png
+     - assets/text/centertext.png
+     - assets/text/centerAlignText.png
+     - assets/text/leftText.png
+     - assets/text/rightText.png
 #     - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
