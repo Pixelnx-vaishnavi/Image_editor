@@ -45,6 +45,10 @@ dependencies:
   image_cropper: ^9.1.0
 #  croppy: any
   dotted_border: ^2.1.0
+  flutter_font_picker: ^1.4.0
+  google_fonts: ^5.1.0
+  flutter_colorpicker: ^1.1.0
+
 
 
 

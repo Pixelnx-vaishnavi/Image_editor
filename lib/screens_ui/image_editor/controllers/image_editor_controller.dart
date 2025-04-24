@@ -795,7 +795,7 @@ class ImageEditorController extends GetxController {
   }
 
 
-  Widget TextEditControls() {
+  Widget TextEditControls(contrainsts,imagekey) {
     return AnimatedContainer(
       duration: Duration(milliseconds: 0),
       curve: Curves.easeInOut,
@@ -821,12 +821,10 @@ class ImageEditorController extends GetxController {
             ),
           );
         },
-        child: TextUIWithTabsScreen(),
+        child: TextUIWithTabsScreen(constraints: contrainsts,imageKey: imagekey,),
       ),
     );
   }
-
-
 
 
   // Widget TuneEditControls() {
