@@ -15,7 +15,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
   TextUIWithTabsScreen(
       {super.key, required this.constraints, required this.imageKey}) {
     print(
-        'TextUIWithTabsScreen initialized with constraints: ${constraints.maxWidth}x${constraints.maxHeight}');
+        'TextUIWithTabsScreen initialized with raints: ${constraints.maxWidth}x${constraints.maxHeight}');
   }
 
   final ImageEditorController _controller = Get.find<ImageEditorController>();
@@ -23,7 +23,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
       Get.find<TextEditorControllerWidget>();
   final TextEditingController _textController = TextEditingController();
   final TextEditingController _fontSizeController = TextEditingController();
-  final RxString selectedTab = 'Font'.obs;
+
   final FocusNode _textFocusNode = FocusNode();
   final FocusNode _textFontsizeFocusNode = FocusNode();
   Timer? _debounceTimer;
@@ -36,11 +36,38 @@ class TextUIWithTabsScreen extends StatelessWidget {
     'Montserrat',
     'Poppins',
     'Raleway',
+    'Arial',
+    'Courier New',
+    'Georgia',
+    'Times New Roman',
+    'Verdana',
+    'Tahoma',
+    'Trebuchet MS',
+    'Comic Sans MS',
+    'Ubuntu',
+    'Source Sans Pro',
+    'Noto Sans',
+    'Playfair Display',
+    'Merriweather',
+    'Droid Sans',
+    'PT Sans',
+    'Lora',
+    'Oswald',
+    'Quicksand',
+    'Fira Sans',
+    'Rubik',
+    'Inter',
+    'Bree Serif',
+    'Sora',
+    'Work Sans',
+    'Zilla Slab',
+    'Nunito',
+    'Alegreya',
   ];
 
   void _debouncedUpdateText(String value) {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+    _debounceTimer = Timer( Duration(milliseconds: 300), () {
       TextController.updateText(value);
       print('Debounced text update: $value');
     });
@@ -48,7 +75,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
 
   void _debouncedUpdateFontSize(int value) {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+    _debounceTimer = Timer( Duration(milliseconds: 300), () {
       TextController.updateFontSize(value);
       print('Debounced font size update: $value');
     });
@@ -69,7 +96,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
       context: parentContext,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Colors.grey[800],
-        title: const Text('Select Font', style: TextStyle(color: Colors.white)),
+        title:  Text('Select Font', style: TextStyle(color: Colors.white)),
         content: SingleChildScrollView(
           child: Container(
             height: 800,
@@ -79,8 +106,8 @@ class TextUIWithTabsScreen extends StatelessWidget {
                   try {
                     TextController.updateFontFamily(font.fontFamily!);
                     print('Font selected: ${font.fontFamily}');
-                    Future.delayed(const Duration(milliseconds: 100), () {
-                      Navigator.of(dialogContext).pop();
+                    Future.delayed( Duration(milliseconds: 100), () {
+                   return;
                       print('FontPicker dialog closed');
                       _isSelectingFont.value = false;
                     });
@@ -105,7 +132,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
               Navigator.of(dialogContext).pop();
               _isSelectingFont.value = false;
             },
-            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+            child:  Text('Cancel', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -120,7 +147,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: Colors.grey[800],
-        title: Text('Pick $title', style: const TextStyle(color: Colors.white)),
+        title: Text('Pick $title', style:  TextStyle(color: Colors.white)),
         content: SingleChildScrollView(
           child: ColorPicker(
             pickerColor: initialColor,
@@ -132,7 +159,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
             enableAlpha: true,
             displayThumbColor: true,
             paletteType: PaletteType.hueWheel,
-            labelTextStyle: const TextStyle(color: Colors.white),
+            labelTextStyle:  TextStyle(color: Colors.white),
           ),
         ),
         actions: [
@@ -141,14 +168,14 @@ class TextUIWithTabsScreen extends StatelessWidget {
               print('ColorPicker dialog cancelled');
               Navigator.of(dialogContext).pop();
             },
-            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+            child:  Text('Cancel', style: TextStyle(color: Colors.white)),
           ),
           TextButton(
             onPressed: () {
               print('ColorPicker dialog confirmed');
               Navigator.of(dialogContext).pop();
             },
-            child: const Text('OK', style: TextStyle(color: Colors.white)),
+            child:  Text('OK', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -170,12 +197,12 @@ class TextUIWithTabsScreen extends StatelessWidget {
     return GestureDetector(
       onTap: _unfocus,
       child: Scaffold(
-        backgroundColor: const Color(ColorConst.bottomBarcolor),
+        backgroundColor:  Color(ColorConst.bottomBarcolor),
         body: Stack(
           children: [
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(5.0),
+                padding:  EdgeInsets.all(5.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -193,7 +220,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                                 'Roboto',
                             color: Colors.white,
                           ),
-                          decoration: const InputDecoration(
+                          decoration:  InputDecoration(
                             filled: true,
                             fillColor: Colors.black54,
                             hintText: 'Enter text here...',
@@ -214,12 +241,13 @@ class TextUIWithTabsScreen extends StatelessWidget {
                             ElevatedButton(
                               onPressed: () {
                                 _unfocus();
+                                _controller.selectedTab.value = 'Alignment';
                                 _controller.isAlignmentText.value = true;
-                                selectedTab.value = 'Alignment';
+
                                 print('Switched to Alignment tab');
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: selectedTab.value ==
+                                backgroundColor: _controller.selectedTab.value ==
                                         'Alignment'
                                     ?  Color.fromRGBO(140, 97, 255, 0.4)
                                     : Colors.grey[800],
@@ -236,99 +264,101 @@ class TextUIWithTabsScreen extends StatelessWidget {
                             ElevatedButton(
                               onPressed: () {
                                 _unfocus();
+                                _controller.selectedTab.value = 'Font';
                                 _controller.isAlignmentText.value = false;
-                                selectedTab.value = 'Font';
+
                                 print('Switched to Font tab');
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: selectedTab.value == 'Font'
-                                    ? const Color.fromRGBO(140, 97, 255, 0.4)
+                                backgroundColor: _controller.selectedTab.value == 'Font'
+                                    ?  Color.fromRGBO(140, 97, 255, 0.4)
                                     : Colors.grey[800],
                                 foregroundColor: Colors.white,
-                                shape: const RoundedRectangleBorder(
+                                shape:  RoundedRectangleBorder(
                                   borderRadius:
                                       BorderRadius.all(Radius.circular(15)),
                                 ),
-                                padding: const EdgeInsets.symmetric(
+                                padding:  EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 8),
                               ),
-                              child: const Text('Font'),
+                              child:  Text('Font'),
                             ),
                             ElevatedButton(
                               onPressed: () {
                                 _unfocus();
+                                _controller.selectedTab.value = 'Color';
                                 _controller.isAlignmentText.value = false;
-                                selectedTab.value = 'Color';
+
                                 print('Switched to Color tab');
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: selectedTab.value == 'Color'
-                                    ? const Color.fromRGBO(140, 97, 255, 0.4)
+                                backgroundColor: _controller.selectedTab.value == 'Color'
+                                    ?  Color.fromRGBO(140, 97, 255, 0.4)
                                     : Colors.grey[800],
                                 foregroundColor: Colors.white,
-                                shape: const RoundedRectangleBorder(
+                                shape:  RoundedRectangleBorder(
                                   borderRadius:
                                       BorderRadius.all(Radius.circular(15)),
                                 ),
-                                padding: const EdgeInsets.symmetric(
+                                padding:  EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 8),
                               ),
-                              child: const Text('Color'),
+                              child:  Text('Color'),
                             ),
                             ElevatedButton(
                               onPressed: () {
                                 _unfocus();
+                                _controller.selectedTab.value = 'Shadow';
                                 _controller.isAlignmentText.value = false;
-                                selectedTab.value = 'Shadow';
+
                                 print('Switched to Shadow tab');
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: selectedTab.value == 'Shadow'
-                                    ? const Color.fromRGBO(140, 97, 255, 0.4)
+                                backgroundColor: _controller.selectedTab.value == 'Shadow'
+                                    ?  Color.fromRGBO(140, 97, 255, 0.4)
                                     : Colors.grey[800],
                                 foregroundColor: Colors.white,
-                                shape: const RoundedRectangleBorder(
+                                shape:  RoundedRectangleBorder(
                                   borderRadius:
                                       BorderRadius.all(Radius.circular(15)),
                                 ),
-                                padding: const EdgeInsets.symmetric(
+                                padding:  EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 8),
                               ),
-                              child: const Text('Shadow'),
+                              child:  Text('Shadow'),
                             ),
-                            ElevatedButton(
-                              onPressed: () {
-                                _unfocus();
-                                _controller.isAlignmentText.value = false;
-                                selectedTab.value = 'Transform';
-                                print('Switched to Transform tab');
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: selectedTab.value ==
-                                        'Transform'
-                                    ? const Color.fromRGBO(140, 97, 255, 0.4)
-                                    : Colors.grey[800],
-                                foregroundColor: Colors.white,
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(15)),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                              child: const Text('Transform'),
-                            ),
+                            // ElevatedButton(
+                            //   onPressed: () {
+                            //     _unfocus();
+                            //     _controller.isAlignmentText.value = false;
+                            //     selectedTab.value = 'Transform';
+                            //     print('Switched to Transform tab');
+                            //   },
+                            //   style: ElevatedButton.styleFrom(
+                            //     backgroundColor: selectedTab.value ==
+                            //             'Transform'
+                            //         ?  Color.fromRGBO(140, 97, 255, 0.4)
+                            //         : Colors.grey[800],
+                            //     foregroundColor: Colors.white,
+                            //     shape:  RoundedRectangleBorder(
+                            //       borderRadius:
+                            //           BorderRadius.all(Radius.circular(15)),
+                            //     ),
+                            //     padding:  EdgeInsets.symmetric(
+                            //         horizontal: 12, vertical: 8),
+                            //   ),
+                            //   child:  Text('Transform'),
+                            // ),
                           ],
                         )),
-                    const SizedBox(height: 5),
+                     SizedBox(height: 5),
                     Obx(() => _buildTabContent(context)),
-                    const SizedBox(height: 12),
+                     SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () {
+                        GestureDetector(
+                          onTap: () {
                             if (_isSelectingFont.value) {
                               print(
                                   'Cancel blocked: Font selection in progress');
@@ -337,29 +367,51 @@ class TextUIWithTabsScreen extends StatelessWidget {
                             print('Cancel pressed, navigating back');
                             _debounceTimer?.cancel();
                             _unfocus();
+                            TextController.text.clear();
                             TextController.clearSelection();
+                            // TextController.removeSelectedText();
                             _controller.TextEditOptions.value = false;
-                            Get.back();
                           },
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey[800],
-                            shape: const RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.all(Radius.circular(8)),
-                            ),
-                            padding: const EdgeInsets.all(12),
+                          child: SizedBox(
+                            height: 40,
+                            child: Image.asset('assets/cross.png'),
                           ),
                         ),
-                        const Text(
+                        // IconButton(
+                        //   icon:  Icon(Icons.close, color: Colors.white),
+                        //   onPressed: () {
+                        //     if (_isSelectingFont.value) {
+                        //       print(
+                        //           'Cancel blocked: Font selection in progress');
+                        //       return;
+                        //     }
+                        //     print('Cancel pressed, navigating back');
+                        //     _debounceTimer?.cancel();
+                        //     _unfocus();
+                        //     TextController.text.clear();
+                        //     TextController.clearSelection();
+                        //     // TextController.removeSelectedText();
+                        //     _controller.TextEditOptions.value = false;
+                        //
+                        //   },
+                        //   style: IconButton.styleFrom(
+                        //     backgroundColor: Colors.grey[800],
+                        //     shape:  RoundedRectangleBorder(
+                        //       borderRadius:
+                        //           BorderRadius.all(Radius.circular(8)),
+                        //     ),
+                        //     padding:  EdgeInsets.all(12),
+                        //   ),
+                        // ),
+                         Text(
                           'Text',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.bold),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.check, color: Colors.white),
-                          onPressed: () {
+                        GestureDetector(
+                          onTap: () async {
                             if (_isSelectingFont.value) {
                               print('OK blocked: Font selection in progress');
                               return;
@@ -369,23 +421,48 @@ class TextUIWithTabsScreen extends StatelessWidget {
                             _debounceTimer?.cancel();
                             _unfocus();
                             TextController.updateText(_textController.text);
-                            final fontSize =
-                                int.tryParse(_fontSizeController.text) ?? 24;
-                            TextController.updateFontSize(
-                                fontSize.clamp(10, 100));
+                            // final fontSize =
+                            //     int.tryParse(_fontSizeController.text) ?? 24;
+                            // TextController.updateFontSize(
+                            //     fontSize.clamp(10, 100));
                             _controller.TextEditOptions.value = false;
                             print('Navigating back from OK');
-                            Get.back();
                           },
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey[800],
-                            shape: const RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.all(Radius.circular(8)),
-                            ),
-                            padding: const EdgeInsets.all(12),
+
+                          child: SizedBox(
+                            height: 40,
+                            child: Image.asset('assets/right.png'),
                           ),
                         ),
+                        // IconButton(
+                        //   icon:  Icon(Icons.check, color: Colors.white),
+                        //   onPressed: () {
+                        //     if (_isSelectingFont.value) {
+                        //       print('OK blocked: Font selection in progress');
+                        //       return;
+                        //     }
+                        //     print(
+                        //         'OK pressed, saving text: ${_textController.text}');
+                        //     _debounceTimer?.cancel();
+                        //     _unfocus();
+                        //     TextController.updateText(_textController.text);
+                        //     final fontSize =
+                        //         int.tryParse(_fontSizeController.text) ?? 24;
+                        //     TextController.updateFontSize(
+                        //         fontSize.clamp(10, 100));
+                        //     _controller.TextEditOptions.value = false;
+                        //     print('Navigating back from OK');
+                        //
+                        //   },
+                        //   style: IconButton.styleFrom(
+                        //     backgroundColor: Colors.grey[800],
+                        //     shape:  RoundedRectangleBorder(
+                        //       borderRadius:
+                        //           BorderRadius.all(Radius.circular(8)),
+                        //     ),
+                        //     padding:  EdgeInsets.all(12),
+                        //   ),
+                        // ),
                       ],
                     ),
                   ],
@@ -402,49 +479,41 @@ class TextUIWithTabsScreen extends StatelessWidget {
     final double canvasWidth = constraints.maxWidth - 20;
     final double canvasHeight = constraints.maxHeight - 100;
 
-    switch (selectedTab.value) {
+    switch (_controller.selectedTab.value) {
       case 'Alignment':
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
+             SizedBox(height: 16),
             Padding(
-              padding: const EdgeInsets.only(left: 10),
+              padding:  EdgeInsets.only(left: 10),
               child: Row(
                 children: [
-                  const Text("Alignment",
+                   Text("Alignment",
                       style: TextStyle(fontSize: 14, color: Colors.white)),
-                  const SizedBox(width: 16),
+                   SizedBox(width: 16),
                   Obx(() {
                     final textModel = TextController.selectedText.value;
-                    if (textModel == null) {
-                      return const SizedBox.shrink();
-                    }
+
+                    // If textModel is null, just show the alignment icons without worrying about the text
                     final textPainter = TextPainter(
                       text: TextSpan(
-                        text: textModel.text.value.isEmpty
-                            ? 'Empty'
-                            : textModel.text.value,
+                        text: textModel?.text.value.isEmpty ?? true ? 'Empty' : textModel!.text.value,
                         style: GoogleFonts.getFont(
-                          textModel.fontFamily.value,
-                          fontSize: textModel.fontSize.value.toDouble(),
-                          fontWeight: textModel.isBold.value
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          fontStyle: textModel.isItalic.value
-                              ? FontStyle.italic
-                              : FontStyle.normal,
+                          textModel?.fontFamily.value ?? 'Roboto', // Default font if null
+                          fontSize: textModel?.fontSize.value.toDouble() ?? 14.0, // Default size if null
+                          fontWeight: textModel?.isBold.value ?? false ? FontWeight.bold : FontWeight.normal,
+                          fontStyle: textModel?.isItalic.value ?? false ? FontStyle.italic : FontStyle.normal,
                         ),
                       ),
                       textDirection: TextDirection.ltr,
-                      textAlign: textModel.textAlign.value,
+                      textAlign: textModel?.textAlign.value ?? TextAlign.left, // Default alignment
                     )..layout(maxWidth: canvasWidth);
 
                     final textWidth = textPainter.width + 16;
                     final textHeight = textPainter.height;
 
-                    final RenderBox? renderBox = imageKey.currentContext
-                        ?.findRenderObject() as RenderBox?;
+                    final RenderBox? renderBox = imageKey.currentContext?.findRenderObject() as RenderBox?;
                     double imageLeft = 0;
                     double imageTop = 0;
                     double imageWidth = canvasWidth;
@@ -457,70 +526,76 @@ class TextUIWithTabsScreen extends StatelessWidget {
                       imageTop = position.dy;
                       imageWidth = size.width;
                       imageHeight = size.height;
-                      print(
-                          'Image bounds for centering: position=($imageLeft, $imageTop), size=($imageWidth, $imageHeight)');
+                      print('Image bounds for centering: position=($imageLeft, $imageTop), size=($imageWidth, $imageHeight)');
                     } else {
-                      print(
-                          'Warning: Image RenderBox not found, using canvas bounds');
+                      print('Warning: Image RenderBox not found, using canvas bounds');
                     }
 
                     return Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
+                        // Horizontal Center Alignment Icon
                         GestureDetector(
                           onTap: () {
                             _unfocus();
-                            TextController.centerTextHorizontally(
-                                imageLeft, imageWidth, textWidth);
+                            TextController.centerTextHorizontally(imageLeft, imageWidth, textWidth);
                             print('Centered text horizontally');
                           },
                           child: Container(
                             decoration: BoxDecoration(
-                                color: Colors.grey[800],
-                                borderRadius: BorderRadius.circular(5)),
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(5),
+                            ),
                             height: 40,
                             width: 40,
                             child: Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding:  EdgeInsets.all(8.0),
                               child: Image.asset(
-                                  'assets/text/textAlignment_horizontal.png'),
+                                'assets/text/textAlignment_horizontal.png',
+                                fit: BoxFit.contain, // Ensure the icon fits within the container
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 20),
+                        SizedBox(width: 20),
+                        // Vertical Center Alignment Icon
                         GestureDetector(
                           onTap: () {
                             _unfocus();
-                            TextController.centerTextVertically(
-                                imageTop, imageHeight, textHeight);
+                            TextController.centerTextVertically(imageTop, imageHeight, textHeight);
                             print('Centered text vertically');
                           },
                           child: Container(
                             decoration: BoxDecoration(
-                                color: Colors.grey[800],
-                                borderRadius: BorderRadius.circular(5)),
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(5),
+                            ),
                             height: 40,
                             width: 40,
                             child: Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding:  EdgeInsets.all(8.0),
                               child: Image.asset(
-                                  'assets/text/textAlignment_vertical.png'),
+                                'assets/text/textAlignment_vertical.png',
+                                fit: BoxFit.contain, // Ensure the icon fits within the container
+                              ),
                             ),
                           ),
                         ),
                       ],
                     );
                   }),
+
                 ],
               ),
             ),
-            const SizedBox(height: 17),
+             SizedBox(height: 17),
             Padding(
-              padding: const EdgeInsets.only(left: 10),
+              padding:  EdgeInsets.only(left: 10),
               child: Row(
                 children: [
-                  const Text("Text Align",
+                   Text("Text Align",
                       style: TextStyle(fontSize: 14, color: Colors.white)),
-                  const SizedBox(width: 16),
+                   SizedBox(width: 16),
                   GestureDetector(
                     onTap: () {
                       _unfocus();
@@ -534,11 +609,11 @@ class TextUIWithTabsScreen extends StatelessWidget {
                         height: 40,
                         width: 40,
                         child: Padding(
-                          padding: const EdgeInsets.all(8.0),
+                          padding:  EdgeInsets.all(10.0),
                           child: Image.asset('assets/text/centertext.png'),
                         )),
                   ),
-                  const SizedBox(width: 20),
+                   SizedBox(width: 20),
                   GestureDetector(
                     onTap: () {
                       _unfocus();
@@ -552,11 +627,11 @@ class TextUIWithTabsScreen extends StatelessWidget {
                         height: 40,
                         width: 40,
                         child: Padding(
-                          padding: const EdgeInsets.all(8.0),
+                          padding:  EdgeInsets.all(10.0),
                           child: Image.asset('assets/text/leftText.png'),
                         )),
                   ),
-                  const SizedBox(width: 20),
+                   SizedBox(width: 20),
                   GestureDetector(
                     onTap: () {
                       _unfocus();
@@ -570,11 +645,11 @@ class TextUIWithTabsScreen extends StatelessWidget {
                         height: 40,
                         width: 40,
                         child: Padding(
-                          padding: const EdgeInsets.all(8.0),
+                          padding:  EdgeInsets.all(10.0),
                           child: Image.asset('assets/text/centerAlignText.png'),
                         )),
                   ),
-                  const SizedBox(width: 20),
+                   SizedBox(width: 20),
                   GestureDetector(
                     onTap: () {
                       _unfocus();
@@ -588,7 +663,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                         height: 40,
                         width: 40,
                         child: Padding(
-                          padding: const EdgeInsets.all(8.0),
+                          padding:  EdgeInsets.all(10.0),
                           child: Image.asset('assets/text/rightText.png'),
                         )),
                   ),
@@ -603,24 +678,51 @@ class TextUIWithTabsScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Text(
+                 Text(
                   'Font',
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
-                const SizedBox(width: 16),
+                 SizedBox(width: 16),
                 Expanded(
                   child: Obx(() => ElevatedButton(
                         onPressed: () {
                           _unfocus();
-                          _openFontPicker(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>  FontPicker(
+                                onFontChanged: (PickerFont font) {
+                                  if (font.fontFamily != null) {
+                                    try {
+                                      TextController.updateFontFamily(font.fontFamily!);
+
+                                      print('Font selected: ${font.fontFamily}');
+
+                                    } catch (e) {
+                                      print('Error updating font: $e');
+                                      _isSelectingFont.value = false;
+                                    }
+                                  }
+                                },
+                                recentsCount: 3,
+                                googleFonts: availableFonts,
+                                initialFontFamily:
+                                TextController.selectedText.value?.fontFamily.value ??
+                                    'Roboto',
+                              )
+                            ),
+                          );
+                          return;
+
+                          // _openFontPicker(context);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey[800],
                           foregroundColor: Colors.white,
-                          shape: const RoundedRectangleBorder(
+                          shape:  RoundedRectangleBorder(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                           ),
-                          padding: const EdgeInsets.symmetric(
+                          padding:  EdgeInsets.symmetric(
                               horizontal: 16, vertical: 12),
                         ),
                         child: Text(
@@ -637,19 +739,19 @@ class TextUIWithTabsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+             SizedBox(height: 16),
             Row(
               children: [
-                const Text(
+                 Text(
                   'Font Size',
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
-                const SizedBox(width: 16),
+                 SizedBox(width: 16),
                 Expanded(
                   child: TextField(
                     focusNode: _textFontsizeFocusNode,
                     controller: _fontSizeController,
-                    style: const TextStyle(color: Colors.white),
+                    style:  TextStyle(color: Colors.white),
                     keyboardType: TextInputType.number,
                     onChanged: (value) {
                       final fontSize = int.tryParse(value) ?? 24;
@@ -788,14 +890,14 @@ class TextUIWithTabsScreen extends StatelessWidget {
                     )),
               ],
             ),
-            const SizedBox(height: 16),
+             SizedBox(height: 16),
             Row(
               children: [
-                const Text(
+                 Text(
                   'BG Color',
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
-                const SizedBox(width: 16),
+                 SizedBox(width: 16),
                 Obx(() => _buildColorPickerButton(
                       context,
                       TextController
@@ -809,7 +911,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                     )),
               ],
             ),
-            const SizedBox(height: 16),
+             SizedBox(height: 16),
             _buildSlider(
                 "Opacity",
                 TextController.selectedText.value?.opacity.value ?? 1.0,
@@ -975,8 +1077,8 @@ class TextUIWithTabsScreen extends StatelessWidget {
     return Row(
       children: [
         Text(title,
-            style: const TextStyle(color: Colors.white70, fontSize: 16)),
-        const Spacer(),
+            style:  TextStyle(color: Colors.white70, fontSize: 16)),
+         Spacer(),
         Slider(
           value: value,
           min: min,
@@ -996,7 +1098,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
           child: Center(
             child: Text(
               value.toStringAsFixed(1),
-              style: const TextStyle(color: Colors.white, fontSize: 12),
+              style:  TextStyle(color: Colors.white, fontSize: 12),
             ),
           ),
         ),

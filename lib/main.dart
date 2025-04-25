@@ -5,6 +5,7 @@ import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:image_editor/routes/app_pages.dart';
 import 'package:image_editor/screens_ui/Text/Text_controller.dart';
+import 'package:image_editor/screens_ui/Text/test.dart';
 import 'package:image_editor/screens_ui/spalsh_screen/splash_screen.dart';
 
 void main() {
@@ -49,8 +50,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const SafeArea(bottom:true, child:  SplashScreen()),
-      getPages: AppPages.pages,
+      home: Test(),
+      // home: const SafeArea(bottom:true, child:  SplashScreen()),
+      // getPages: AppPages.pages,
     );
   }
 }

@@ -48,6 +48,9 @@ dependencies:
   flutter_font_picker: ^1.4.0
   google_fonts: ^5.1.0
   flutter_colorpicker: ^1.1.0
+  lindi_sticker_widget: ^1.0.3
+  image_collage_widget: ^1.1.0
+  flutter_launcher_icons: ^0.14.3
 
 
 
@@ -67,6 +70,25 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^4.0.0
+
+flutter_launcher_icons:
+    android: "launcher_icon"
+    ios: true
+    image_path: "assets/logo.png"
+    min_sdk_android: 21 # android min sdk min:16, default 21
+    web:
+      generate: true
+      image_path: "assets/logo.png"
+      background_color: "#hexcode"
+      theme_color: "#hexcode"
+    windows:
+      generate: true
+      image_path: "assets/logo.png"
+      icon_size: 48 # min:48, max:256, default: 48
+    macos:
+      generate: true
+      image_path: "assets/logo.png"
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

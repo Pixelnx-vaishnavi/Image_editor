@@ -10,7 +10,7 @@ import 'package:image_editor/screens_ui/image_editor/image_editor_screen.dart';
 class AppPages {
   static final pages = [
     GetPage(name: Consts.ImageEditorScreen, page: () => ImageEditorScreen(),  transition: Transition.fade,),
-    GetPage(name: Consts.ImageEditorScreenSecond, page: () => ImageEditorScreenSecond(),  transition: Transition.fade,),
+    // GetPage(name: Consts.ImageEditorScreenSecond, page: () => ImageEditorScreenSecond(),  transition: Transition.fade,),
   ];
 }
 

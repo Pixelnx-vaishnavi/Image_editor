@@ -13,6 +13,7 @@ import 'package:image_editor/screens_ui/image_editor/TuneScreen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/crop/crop_screen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/textScreens.dart';
+import 'package:lindi_sticker_widget/lindi_controller.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photofilters/photofilters.dart';
@@ -22,10 +23,13 @@ import 'package:path/path.dart';
 
 class ImageEditorController extends GetxController {
   Rx<File> editedImage = File('').obs;
+  Rx<File> LogoStcikerImage = File('').obs;
+
   Rx<Uint8List?> editedImageBytes = Rx<Uint8List?>(null);
   Rx<Uint8List?> flippedImageBytes = Rx<Uint8List?>(null);
   RxBool showEditOptions = false.obs;
   RxBool TextEditOptions = false.obs;
+  RxBool CameraEditSticker = false.obs;
   RxBool showStickerEditOptions = false.obs;
   RxBool showFilterEditOptions = false.obs;
   RxBool showtuneOptions = false.obs;
@@ -49,7 +53,8 @@ class ImageEditorController extends GetxController {
   final Rxn<Uint8List> thumbnailBytes = Rxn<Uint8List>();
   final StickerController stickerController = Get.put(StickerController());
   RxBool isBrushSelected = true.obs;
-
+  final RxString selectedTab = 'Font'.obs;
+  late LindiController controller;
 
 
   final Map<String, List<Filter>> filterCategories = {
@@ -753,6 +758,120 @@ class ImageEditorController extends GetxController {
   // }
 
 
+  /// camera sticker===================
+
+  Widget buildEditCamera() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Color(ColorConst.bottomBarcolor),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(40),
+          topRight: Radius.circular(40),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: 20),
+          _buildActionButton(
+            "Select Image",
+            Colors.cyan,
+            Icons.flip,
+                () async {
+                  final ImagePicker picker = ImagePicker();
+                  final XFile? photo = await picker.pickImage(source: ImageSource.gallery);
+                  if (photo != null) {
+                    LogoStcikerImage.value = File(photo.path);
+                    print('${ LogoStcikerImage.value}');
+                    Widget widget = Container(
+                      height: 100,
+                      width: 100,
+                      padding: EdgeInsets.all(12),
+                      child: Image.file( LogoStcikerImage.value),
+                    );
+                    controller.add(widget);
+                  }
+            },
+          ),
+          SizedBox(height: 10),
+          _buildActionButton(
+            "Change Image",
+            Colors.deepPurpleAccent,
+            Icons.rotate_right,
+                () async {
+              final ImagePicker picker = ImagePicker();
+              final XFile? photo = await picker.pickImage(source: ImageSource.gallery);
+              if (photo != null) {
+                LogoStcikerImage.value = File(photo.path);
+                print('${ LogoStcikerImage.value}');
+                Widget widget = Container(
+                  height: 100,
+                  width: 100,
+                  padding: EdgeInsets.all(12),
+                  child: Image.file( LogoStcikerImage.value),
+                );
+                controller.selectedWidget!.edit(widget);
+              }
+            },
+          ),
+          SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: () {
+                 controller.selectedWidget!.delete();
+                 CameraEditSticker.value = false;
+                },
+                child: SizedBox(
+                  height: 30,
+                  child: Image.asset('assets/cross.png'),
+                ),
+              ),
+              Text(
+                'Camera',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 20,
+                ),
+              ),
+              GestureDetector(
+                onTap: () async {
+                CameraEditSticker.value = false;
+                controller.clearAllBorders();
+                  },
+
+                child: SizedBox(
+                  height: 30,
+                  child: Image.asset('assets/right.png'),
+                ),
+              ),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+
+  Future<void> buildCameraStciker() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+    if (photo != null) {
+      File imageFile = File(photo.path);
+      Widget widget = Container(
+        padding: EdgeInsets.all(12),
+        child: Image.file(imageFile),
+      );
+      controller.add(widget);
+    }
+
+
+  }
+
+
 
   Widget TuneEditControls() {
     return AnimatedContainer(
@@ -799,7 +918,7 @@ class ImageEditorController extends GetxController {
     return AnimatedContainer(
       duration: Duration(milliseconds: 0),
       curve: Curves.easeInOut,
-      height: (isAlignmentText.value == true) ? 350 : 400,
+      height: (isAlignmentText.value == true) ? 320 : 400,
       padding: EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Color(ColorConst.bottomBarcolor),
