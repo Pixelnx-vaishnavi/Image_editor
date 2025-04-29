@@ -4,7 +4,7 @@ import 'package:image_collage_widget/image_collage_widget.dart';
 import 'package:image_collage_widget/utils/collage_type.dart';
 import 'package:image_collage_widget/model/images.dart';
 import 'package:image_editor/screens_ui/Collage/collage_controller.dart';
-import 'package:image_editor/screens_ui/Text/collage_sample.dart';
+import 'package:image_editor/screens_ui/Collage/collage_sample.dart';
 import 'package:image_editor/screens_ui/Text/fadeout.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -18,15 +18,15 @@ class Test extends StatelessWidget {
     Get.bottomSheet(
       isScrollControlled: true,
       Container(
-        decoration: const BoxDecoration(
+        decoration:  BoxDecoration(
           color: Colors.black87,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.all(16),
+        padding:  EdgeInsets.all(16),
         child: Obx(() => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+             Text(
               'Collage Maker',
               style: TextStyle(
                 color: Colors.white,
@@ -34,18 +34,18 @@ class Test extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+             SizedBox(height: 16),
             SizedBox(
               height: 200,
               child: Obx(() => ImageCollageWidget(
-                // key: ValueKey(controller.selectedCollageType.value), // Unique key
-                images: [
-                  Images(id: 1, imageUrl: controller.file1.value),
-                  Images(id: 2, imageUrl: controller.file2.value),
-                  Images(id: 3, imageUrl: controller.file3.value),
-                ],
+                key: ValueKey(controller.selectedCollageType.value),
+                // images: [
+                //   Images(id: 2, imageUrl: controller.file2.value),
+                //   Images(id: 3, imageUrl: controller.file3.value),
+                // ],
                 collageType: controller.selectedCollageType.value,
-                withImage: true,
+                withImage: false,
+
               )),
             ),
             if (controller.text.value.isNotEmpty)
@@ -54,11 +54,11 @@ class Test extends StatelessWidget {
                 left: 10,
                 right: 10,
                 child: Container(
-                  padding: const EdgeInsets.all(8),
+                  padding:  EdgeInsets.all(8),
                   color: Colors.black54,
                   child: Text(
                     controller.text.value,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -67,7 +67,7 @@ class Test extends StatelessWidget {
                   ),
                 ),
               ),
-            const SizedBox(height: 16),
+             SizedBox(height: 16),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -80,25 +80,23 @@ class Test extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+             SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                if (controller.file1.value != null &&
+                if (
                     controller.file2.value != null) {
                   Get.to(
                         () => CollageSample(
                       controller.selectedCollageType.value,
                       [
-                        Images(id: 1, imageUrl: controller.file1.value),
                         Images(id: 2, imageUrl: controller.file2.value),
                         Images(id: 3, imageUrl: controller.file3.value),
                       ],
-                      text: controller.text.value,
                     ),
                     transition: Transition.fade,
                   );
-                  controller.clear();
-                  Get.back();
+                  // controller.clear();
+                  // Get.back();
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -118,8 +116,10 @@ class Test extends StatelessWidget {
 
   Widget _buildCollageButton(String text, CollageType type) {
     return Obx(() => ElevatedButton(
-      onPressed: () {
+      // onPressed: () => controller.selectCollageType(type),
+      onPressed: (){
         controller.selectedCollageType.value = type;
+        controller.selectedCollageType.refresh();
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: controller.selectedCollageType.value == type
@@ -142,7 +142,7 @@ class Test extends StatelessWidget {
       ),
       body: Center(
         child: Obx(() {
-          if (controller.file1.value == null ||
+          if (
               controller.file2.value == null ||
               controller.file3.value == null) {
             controller.generateData();

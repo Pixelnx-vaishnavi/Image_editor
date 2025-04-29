@@ -13,15 +13,19 @@ import 'package:path_provider/path_provider.dart';
 
 class CollageSample extends StatefulWidget {
   final CollageType collageType;
-  final List<Images> images;
-  final String text;
+
+
+  final dynamic images;
+  // final String text;
 
   const CollageSample(
       this.collageType,
+
       this.images, {
         super.key,
-        this.text = '',
+        // this.text = '',
       });
+      // );
 
   @override
   State<StatefulWidget> createState() {
@@ -39,12 +43,12 @@ class _CollageSample extends State<CollageSample> {
       appBar: AppBar(
         leading: GestureDetector(
           onTap: () => Get.back(),
-          child: const Icon(
+          child:  Icon(
             Icons.arrow_back,
             color: Colors.black,
           ),
         ),
-        title: const Text(
+        title:  Text(
           "Collage Maker",
           style: TextStyle(
             fontSize: 14,
@@ -55,7 +59,7 @@ class _CollageSample extends State<CollageSample> {
         actions: <Widget>[
           GestureDetector(
             onTap: () => _capturePng(),
-            child: const Padding(
+            child:  Padding(
               padding: EdgeInsets.only(right: 16),
               child: Center(
                 child: Text(
@@ -77,34 +81,19 @@ class _CollageSample extends State<CollageSample> {
             key: _screenshotKey,
             child: Stack(
               children: [
+                // Center(
+                //   child: Image.file(widget.collageImageBytes),
+                // ),
                 SizedBox(
                   height: MediaQuery.of(context).size.height,
                   width: MediaQuery.of(context).size.width,
                   child: ImageCollageWidget(
-                    images: widget.images,
+                    // images: widget.images,
                     collageType: widget.collageType,
-                    withImage: true,
+                    withImage: false,
+                    // images: widget.images,
                   ),
                 ),
-                if (widget.text.isNotEmpty)
-                  Positioned(
-                    bottom: 20,
-                    left: 20,
-                    right: 20,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      color: Colors.black54,
-                      child: Text(
-                        widget.text,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -112,7 +101,7 @@ class _CollageSample extends State<CollageSample> {
             SizedBox(
               height: MediaQuery.of(context).size.height,
               width: MediaQuery.of(context).size.width,
-              child: const Center(
+              child:  Center(
                 child: CircularProgressIndicator(),
               ),
             ),
@@ -130,7 +119,7 @@ class _CollageSample extends State<CollageSample> {
       Directory dir;
       RenderRepaintBoundary? boundary =
       _screenshotKey.currentContext!.findRenderObject() as RenderRepaintBoundary?;
-      await Future.delayed(const Duration(milliseconds: 2000));
+      await Future.delayed( Duration(milliseconds: 2000));
       if (Platform.isIOS) {
         dir = await getApplicationDocumentsDirectory();
       } else {

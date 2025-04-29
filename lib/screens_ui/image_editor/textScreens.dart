@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:flutter_font_picker/flutter_font_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -371,6 +372,13 @@ class TextUIWithTabsScreen extends StatelessWidget {
                             TextController.clearSelection();
                             // TextController.removeSelectedText();
                             _controller.TextEditOptions.value = false;
+                            SystemChrome.setEnabledSystemUIMode(
+                              SystemUiMode.immersiveSticky,
+                              overlays: [
+
+                              ],
+                            );
+
                           },
                           child: SizedBox(
                             height: 40,
@@ -426,6 +434,11 @@ class TextUIWithTabsScreen extends StatelessWidget {
                             // TextController.updateFontSize(
                             //     fontSize.clamp(10, 100));
                             _controller.TextEditOptions.value = false;
+                            SystemChrome.setEnabledSystemUIMode(
+                              SystemUiMode.immersiveSticky,
+                              overlays: [
+                              ],
+                            );
                             print('Navigating back from OK');
                           },
 

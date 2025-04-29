@@ -51,6 +51,8 @@ dependencies:
   lindi_sticker_widget: ^1.0.3
   image_collage_widget: ^1.1.0
   flutter_launcher_icons: ^0.14.3
+  screenshot: ^3.0.0
+  share_plus: ^11.0.0
 
 
 

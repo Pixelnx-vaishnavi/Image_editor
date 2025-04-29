@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
@@ -19,6 +21,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:photofilters/photofilters.dart';
 import 'dart:async';
 import 'package:path/path.dart';
+import 'package:share_plus/share_plus.dart';
 
 
 class ImageEditorController extends GetxController {
@@ -55,6 +58,9 @@ class ImageEditorController extends GetxController {
   RxBool isBrushSelected = true.obs;
   final RxString selectedTab = 'Font'.obs;
   late LindiController controller;
+  final GlobalKey globalkey = GlobalKey();
+
+
 
 
   final Map<String, List<Filter>> filterCategories = {
@@ -1040,7 +1046,63 @@ class ImageEditorController extends GetxController {
 
 
 
+  Future<Uint8List> capturePng() async {
+    try {
+      RenderRepaintBoundary? boundary = globalkey.currentContext!.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) throw Exception("Boundary is null");
 
+      await Future.delayed(Duration(milliseconds: 300));
+
+
+      double pixelRatio = ui.window.devicePixelRatio * 2;
+
+      ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+      if (byteData == null) throw Exception("Failed to get image bytes");
+
+      Directory dir = Platform.isIOS
+          ? await getApplicationDocumentsDirectory()
+          : (await getExternalStorageDirectory())!;
+
+      File outputFile = File('${dir.path}/${DateTime.now().microsecondsSinceEpoch}.png');
+      await outputFile.writeAsBytes(byteData.buffer.asUint8List());
+
+      // selectedfile.value = outputFile;
+     editedImageBytes.value = outputFile.readAsBytesSync();
+      editedImage.value = outputFile;
+      // final controller = Get.find<ImageEditorController>();
+      final Uint8List? memoryImage = editedImageBytes.value;
+      final File? fileImage = editedImage.value;
+
+      try {
+        if (memoryImage != null) {
+          final tempDir = await getTemporaryDirectory();
+          final file = await File('${tempDir.path}/shared_image.png').create();
+          await file.writeAsBytes(memoryImage);
+
+          await Share.shareXFiles(
+            [XFile(file.path)],
+            text: 'Check out my edited image!',
+          );
+        } else if (fileImage != null && await fileImage.exists()) {
+          await Share.shareXFiles(
+            [XFile(fileImage.path)],
+            text: 'Check out my image!',
+          );
+        } else {
+          Get.snackbar("Error", "No image available to share");
+        }
+      } catch (e) {
+        Get.snackbar("Error", "Failed to share image: $e");
+      }
+
+      return byteData.buffer.asUint8List();
+    } catch (e) {
+      print("Capture Image Exception: $e");
+      rethrow;
+    }
+  }
 
 
 
