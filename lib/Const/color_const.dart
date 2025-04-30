@@ -10,4 +10,5 @@ static const tabhighlightbutton = 0x668C61FF;
 static const tabdefaultcolor = 0xFF333340;
 static const purplecolor = 0xFF7F70FF;
 static const greycontainer = 0xFF2E2F34;
+static const defaultcontainer = 0xFF333340;
 }

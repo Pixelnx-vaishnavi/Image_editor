@@ -576,7 +576,7 @@ class ImageEditorScreen extends StatelessWidget {
                                 !_controller.showtuneOptions.value &&
                                 !_controller.TextEditOptions.value &&
                                 !_controller.CameraEditSticker.value &&
-                                !collageController.showCollageOption.value)
+                                !collageController.showCollageOption.value && !_controller.showPresetsEditOptions.value)
                               _buildToolBar(context),
                             if (_controller.showEditOptions.value) _controller.buildEditControls(),
                             if (_controller.showStickerEditOptions.value)
@@ -591,6 +591,10 @@ class ImageEditorScreen extends StatelessWidget {
                               _controller.buildFilterControlsSheet(onClose: () {
                                 _controller.showFilterEditOptions.value = false;
                               }),
+                            if(_controller.showPresetsEditOptions.value)
+                              _controller.showFilterControlsBottomSheet(context, () {
+                                   _controller.showFilterEditOptions.value = false;
+                                   }),
                           ],
                         ),
                       ),
@@ -643,8 +647,8 @@ class ImageEditorScreen extends StatelessWidget {
   Widget _buildToolBar(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
+      padding:  EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration:  BoxDecoration(
         color: Color(ColorConst.bottomBarcolor),
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(20),
@@ -658,34 +662,38 @@ class ImageEditorScreen extends StatelessWidget {
             _controller.buildToolButton('Rotate', 'assets/rotate.png', () {
               _controller.showEditOptions.value = true;
             }),
-            const SizedBox(width: 40),
+             SizedBox(width: 40),
             _controller.buildToolButton('Tune', 'assets/tune.png', () {
               _controller.showtuneOptions.value = true;
             }),
-            const SizedBox(width: 40),
+             SizedBox(width: 40),
             _controller.buildToolButton('Crop', 'assets/crop.png', () {
               SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
               _controller.pickAndCropImage();
             }),
-            const SizedBox(width: 40),
+             SizedBox(width: 40),
             _controller.buildToolButton('Text', 'assets/text.png', () {
               _controller.TextEditOptions.value = true;
             }),
-            const SizedBox(width: 40),
+             SizedBox(width: 40),
             _controller.buildToolButton('Camera', 'assets/camera.png', () {
               _controller.CameraEditSticker.value = true;
             }),
-            const SizedBox(width: 40),
+             SizedBox(width: 40),
             _controller.buildToolButton('Filter', 'assets/filter.png', () {
               _controller.showFilterEditOptions.value = true;
             }),
-            const SizedBox(width: 40),
+             SizedBox(width: 40),
             _controller.buildToolButton('Sticker', 'assets/elements.png', () {
               _controller.showStickerEditOptions.value = true;
             }),
-            const SizedBox(width: 40),
-            _controller.buildToolButton('Collage', 'assets/elements.png', () {
+             SizedBox(width: 40),
+            _controller.buildToolButton('Collage', 'assets/collage.png', () {
               collageController.showCollageOption.value = true;
+            }),
+            SizedBox(width: 40),
+            _controller.buildToolButton('Presets', 'assets/presets.png', () {
+              _controller.showPresetsEditOptions.value = true;
             }),
           ],
         ),
@@ -694,7 +702,6 @@ class ImageEditorScreen extends StatelessWidget {
   }
 }
 
-// Placeholder Sticker class (adjust based on your actual Sticker model)
 class Sticker {
   final String path;
   final RxDouble top;

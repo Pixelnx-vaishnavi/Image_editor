@@ -15,6 +15,7 @@ import 'package:image_editor/screens_ui/image_editor/TuneScreen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/crop/crop_screen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/textScreens.dart';
+import 'package:image_editor/screens_ui/presets/presets_model.dart';
 import 'package:lindi_sticker_widget/lindi_controller.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -35,6 +36,7 @@ class ImageEditorController extends GetxController {
   RxBool CameraEditSticker = false.obs;
   RxBool showStickerEditOptions = false.obs;
   RxBool showFilterEditOptions = false.obs;
+  RxBool showPresetsEditOptions = false.obs;
   RxBool showtuneOptions = false.obs;
   RxBool selectedtapped = false.obs;
   RxBool isAlignmentText = false.obs;
@@ -60,8 +62,220 @@ class ImageEditorController extends GetxController {
   late LindiController controller;
   final GlobalKey globalkey = GlobalKey();
 
+  final Rxn<ImagePreset> selectedPreset = Rxn<ImagePreset>();
+  final ImageProcessor processor = ImageProcessor();
+  // RxBool isFlipping = false.obs;
+
+  final Map<String, List<ImagePreset>> presetCategories = {
+    for (var category in PresetCategory.allCategories) category.name: category.presets
+  };
+  // late FilterPreset selectedPreset;
+
+  // final selectedPresetsCategory= ValueNotifier<String>('Creative');
+  String selectedPresetsCategory = "Natural";  // Default category
+
+  // // The current selected filter preset
+  // FilterPreset selectedPreset = FilterPreset(name:"Creative", filters: []);
+  //
+  //  List<Map<String, dynamic>> presetCategories = [
+  //   {
+  //     "name": "Creative",
+  //     "presets": [
+  //       {
+  //         "name": "Vintage Glow",
+  //         "filters": [
+  //           {"name": "CISepiaTone", "inputIntensity": 0.7},
+  //           {
+  //             "name": "CIColorControls",
+  //             "inputBrightness": 0.1,
+  //             "inputContrast": 1.1,
+  //             "inputSaturation": 0.9
+  //           },
+  //           {"name": "CIVignette", "inputIntensity": 1.0, "inputRadius": 1.5},
+  //         ],
+  //       },
+  //       {
+  //         "name": "Dreamy Haze",
+  //         "filters": [
+  //           {"name": "CIGaussianBlur", "inputRadius": 2.0},
+  //           {
+  //             "name": "CIColorControls",
+  //             "inputBrightness": 0.2,
+  //             "inputSaturation": 0.8
+  //           },
+  //           {"name": "CIOverlayBlendMode", "inputBackgroundImage": "white_overlay"},
+  //         ],
+  //       },
+  //       {
+  //         "name": "Pop Art",
+  //         "filters": [
+  //           {"name": "CIColorPosterize", "inputLevels": 6.0},
+  //           {
+  //             "name": "CIColorControls",
+  //             "inputContrast": 1.3,
+  //             "inputSaturation": 1.5
+  //           },
+  //         ],
+  //       },
+  //       {
+  //         "name": "Surreal",
+  //         "filters": [
+  //           {"name": "CIKaleidoscope", "inputCount": 8, "inputAngle": 0.2},
+  //           {"name": "CIColorControls", "inputSaturation": 1.2},
+  //         ],
+  //       },
+  //       {
+  //         "name": "Comic Effect",
+  //         "filters": [
+  //           {"name": "CIComicEffect"},
+  //           {"name": "CIColorControls", "inputBrightness": 0.1, "inputContrast": 1.1},
+  //         ],
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     "name": "Natural",
+  //     "presets": [
+  //       {
+  //         "name": "No Filter",
+  //         "filters": [],
+  //       },
+  //       {
+  //         "name": "Aden",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": 0.1, "inputSaturation": 1.2},
+  //         ],
+  //       },
+  //       {
+  //         "name": "Amaro",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": -0.2, "inputSaturation": 0.8},
+  //         ],
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     "name": "Warm",
+  //     "presets": [
+  //       {
+  //         "name": "Mayfair",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": 0.3, "inputSaturation": 1.5},
+  //         ],
+  //       },
+  //       {
+  //         "name": "Rise",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": 0.0, "inputSaturation": 1.0},
+  //         ],
+  //       },
+  //       {
+  //         "name": "Valencia",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": 0.2, "inputSaturation": 1.3},
+  //         ],
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     "name": "Cool",
+  //     "presets": [
+  //       {
+  //         "name": "Hudson",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": -0.1, "inputSaturation": 1.1},
+  //         ],
+  //       },
+  //       {
+  //         "name": "Inkwell",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": 0.0, "inputSaturation": 0.9},
+  //         ],
+  //       },
+  //       {
+  //         "name": "Lo-Fi",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": 0.2, "inputSaturation": 1.0},
+  //         ],
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     "name": "Vivid",
+  //     "presets": [
+  //       {
+  //         "name": "X-Pro II",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": 0.4, "inputSaturation": 1.6},
+  //         ],
+  //       },
+  //       {
+  //         "name": "Nashville",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": 0.3, "inputSaturation": 1.2},
+  //         ],
+  //       },
+  //       {
+  //         "name": "Earlybird",
+  //         "filters": [
+  //           {"name": "CIColorControls", "inputBrightness": -0.1, "inputSaturation": 1.4},
+  //         ],
+  //       },
+  //     ],
+  //   },
+  // ];
 
 
+  void setInitialImage(File image) async {
+    editedImage.value = image;
+    editedImageBytes.value = null;
+
+    final bytes = await image.readAsBytes();
+    originalImageBytes.value = bytes;
+
+    final img.Image? decoded = img.decodeImage(bytes);
+    if (decoded != null) {
+      final img.Image thumb = img.copyResize(decoded, width: 100); // Smaller thumbnail
+      thumbnailBytes.value = Uint8List.fromList(img.encodeJpg(thumb));
+    }
+  }
+
+  void applyPreset(ImagePreset preset) {
+    selectedPreset.value = preset;
+    if (editedImage.value == null) {
+      Get.snackbar("Error", "No image loaded");
+      return;
+    }
+
+    final img.Image? image = img.decodeImage(editedImage.value.readAsBytesSync());
+    if (image == null) {
+      isFlipping.value = false;
+      Get.snackbar("Error", "Failed to decode image");
+      return;
+    }
+
+    final processedImage = processor.applyPreset(preset, image);
+    final resultBytes = Uint8List.fromList(img.encodeJpg(processedImage));
+    editedImageBytes.value = resultBytes;
+    update();
+    //
+    // getTemporaryDirectory().then((tempDir) {
+    //   final path = '${tempDir.path}/preset_${DateTime.now().microsecondsSinceEpoch}.jpg';
+    //   final file = File(path);
+    //   file.writeAsBytes(resultBytes).then((_) {
+    //     editedImage.value = file;
+    //     isFlipping.value = false;
+    //     update(); // Notify GetBuilder
+    //   });
+    // });
+  }
+
+  Uint8List? generatePresetThumbnail(ImagePreset preset) {
+    final thumb = img.decodeImage(thumbnailBytes.value!);
+    if (thumb == null) return null;
+
+    final processedThumb = processor.applyPreset(preset, thumb);
+    return Uint8List.fromList(img.encodeJpg(processedThumb));}
 
   final Map<String, List<Filter>> filterCategories = {
     "Natural": [NoFilter(), AdenFilter(), AmaroFilter()],
@@ -70,6 +284,9 @@ class ImageEditorController extends GetxController {
     "Vivid": [XProIIFilter(), NashvilleFilter(), EarlybirdFilter()],
     "Soft": [SierraFilter(), ToasterFilter(), BrannanFilter()],
   };
+
+
+
 
   final Map<String, List<String>> shapeCategories = {
     'abstract_shapes': [
@@ -223,21 +440,19 @@ class ImageEditorController extends GetxController {
   };
 
 
-
-
-  void setInitialImage(File image) async {
-    editedImage.value = image;
-    editedImageBytes.value = null;
-
-    final bytes = await image.readAsBytes();
-    originalImageBytes.value = bytes;
-
-    final img.Image? decoded = img.decodeImage(bytes);
-    if (decoded != null) {
-      final img.Image thumb = img.copyResize(decoded, width: 120);
-      thumbnailBytes.value = Uint8List.fromList(img.encodeJpg(thumb));
-    }
-  }
+  // void setInitialImage(File image) async {
+  //   editedImage.value = image;
+  //   editedImageBytes.value = null;
+  //
+  //   final bytes = await image.readAsBytes();
+  //   originalImageBytes.value = bytes;
+  //
+  //   final img.Image? decoded = img.decodeImage(bytes);
+  //   if (decoded != null) {
+  //     final img.Image thumb = img.copyResize(decoded, width: 120);
+  //     thumbnailBytes.value = Uint8List.fromList(img.encodeJpg(thumb));
+  //   }
+  // }
 
   List<double> calculateColorMatrix() {
     final c = 1 + contrast.value / 100;
@@ -390,7 +605,7 @@ class ImageEditorController extends GetxController {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding:  EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
               Expanded(
@@ -399,7 +614,7 @@ class ImageEditorController extends GetxController {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: filterCategories.keys.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    separatorBuilder: (_, __) =>  SizedBox(width: 12),
                     itemBuilder: (context, index) {
                       final categoryName = filterCategories.keys.elementAt(index);
                       return ValueListenableBuilder(
@@ -409,7 +624,7 @@ class ImageEditorController extends GetxController {
                           return GestureDetector(
                             onTap: () => selectedCategory.value = categoryName,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding:  EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               decoration: BoxDecoration(
                                 color: isSelected ? Colors.white : Colors.grey[800],
                                 borderRadius: BorderRadius.circular(20),
@@ -430,14 +645,14 @@ class ImageEditorController extends GetxController {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
+                icon:  Icon(Icons.close, color: Colors.white),
                 onPressed: onClose,
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 12),
+         SizedBox(height: 12),
 
         // Filters based on selected category
         ValueListenableBuilder(
@@ -448,13 +663,13 @@ class ImageEditorController extends GetxController {
               height: 100,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding:  EdgeInsets.symmetric(horizontal: 12),
                 itemCount: filters.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                separatorBuilder: (_, __) =>  SizedBox(width: 12),
                 itemBuilder: (context, index) {
                   final filter = filters[index];
                   final img.Image? thumb = img.decodeImage(thumbnailBytes.value!);
-                  if (thumb == null) return const SizedBox();
+                  if (thumb == null) return  SizedBox();
 
                   final Uint8List thumbPixels = thumb.getBytes();
                   filter.apply(thumbPixels, thumb.width, thumb.height);
@@ -476,10 +691,10 @@ class ImageEditorController extends GetxController {
                             fit: BoxFit.cover,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                         SizedBox(height: 4),
                         Text(
                           filter.name,
-                          style: const TextStyle(fontSize: 12, color: Colors.white),
+                          style:  TextStyle(fontSize: 12, color: Colors.white),
                         ),
                       ],
                     ),
@@ -492,6 +707,139 @@ class ImageEditorController extends GetxController {
       ],
     );
   }
+
+
+  Widget buildPresetsControlsSheet({required VoidCallback onClose}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding:  EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 40,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: filterCategories.keys.length,
+                    separatorBuilder: (_, __) =>  SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      final categoryName = filterCategories.keys.elementAt(index);
+                      return ValueListenableBuilder(
+                        valueListenable: selectedCategory,
+                        builder: (context, value, _) {
+                          final isSelected = value == categoryName;
+                          return GestureDetector(
+                            onTap: () => selectedCategory.value = categoryName,
+                            child: Container(
+                              padding:  EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.white : Colors.grey[800],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                categoryName,
+                                style: TextStyle(
+                                  color: isSelected ? Colors.black : Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+              IconButton(
+                icon:  Icon(Icons.close, color: Colors.white),
+                onPressed: onClose,
+              ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: 12),
+
+        // Filters based on selected category
+        ValueListenableBuilder(
+          valueListenable: selectedCategory,
+          builder: (context, category, _) {
+            final filters = filterCategories[category]!;
+            return SizedBox(
+              height: 100,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding:  EdgeInsets.symmetric(horizontal: 12),
+                itemCount: filters.length,
+                separatorBuilder: (_, __) =>  SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final filter = filters[index];
+                  final img.Image? thumb = img.decodeImage(thumbnailBytes.value!);
+                  if (thumb == null) return  SizedBox();
+
+                  final Uint8List thumbPixels = thumb.getBytes();
+                  filter.apply(thumbPixels, thumb.width, thumb.height);
+                  final img.Image filteredThumb = img.Image.fromBytes(thumb.width, thumb.height, thumbPixels);
+                  final Uint8List filteredBytes = Uint8List.fromList(img.encodeJpg(filteredThumb));
+
+                  return GestureDetector(
+                    onTap: () {
+                      applyFullResolutionFilter(filter);
+                    },
+                    child: Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            filteredBytes,
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          filter.name,
+                          style:  TextStyle(fontSize: 12, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+
+  Widget showFilterControlsBottomSheet(BuildContext context, VoidCallback onClose) {
+    return Container(
+      child: FilterControlsWidget(),
+    );
+
+      showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: MediaQuery.of(context).viewInsets,
+          child: FilterControlsWidget(),
+        );
+      },
+    );
+  }
+
+
 /////////////SHAPE========SELECTOR======IMAGE
   Widget buildShapeSelectorSheet() {
     final selectedTabIndex = ValueNotifier<int>(0);
@@ -536,7 +884,7 @@ class ImageEditorController extends GetxController {
                             Container(
                               width: 80,
                               height: 80,
-                              padding: const EdgeInsets.all(6),
+                              padding:  EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
                                 color: Colors.grey.shade800,
@@ -1106,6 +1454,246 @@ class ImageEditorController extends GetxController {
 
 
 
-
+  //
+  // void applyPreset(FilterPreset preset) {
+  //   selectedPreset = preset;
+  // }
+  //
+  // List<FilterPreset> getPresetsByCategory(String categoryName) {
+  //   final category = presetCategories.firstWhere(
+  //         (cat) => cat["name"] == categoryName,
+  //     orElse: () => {"presets": []},
+  //   );
+  //
+  //   return List<Map<String, dynamic>>.from(category["presets"])
+  //       .map((presetMap) => FilterPreset(
+  //     name: presetMap["name"],
+  //     filters: List<Map<String, dynamic>>.from(presetMap["filters"]),
+  //   ))
+  //       .toList();
+  // }
+  //
+  // List<String> get allCategories =>
+  //     presetCategories.map((e) => e['name'].toString()).toList();
 
 }
+
+
+
+class FilterControlsWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<ImageEditorController>(
+      builder: (controller) {
+        return DefaultTabController(
+          length: controller.presetCategories.keys.length,
+          child: Container(
+            decoration:  BoxDecoration(
+              color: Color(ColorConst.bottomBarcolor),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding:  EdgeInsets.only(top: 30,right: 10),
+                  child: SizedBox(
+                    height: 120,
+                    child: TabBarView(
+                      children: controller.presetCategories.values.map((presets) {
+                        return ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          padding:  EdgeInsets.symmetric(horizontal: 12),
+                          itemCount: presets.length + 1,
+                          separatorBuilder: (_, __) =>  SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              // Original image option
+                              return GestureDetector(
+                                onTap: () {
+                                  controller.editedImageBytes.value =
+                                      controller.originalImageBytes.value;
+                                  controller.selectedPreset.value = null;
+                                  controller.update();
+                                },
+                                child: Column(
+                                  children: [
+                                    // ClipRRect(
+                                    //   borderRadius: BorderRadius.circular(8),
+                                    //   child: controller.thumbnailBytes.value != null
+                                    //       ? Image.memory(
+                                    //     controller.thumbnailBytes.value!,
+                                    //     width: 60,
+                                    //     height: 60,
+                                    //     fit: BoxFit.cover,
+                                    //   )
+                                    //       : Container(
+                                    //     width: 60,
+                                    //     height: 60,
+                                    //     color: Colors.grey,
+                                    //   ),
+                                    // ),
+                                    //  SizedBox(height: 4),
+                                    Container(
+                                      height: 90,
+                                      width: 150,
+                                      decoration: BoxDecoration(
+                                        color: Color(ColorConst.defaultcontainer),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: Colors.transparent)
+                                      ),
+                                      child:  Center(
+                                        child: Text(
+                                          "Original",
+                                          style: TextStyle(fontSize: 16, color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            final preset = presets[index - 1];
+                            final thumbnailBytes = controller.generatePresetThumbnail(preset);
+                            return GestureDetector(
+                              onTap: () {
+                                controller.applyPreset(preset);
+                              },
+                              child: Column(
+                                children: [
+                                  // ClipRRect(
+                                  //   borderRadius: BorderRadius.circular(8),
+                                  //   child: thumbnailBytes != null
+                                  //       ? Image.memory(
+                                  //     thumbnailBytes,
+                                  //     width: 60,
+                                  //     height: 60,
+                                  //     fit: BoxFit.cover,
+                                  //   )
+                                  //       : Container(
+                                  //     width: 60,
+                                  //     height: 60,
+                                  //     color: Colors.grey,
+                                  //     child: const Center(
+                                  //       child: Text(
+                                  //         'N/A',
+                                  //         style: TextStyle(color: Colors.white),
+                                  //       ),
+                                  //     ),
+                                  //   ),
+                                  // ),
+                                   SizedBox(height: 4),
+                                  Container(
+                                    height: 90,
+                                    width: 150,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10),
+                                        color: Color(ColorConst.defaultcontainer),
+                                      border: Border.all(color: Colors.transparent)
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        preset.name,
+                                        style:  TextStyle(fontSize: 16, color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                TabBar(
+                  isScrollable: true,
+                  labelPadding:  EdgeInsets.symmetric(horizontal: 8),
+                  indicatorColor: Colors.transparent,
+                  dividerColor: Colors.transparent,
+                  tabs: controller.presetCategories.keys.map((category) {
+                    return Tab(
+                      child: Container(
+                        padding:  EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: controller.selectedCategory.value == category
+                              ? Color(ColorConst.lightpurple)
+                              : Colors.grey[800],
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          category,
+                          style: TextStyle(
+                            color: controller.selectedCategory.value == category
+                                ? Colors.black
+                                : Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onTap: (index) {
+                    controller.selectedCategory.value =
+                        controller.presetCategories.keys.elementAt(index);
+                    controller.update();
+                  },
+                ),
+                // Bottom controls
+                Padding(
+                  padding:  EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          controller.showPresetsEditOptions.value = false;
+                          Navigator.pop(context);
+                        },
+                        child: SizedBox(
+                          height: 30,
+                          child: Image.asset('assets/cross.png'),
+                        ),
+                      ),
+                       Text(
+                        'Presets',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 20,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          controller.showPresetsEditOptions.value = false;
+                          Navigator.pop(context);
+                        },
+                        child: SizedBox(
+                          height: 30,
+                          child: Image.asset('assets/right.png'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+
+
+
+
