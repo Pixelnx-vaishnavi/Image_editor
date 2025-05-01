@@ -1,6 +1,9 @@
 import 'package:flutter/cupertino.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_rx/src/rx_types/rx_types.dart';
 import 'package:get/get_state_manager/src/simple/get_controllers.dart';
+import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stciker_model.dart';
 
 class StickerController extends GetxController {
@@ -8,6 +11,7 @@ class StickerController extends GetxController {
   Rx<StickerModel?> selectedSticker = Rx<StickerModel?>(null);
   Rx<GlobalKey> imagekey = GlobalKey().obs;
   RxBool selectedStickerTapped = false.obs;
+
 
   void addSticker(String path) {
     final renderBox = imagekey.value.currentContext?.findRenderObject() as RenderBox?;

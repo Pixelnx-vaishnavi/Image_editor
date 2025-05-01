@@ -252,98 +252,98 @@ class ImageEditorScreen extends StatelessWidget {
                                                           stickerController.moveSticker(details);
                                                         }
                                                       },
-                                                      child: Transform(
-                                                        alignment: Alignment.center,
-                                                        transform: Matrix4.identity()
-                                                          ..rotateZ(sticker.rotation.value)
-                                                          ..scale(
-                                                            sticker.isFlipped.value ? -1.0 : 1.0,
-                                                            1.0,
-                                                          ),
-                                                        child: Stack(
-                                                          clipBehavior: Clip.none,
-                                                          alignment: Alignment.center,
-                                                          children: [
-                                                            Container(
-                                                              width: 60.0 * sticker.scale.value,
-                                                              height: 60.0 * sticker.scale.value,
-                                                              decoration: BoxDecoration(
-                                                                border: isSelected
-                                                                    ? Border.all(
-                                                                    color:  Color(ColorConst.purplecolor),
-                                                                    width: 2)
-                                                                    : null,
-                                                                borderRadius: BorderRadius.circular(8),
-                                                              ),
-                                                              child: Padding(
-                                                                padding:  EdgeInsets.all(8.0),
-                                                                child: SvgPicture.asset(
-                                                                  sticker.path,
-                                                                  fit: BoxFit.contain,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                            if (isSelected) ...[
-                                                              Positioned(
-                                                                top: -3,
-                                                                left: -3,
-                                                                child: Transform.rotate(
-                                                                  angle: sticker.rotation.value,
-                                                                  child: _cornerControl(
-                                                                    icon: Icons.rotate_right,
-                                                                    color: const Color(ColorConst.purplecolor),
-                                                                    scale: sticker.scale.value,
-                                                                    onPanUpdate: (details) =>
-                                                                        stickerController.rotateSticker(0.03),
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              Positioned(
-                                                                top: -3,
-                                                                right: -3,
-                                                                child: Transform.rotate(
-                                                                  angle: sticker.rotation.value,
-                                                                  child: _cornerControl(
-                                                                    icon: Icons.close,
-                                                                    color: const Color(ColorConst.purplecolor),
-                                                                    scale: sticker.scale.value,
-                                                                    onTap: () =>
-                                                                        stickerController.removeSticker(sticker),
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              Positioned(
-                                                                bottom: -3,
-                                                                left: -3,
-                                                                child: Transform.rotate(
-                                                                  angle: sticker.rotation.value,
-                                                                  child: _cornerControl(
-                                                                    icon: Icons.flip,
-                                                                    color: const Color(ColorConst.purplecolor),
-                                                                    scale: sticker.scale.value,
-                                                                    onTap: stickerController.flipSticker,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              Positioned(
-                                                                bottom: -3,
-                                                                right: -3,
-                                                                child: Transform.rotate(
-                                                                  angle: sticker.rotation.value,
-                                                                  child: _cornerControl(
-                                                                    icon: Icons.zoom_out_map,
-                                                                    color: const Color(ColorConst.purplecolor),
-                                                                    scale: sticker.scale.value,
-                                                                    onPanUpdate: (details) =>
-                                                                        stickerController.resizeSticker(
-                                                                            details.delta.dy * 0.01),
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ],
-                                                        ),
-                                                      ),
+                                                      // child: Transform(
+                                                      //   alignment: Alignment.center,
+                                                      //   transform: Matrix4.identity()
+                                                      //     ..rotateZ(sticker.rotation.value)
+                                                      //     ..scale(
+                                                      //       sticker.isFlipped.value ? -1.0 : 1.0,
+                                                      //       1.0,
+                                                      //     ),
+                                                      //   child: Stack(
+                                                      //     clipBehavior: Clip.none,
+                                                      //     alignment: Alignment.center,
+                                                      //     children: [
+                                                      //       Container(
+                                                      //         width: 60.0 * sticker.scale.value,
+                                                      //         height: 60.0 * sticker.scale.value,
+                                                      //         decoration: BoxDecoration(
+                                                      //           border: isSelected
+                                                      //               ? Border.all(
+                                                      //               color:  Color(ColorConst.purplecolor),
+                                                      //               width: 2)
+                                                      //               : null,
+                                                      //           borderRadius: BorderRadius.circular(8),
+                                                      //         ),
+                                                      //         child: Padding(
+                                                      //           padding:  EdgeInsets.all(8.0),
+                                                      //           child: SvgPicture.asset(
+                                                      //             sticker.path,
+                                                      //             fit: BoxFit.contain,
+                                                      //           ),
+                                                      //         ),
+                                                      //       ),
+                                                      //       if (isSelected) ...[
+                                                      //         Positioned(
+                                                      //           top: -3,
+                                                      //           left: -3,
+                                                      //           child: Transform.rotate(
+                                                      //             angle: sticker.rotation.value,
+                                                      //             child: _cornerControl(
+                                                      //               icon: Icons.rotate_right,
+                                                      //               color: const Color(ColorConst.purplecolor),
+                                                      //               scale: sticker.scale.value,
+                                                      //               onPanUpdate: (details) =>
+                                                      //                   stickerController.rotateSticker(0.03),
+                                                      //             ),
+                                                      //           ),
+                                                      //         ),
+                                                      //         Positioned(
+                                                      //           top: -3,
+                                                      //           right: -3,
+                                                      //           child: Transform.rotate(
+                                                      //             angle: sticker.rotation.value,
+                                                      //             child: _cornerControl(
+                                                      //               icon: Icons.close,
+                                                      //               color: const Color(ColorConst.purplecolor),
+                                                      //               scale: sticker.scale.value,
+                                                      //               onTap: () =>
+                                                      //                   stickerController.removeSticker(sticker),
+                                                      //             ),
+                                                      //           ),
+                                                      //         ),
+                                                      //         Positioned(
+                                                      //           bottom: -3,
+                                                      //           left: -3,
+                                                      //           child: Transform.rotate(
+                                                      //             angle: sticker.rotation.value,
+                                                      //             child: _cornerControl(
+                                                      //               icon: Icons.flip,
+                                                      //               color: const Color(ColorConst.purplecolor),
+                                                      //               scale: sticker.scale.value,
+                                                      //               onTap: stickerController.flipSticker,
+                                                      //             ),
+                                                      //           ),
+                                                      //         ),
+                                                      //         Positioned(
+                                                      //           bottom: -3,
+                                                      //           right: -3,
+                                                      //           child: Transform.rotate(
+                                                      //             angle: sticker.rotation.value,
+                                                      //             child: _cornerControl(
+                                                      //               icon: Icons.zoom_out_map,
+                                                      //               color: const Color(ColorConst.purplecolor),
+                                                      //               scale: sticker.scale.value,
+                                                      //               onPanUpdate: (details) =>
+                                                      //                   stickerController.resizeSticker(
+                                                      //                       details.delta.dy * 0.01),
+                                                      //             ),
+                                                      //           ),
+                                                      //         ),
+                                                      //       ],
+                                                      //     ],
+                                                      //   ),
+                                                      // ),
                                                     ),
                                                   );
                                                 }).toList(),

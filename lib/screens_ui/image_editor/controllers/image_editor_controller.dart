@@ -278,11 +278,58 @@ class ImageEditorController extends GetxController {
     return Uint8List.fromList(img.encodeJpg(processedThumb));}
 
   final Map<String, List<Filter>> filterCategories = {
-    "Natural": [NoFilter(), AdenFilter(), AmaroFilter()],
-    "Warm": [MayfairFilter(), RiseFilter(), ValenciaFilter()],
-    "Cool": [HudsonFilter(), InkwellFilter(), LoFiFilter()],
-    "Vivid": [XProIIFilter(), NashvilleFilter(), EarlybirdFilter()],
-    "Soft": [SierraFilter(), ToasterFilter(), BrannanFilter()],
+    "Natural": [
+      NoFilter(),
+      AdenFilter(),
+      AmaroFilter(),
+      PerpetuaFilter(),
+      WillowFilter(),
+      GinghamFilter(),
+    ],
+    "Warm": [
+      MayfairFilter(),
+      RiseFilter(),
+      ValenciaFilter(),
+      HefeFilter(),
+      SutroFilter(),
+      SierraFilter(),
+    ],
+    "Cool": [
+      HudsonFilter(),
+      InkwellFilter(),
+      LoFiFilter(),
+      MoonFilter(),
+      ClarendonFilter(),
+      AshbyFilter(),
+    ],
+    "Vivid": [
+      XProIIFilter(),
+      NashvilleFilter(),
+      EarlybirdFilter(),
+      LarkFilter(),
+      VesperFilter(),
+    ],
+    "Soft": [
+      SierraFilter(),
+      ToasterFilter(),
+      BrannanFilter(),
+      ReyesFilter(),
+      SlumberFilter(),
+      JunoFilter(),
+    ],
+    "Mono": [
+      InkwellFilter(),
+      WillowFilter(),
+      MoonFilter(),
+      MavenFilter(),
+
+    ],
+    "Vintage": [
+      BrooklynFilter(),
+      KelvinFilter(),
+      WaldenFilter(),
+      StinsonFilter(),
+    ]
   };
 
 
@@ -492,7 +539,7 @@ class ImageEditorController extends GetxController {
     // final Uint8List pixels = image.getBytes();
     // filter.apply(pixels, image.width, image.height);
 
-    final img.Image filteredImage = img.Image.fromBytes(resized.width, resized.height, pixels);
+    final img.Image filteredImage = img.Image.fromBytes( resized.width,  resized.height,pixels);
     final Uint8List resultBytes = Uint8List.fromList(img.encodeJpg(filteredImage));
 
     editedImageBytes.value = resultBytes;
@@ -601,110 +648,163 @@ class ImageEditorController extends GetxController {
   }
 
   Widget buildFilterControlsSheet({required VoidCallback onClose}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding:  EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 40,
+    return Container(
+      decoration:  BoxDecoration(
+        color: Color(ColorConst.bottomBarcolor),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding:  EdgeInsets.only(left: 10,top: 30,right: 10,bottom: 10),
+            child: ValueListenableBuilder(
+              valueListenable: selectedCategory,
+              builder: (context, category, _) {
+                final filters = filterCategories[category]!;
+
+                return SizedBox(
+                  height: 120,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: filterCategories.keys.length,
+                    padding:  EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: filters.length,
                     separatorBuilder: (_, __) =>  SizedBox(width: 12),
                     itemBuilder: (context, index) {
-                      final categoryName = filterCategories.keys.elementAt(index);
-                      return ValueListenableBuilder(
-                        valueListenable: selectedCategory,
-                        builder: (context, value, _) {
-                          final isSelected = value == categoryName;
-                          return GestureDetector(
-                            onTap: () => selectedCategory.value = categoryName,
-                            child: Container(
-                              padding:  EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      final filter = filters[index];
+                      var isSelected = index == filter;
+
+                      final img.Image? thumb = img.decodeImage(thumbnailBytes.value!);
+                      if (thumb == null) return  SizedBox();
+
+                      final Uint8List thumbPixels = thumb.getBytes();
+                      filter.apply(thumbPixels, thumb.width, thumb.height);
+                      final img.Image filteredThumb = img.Image.fromBytes( thumb.width,  thumb.height, thumbPixels);
+                      final Uint8List filteredBytes = Uint8List.fromList(img.encodeJpg(filteredThumb));
+
+                      return GestureDetector(
+                        onTap: () {
+                          isSelected = true;
+                          applyFullResolutionFilter(filter);
+                        },
+                        child: Column(
+                          children: [
+                            Container(
                               decoration: BoxDecoration(
-                                color: isSelected ? Colors.white : Colors.grey[800],
-                                borderRadius: BorderRadius.circular(20),
+                                color: isSelected ? Color(ColorConst.primaryColor) : Color(ColorConst.greycontainer),
+                                // borderRadius: BorderRadius.circular(20),
                               ),
-                              child: Text(
-                                categoryName,
-                                style: TextStyle(
-                                  color: isSelected ? Colors.black : Colors.white,
-                                  fontWeight: FontWeight.bold,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: Image.memory(
+                                  filteredBytes,
+                                  width: 75,
+                                  height: 75,
+                                  fit: BoxFit.cover,
                                 ),
                               ),
                             ),
-                          );
-                        },
+                             SizedBox(height: 10),
+                            Text(
+                              filter.name,
+                              style:  TextStyle(fontSize: 12, color: Colors.white,fontWeight: ui.FontWeight.bold),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),
-                ),
-              ),
-              IconButton(
-                icon:  Icon(Icons.close, color: Colors.white),
-                onPressed: onClose,
-              ),
-            ],
+                );
+              },
+            ),
           ),
-        ),
-
-         SizedBox(height: 12),
-
-        // Filters based on selected category
-        ValueListenableBuilder(
-          valueListenable: selectedCategory,
-          builder: (context, category, _) {
-            final filters = filterCategories[category]!;
-            return SizedBox(
-              height: 100,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding:  EdgeInsets.symmetric(horizontal: 12),
-                itemCount: filters.length,
-                separatorBuilder: (_, __) =>  SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final filter = filters[index];
-                  final img.Image? thumb = img.decodeImage(thumbnailBytes.value!);
-                  if (thumb == null) return  SizedBox();
-
-                  final Uint8List thumbPixels = thumb.getBytes();
-                  filter.apply(thumbPixels, thumb.width, thumb.height);
-                  final img.Image filteredThumb = img.Image.fromBytes(thumb.width, thumb.height, thumbPixels);
-                  final Uint8List filteredBytes = Uint8List.fromList(img.encodeJpg(filteredThumb));
-
-                  return GestureDetector(
-                    onTap: () {
-                      applyFullResolutionFilter(filter);
-                    },
-                    child: Column(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.memory(
-                            filteredBytes,
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                         SizedBox(height: 4),
-                        Text(
-                          filter.name,
-                          style:  TextStyle(fontSize: 12, color: Colors.white),
-                        ),
-                      ],
+          Padding(
+            padding:  EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 40,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: filterCategories.keys.length,
+                      separatorBuilder: (_, __) =>  SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final categoryName = filterCategories.keys.elementAt(index);
+                        return ValueListenableBuilder(
+                          valueListenable: selectedCategory,
+                          builder: (context, value, _) {
+                            final isSelected = value == categoryName;
+                            return GestureDetector(
+                              onTap: () => selectedCategory.value = categoryName,
+                              child: Container(
+                                padding:  EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? Color(ColorConst.primaryColor) : Color(ColorConst.greycontainer),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  categoryName,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.black : Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-            );
-          },
-        ),
-      ],
+                  ),
+                ),
+                // IconButton(
+                //   icon:  Icon(Icons.close, color: Colors.white),
+                //   onPressed: onClose,
+                // ),
+              ],
+            ),
+          ),
+          Padding(
+            padding:  EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    editedImageBytes.value = originalImageBytes.value;
+                    selectedFilter.value = NoFilter();
+                    showFilterEditOptions.value = false;
+                  },
+                  child: SizedBox(
+                    height: 30,
+                    child: Image.asset('assets/cross.png'),
+                  ),
+                ),
+                Text(
+                  'Filters',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 20,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: onClose,
+                  child: SizedBox(
+                    height: 30,
+                    child: Image.asset('assets/right.png'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 20,)
+        ],
+      ),
     );
   }
 
@@ -782,7 +882,7 @@ class ImageEditorController extends GetxController {
 
                   final Uint8List thumbPixels = thumb.getBytes();
                   filter.apply(thumbPixels, thumb.width, thumb.height);
-                  final img.Image filteredThumb = img.Image.fromBytes(thumb.width, thumb.height, thumbPixels);
+                  final img.Image filteredThumb = img.Image.fromBytes(  thumb.width, thumb.height,  thumbPixels);
                   final Uint8List filteredBytes = Uint8List.fromList(img.encodeJpg(filteredThumb));
 
                   return GestureDetector(
@@ -876,7 +976,14 @@ class ImageEditorController extends GetxController {
                         onTap: () {
                           selectedimage.value = path;
                           print('Selected: ${selectedimage.value}');
-                          stickerController.addSticker(path);
+                          // stickerController.addSticker(path);
+                          Widget widget = Container(
+                            height: 100,
+                            width: 100,
+                            padding: EdgeInsets.all(12),
+                            child: SvgPicture.asset(path),
+                          );
+                          controller.add(widget);
                           // Add to canvas here
                         },
                         child: Column(
@@ -955,6 +1062,7 @@ class ImageEditorController extends GetxController {
                 children: [
                   GestureDetector(
                     onTap: () {
+                      // controller.deleted;
                       stickerController.clearStickers();
                       // Get.toNamed('/ImageEditorScreen', arguments: editedImage.value);
                       flippedBytes.value = null;
@@ -1655,7 +1763,11 @@ class FilterControlsWidget extends StatelessWidget {
                       GestureDetector(
                         onTap: () {
                           controller.showPresetsEditOptions.value = false;
-                          Navigator.pop(context);
+                          // controller.editedImageBytes.value =
+                          //     controller.originalImageBytes.value;
+                          controller.selectedPreset.value = null;
+                          controller.update();
+
                         },
                         child: SizedBox(
                           height: 30,
@@ -1673,7 +1785,7 @@ class FilterControlsWidget extends StatelessWidget {
                       GestureDetector(
                         onTap: () {
                           controller.showPresetsEditOptions.value = false;
-                          Navigator.pop(context);
+
                         },
                         child: SizedBox(
                           height: 30,

@@ -40,7 +40,7 @@ dependencies:
   image_picker: ^1.1.2
   path_provider: ^2.1.5
   flutter_image_compress: ^2.4.0
-  photofilters: ^3.0.1
+#  photofilters: ^3.0.0
   flutter_svg: ^2.0.17
   image_cropper: ^9.1.0
 #  croppy: any
@@ -53,14 +53,13 @@ dependencies:
   flutter_launcher_icons: ^0.14.3
   screenshot: ^3.0.0
   share_plus: ^11.0.0
-  flutter_image_filters: any
-
-
+  flutter_image_filters: ^0.0.24
+  photofilters: any
 
 
 
 dependency_overrides:
-   image: any
+   image: ^3.2.2
 
 
 

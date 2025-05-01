@@ -67,19 +67,12 @@ class ImageFilterController extends GetxController {
 
     filter.apply(pixels, width, height);
 
-    final img.Image filteredImage = img.Image.fromBytes(width, height, pixels);
+    final img.Image filteredImage = img.Image.fromBytes(  width,  height, pixels);
 
     final Uint8List resultBytes = Uint8List.fromList(img.encodeJpg(filteredImage));
 
     editedImageBytes.value = resultBytes;
   }
-
-
-
-
-
-
-
 
 
 
