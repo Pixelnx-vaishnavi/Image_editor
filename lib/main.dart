@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
@@ -10,8 +11,8 @@ import 'package:image_editor/screens_ui/Text/Text_controller.dart';
 import 'package:image_editor/screens_ui/spalsh_screen/splash_screen.dart';
 
 void main() {
+  debugPaintSizeEnabled = false;
   WidgetsFlutterBinding.ensureInitialized();
-
   SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.immersiveSticky,
     overlays: [

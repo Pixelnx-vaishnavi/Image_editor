@@ -30,6 +30,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
   Timer? _debounceTimer;
   final RxBool _isSelectingFont = false.obs;
 
+
   final List<String> availableFonts = [
     'Roboto',
     'Open Sans',
@@ -141,7 +142,8 @@ class TextUIWithTabsScreen extends StatelessWidget {
   }
 
   void _openColorPicker(BuildContext context, Color initialColor,
-      Function(Color) onColorSelected, String title) {
+      Function(Color) onColorSelected, String title)
+  {
     _unfocus();
     print('Opening ColorPicker dialog for $title');
     showDialog(
@@ -195,171 +197,192 @@ class TextUIWithTabsScreen extends StatelessWidget {
           'Initialized TextField with: ${_textController.text}, fontSize: ${_fontSizeController.text}');
     }
 
-    return GestureDetector(
+    return  GestureDetector(
       onTap: _unfocus,
       child: Scaffold(
+        resizeToAvoidBottomInset: true,
         backgroundColor:  Color(ColorConst.bottomBarcolor),
         body: Stack(
           children: [
             SafeArea(
               child: Padding(
-                padding:  EdgeInsets.all(5.0),
+                padding:  EdgeInsets.all(10.0),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  // mainAxisAlignment: MainAxisAlignment.end,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Obx(() => TextFormField(
-                          focusNode: _textFocusNode,
-                          onChanged: (value) {
-                            print('TextField changed: $value');
-                            _debouncedUpdateText(value);
-                          },
-                          controller: _textController,
-                          style: GoogleFonts.getFont(
-                            TextController
-                                    .selectedText.value?.fontFamily.value ??
-                                'Roboto',
-                            color: Colors.white,
-                          ),
-                          decoration:  InputDecoration(
-                            filled: true,
-                            fillColor: Colors.black54,
-                            hintText: 'Enter text here...',
-                            hintStyle: TextStyle(color: Colors.white70),
-                            border: OutlineInputBorder(
-                              borderRadius:
-                                  BorderRadius.all(Radius.circular(10)),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                          ),
-                        )),
-                     SizedBox(height: 16),
+                      focusNode: _textFocusNode,
+                      onTap: () {
+                        if(_controller.isSelectingText.value == false) {
+                          _controller.isSelectingText.value = true;
+                        }},
+                        // else{
+                        //   _controller.isSelectingText.value = false;
+                        // }
+                      // },
+                      onFieldSubmitted: (value) {
+                        _unfocus();
+
+                      },
+                      onChanged: (value) {
+                        print('TextField changed: $value');
+                        _debouncedUpdateText(value);
+                      },
+                      controller: _textController,
+                      style: GoogleFonts.getFont(
+                        TextController
+                            .selectedText.value?.fontFamily.value ??
+                            'Roboto',
+                        color: Colors.white,
+                      ),
+
+                      decoration:  InputDecoration(
+                        filled: true,
+                        fillColor: Colors.black54,
+                        hintText: 'Enter text here...',
+                        hintStyle: TextStyle(color: Colors.white70),
+                        border: OutlineInputBorder(
+                          borderRadius:
+                          BorderRadius.all(Radius.circular(10)),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                      ),
+                    )),
+
+                    SizedBox(height: 5),
+
                     Obx(() => Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () {
-                                _unfocus();
-                                _controller.selectedTab.value = 'Alignment';
-                                _controller.isAlignmentText.value = true;
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            _unfocus();
+                            _controller.selectedTab.value = 'Alignment';
+                            _controller.isAlignmentText.value = true;
 
-                                print('Switched to Alignment tab');
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _controller.selectedTab.value ==
-                                        'Alignment'
-                                    ?  Color.fromRGBO(140, 97, 255, 0.4)
-                                    : Colors.grey[800],
-                                foregroundColor: Colors.white,
-                                shape:  RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(15)),
-                                ),
-                                padding:  EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                              child:  Text('Alignment'),
+                            print('Switched to Alignment tab');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _controller.selectedTab.value ==
+                                'Alignment'
+                                ?  Color.fromRGBO(140, 97, 255, 0.4)
+                                : Colors.grey[800],
+                            foregroundColor: Colors.white,
+                            shape:  RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius.all(Radius.circular(15)),
                             ),
-                            ElevatedButton(
-                              onPressed: () {
-                                _unfocus();
-                                _controller.selectedTab.value = 'Font';
-                                _controller.isAlignmentText.value = false;
+                            padding:  EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                          child:  Text('Alignment'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            _unfocus();
+                            _controller.selectedTab.value = 'Font';
+                            _controller.isAlignmentText.value = false;
 
-                                print('Switched to Font tab');
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _controller.selectedTab.value == 'Font'
-                                    ?  Color.fromRGBO(140, 97, 255, 0.4)
-                                    : Colors.grey[800],
-                                foregroundColor: Colors.white,
-                                shape:  RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(15)),
-                                ),
-                                padding:  EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                              child:  Text('Font'),
+                            print('Switched to Font tab');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _controller.selectedTab.value == 'Font'
+                                ?  Color.fromRGBO(140, 97, 255, 0.4)
+                                : Colors.grey[800],
+                            foregroundColor: Colors.white,
+                            shape:  RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius.all(Radius.circular(15)),
                             ),
-                            ElevatedButton(
-                              onPressed: () {
-                                _unfocus();
-                                _controller.selectedTab.value = 'Color';
-                                _controller.isAlignmentText.value = false;
+                            padding:  EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                          child:  Text('Font'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            _unfocus();
+                            _controller.selectedTab.value = 'Color';
+                            _controller.isAlignmentText.value = false;
 
-                                print('Switched to Color tab');
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _controller.selectedTab.value == 'Color'
-                                    ?  Color.fromRGBO(140, 97, 255, 0.4)
-                                    : Colors.grey[800],
-                                foregroundColor: Colors.white,
-                                shape:  RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(15)),
-                                ),
-                                padding:  EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                              child:  Text('Color'),
+                            print('Switched to Color tab');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _controller.selectedTab.value == 'Color'
+                                ?  Color.fromRGBO(140, 97, 255, 0.4)
+                                : Colors.grey[800],
+                            foregroundColor: Colors.white,
+                            shape:  RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius.all(Radius.circular(15)),
                             ),
-                            ElevatedButton(
-                              onPressed: () {
-                                _unfocus();
-                                _controller.selectedTab.value = 'Shadow';
-                                _controller.isAlignmentText.value = false;
+                            padding:  EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                          child:  Text('Color'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            _unfocus();
+                            _controller.selectedTab.value = 'Shadow';
+                            _controller.isAlignmentText.value = false;
 
-                                print('Switched to Shadow tab');
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _controller.selectedTab.value == 'Shadow'
-                                    ?  Color.fromRGBO(140, 97, 255, 0.4)
-                                    : Colors.grey[800],
-                                foregroundColor: Colors.white,
-                                shape:  RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(15)),
-                                ),
-                                padding:  EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                              child:  Text('Shadow'),
+                            print('Switched to Shadow tab');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _controller.selectedTab.value == 'Shadow'
+                                ?  Color.fromRGBO(140, 97, 255, 0.4)
+                                : Colors.grey[800],
+                            foregroundColor: Colors.white,
+                            shape:  RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius.all(Radius.circular(15)),
                             ),
-                            // ElevatedButton(
-                            //   onPressed: () {
-                            //     _unfocus();
-                            //     _controller.isAlignmentText.value = false;
-                            //     selectedTab.value = 'Transform';
-                            //     print('Switched to Transform tab');
-                            //   },
-                            //   style: ElevatedButton.styleFrom(
-                            //     backgroundColor: selectedTab.value ==
-                            //             'Transform'
-                            //         ?  Color.fromRGBO(140, 97, 255, 0.4)
-                            //         : Colors.grey[800],
-                            //     foregroundColor: Colors.white,
-                            //     shape:  RoundedRectangleBorder(
-                            //       borderRadius:
-                            //           BorderRadius.all(Radius.circular(15)),
-                            //     ),
-                            //     padding:  EdgeInsets.symmetric(
-                            //         horizontal: 12, vertical: 8),
-                            //   ),
-                            //   child:  Text('Transform'),
-                            // ),
-                          ],
-                        )),
-                     SizedBox(height: 5),
+                            padding:  EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                          child:  Text('Shadow'),
+                        ),
+                        // ElevatedButton(
+                        //   onPressed: () {
+                        //     _unfocus();
+                        //     _controller.isAlignmentText.value = false;
+                        //     selectedTab.value = 'Transform';
+                        //     print('Switched to Transform tab');
+                        //   },
+                        //   style: ElevatedButton.styleFrom(
+                        //     backgroundColor: selectedTab.value ==
+                        //             'Transform'
+                        //         ?  Color.fromRGBO(140, 97, 255, 0.4)
+                        //         : Colors.grey[800],
+                        //     foregroundColor: Colors.white,
+                        //     shape:  RoundedRectangleBorder(
+                        //       borderRadius:
+                        //           BorderRadius.all(Radius.circular(15)),
+                        //     ),
+                        //     padding:  EdgeInsets.symmetric(
+                        //         horizontal: 12, vertical: 8),
+                        //   ),
+                        //   child:  Text('Transform'),
+                        // ),
+                      ],
+                    )),
+
+                    SizedBox(height: 5),
+
                     Obx(() => _buildTabContent(context)),
-                     SizedBox(height: 12),
+
+                    SizedBox(height: 5),
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         GestureDetector(
                           onTap: () {
+
                             if (_isSelectingFont.value) {
                               print(
                                   'Cancel blocked: Font selection in progress');
@@ -411,7 +434,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                         //     padding:  EdgeInsets.all(12),
                         //   ),
                         // ),
-                         Text(
+                        Text(
                           'Text',
                           style: TextStyle(
                               color: Colors.white,
@@ -420,6 +443,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                         ),
                         GestureDetector(
                           onTap: () async {
+                            _controller.isSelectingText.value = false;
                             if (_isSelectingFont.value) {
                               print('OK blocked: Font selection in progress');
                               return;
@@ -486,6 +510,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
         ),
       ),
     );
+
   }
 
   Widget _buildTabContent(BuildContext context) {
@@ -601,7 +626,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                 ],
               ),
             ),
-             SizedBox(height: 17),
+             SizedBox(height: 23),
             Padding(
               padding:  EdgeInsets.only(left: 10),
               child: Row(
@@ -683,6 +708,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                 ],
               ),
             ),
+            SizedBox(height: 20),
           ],
         );
       case 'Font':
@@ -696,7 +722,9 @@ class TextUIWithTabsScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                  SizedBox(width: 16),
-                Expanded(
+                Container(
+                  height: 40,
+                  width: 250,
                   child: Obx(() => ElevatedButton(
                         onPressed: () {
                           _unfocus();
@@ -760,7 +788,9 @@ class TextUIWithTabsScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                  SizedBox(width: 16),
-                Expanded(
+                Container(
+                  height: 40,
+                  width: 90,
                   child: TextField(
                     focusNode: _textFontsizeFocusNode,
                     controller: _fontSizeController,
@@ -785,7 +815,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                 ),
               ],
             ),
-             SizedBox(height: 16),
+             SizedBox(height: 15),
             Row(
               children: [
                  Text(
@@ -903,14 +933,14 @@ class TextUIWithTabsScreen extends StatelessWidget {
                     )),
               ],
             ),
-             SizedBox(height: 16),
+             SizedBox(height: 9),
             Row(
               children: [
                  Text(
                   'BG Color',
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
-                 SizedBox(width: 16),
+                 SizedBox(width: 25),
                 Obx(() => _buildColorPickerButton(
                       context,
                       TextController
@@ -938,8 +968,8 @@ class TextUIWithTabsScreen extends StatelessWidget {
         );
       case 'Shadow':
         return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          // mainAxisSize: MainAxisSize.min,
+          // crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSlider(
                 "Blur",
@@ -1064,7 +1094,9 @@ class TextUIWithTabsScreen extends StatelessWidget {
 
   Widget _buildColorPickerButton(BuildContext context, Color currentColor,
       Function(Color) onColorSelected, String title) {
-    return Expanded(
+    return Container(
+      height: 40,
+      width: 200,
       child: ElevatedButton(
         onPressed: () {
           _openColorPicker(context, currentColor, onColorSelected, title);
@@ -1087,35 +1119,38 @@ class TextUIWithTabsScreen extends StatelessWidget {
 
   Widget _buildSlider(String title, double value, double min, double max,
       ValueChanged<double> onChanged) {
-    return Row(
-      children: [
-        Text(title,
-            style:  TextStyle(color: Colors.white70, fontSize: 16)),
-         Spacer(),
-        Slider(
-          value: value,
-          min: min,
-          max: max,
-          divisions: ((max - min) * 10).toInt(),
-          onChanged: onChanged,
-          activeColor: Colors.purpleAccent,
-          inactiveColor: Colors.white24,
-        ),
-        Container(
-          height: 25,
-          width: 35,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(5),
-            color: Colors.white10,
+    return Container(
+      height: 39,
+      child: Row(
+        children: [
+          Text(title,
+              style:  TextStyle(color: Colors.white70, fontSize: 16)),
+           Spacer(),
+          Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: ((max - min) * 10).toInt(),
+            onChanged: onChanged,
+            activeColor: Colors.purpleAccent,
+            inactiveColor: Colors.white24,
           ),
-          child: Center(
-            child: Text(
-              value.toStringAsFixed(1),
-              style:  TextStyle(color: Colors.white, fontSize: 12),
+          Container(
+            height: 25,
+            width: 35,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(5),
+              color: Colors.white10,
+            ),
+            child: Center(
+              child: Text(
+                value.toStringAsFixed(1),
+                style:  TextStyle(color: Colors.white, fontSize: 12),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

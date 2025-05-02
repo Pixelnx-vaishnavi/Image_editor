@@ -11,10 +11,12 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image/image.dart' as img;
+import 'package:image_editor/screens_ui/Text/Text_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/TuneScreen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/crop/crop_screen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/textScreens.dart';
+import 'package:image_editor/screens_ui/image_layer/image_layer_screen.dart';
 import 'package:image_editor/screens_ui/presets/presets_model.dart';
 import 'package:lindi_sticker_widget/lindi_controller.dart';
 import 'package:path_provider/path_provider.dart';
@@ -28,6 +30,7 @@ import 'package:share_plus/share_plus.dart';
 class ImageEditorController extends GetxController {
   Rx<File> editedImage = File('').obs;
   Rx<File> LogoStcikerImage = File('').obs;
+  final RxBool isSelectingText = false.obs;
 
   Rx<Uint8List?> editedImageBytes = Rx<Uint8List?>(null);
   Rx<Uint8List?> flippedImageBytes = Rx<Uint8List?>(null);
@@ -35,6 +38,7 @@ class ImageEditorController extends GetxController {
   RxBool TextEditOptions = false.obs;
   RxBool CameraEditSticker = false.obs;
   RxBool showStickerEditOptions = false.obs;
+  RxBool showImageLayer = false.obs;
   RxBool showFilterEditOptions = false.obs;
   RxBool showPresetsEditOptions = false.obs;
   RxBool showtuneOptions = false.obs;
@@ -1115,6 +1119,25 @@ class ImageEditorController extends GetxController {
     );
   }
 
+
+
+  Widget buildImageLayerSheet() {
+    final selectedTabIndex = ValueNotifier<int>(0);
+    return Container(
+      height: 300,
+        width: double.infinity,
+      decoration: BoxDecoration(
+        color: Color(ColorConst.bottomBarcolor),
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(20),
+          topLeft: Radius.circular(20),
+        ),
+      ),
+      child: ImageLayerWidget()
+    );
+  }
+
+
 ////////////===========ROTATE AND MIRROR BOTTOM SHEET=============
   Widget buildEditControls() {
     return Container(
@@ -1236,7 +1259,7 @@ class ImageEditorController extends GetxController {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(height: 20),
-          _buildActionButton(
+          _buildCameraButton(
             "Select Image",
             Colors.cyan,
             Icons.flip,
@@ -1257,7 +1280,7 @@ class ImageEditorController extends GetxController {
             },
           ),
           SizedBox(height: 10),
-          _buildActionButton(
+          _buildCameraButton(
             "Change Image",
             Colors.deepPurpleAccent,
             Icons.rotate_right,
@@ -1330,7 +1353,6 @@ class ImageEditorController extends GetxController {
       controller.add(widget);
     }
 
-
   }
 
 
@@ -1377,34 +1399,18 @@ class ImageEditorController extends GetxController {
 
 
   Widget TextEditControls(contrainsts,imagekey) {
-    return AnimatedContainer(
-      duration: Duration(milliseconds: 0),
-      curve: Curves.easeInOut,
-      height: (isAlignmentText.value == true) ? 320 : 400,
-      padding: EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Color(ColorConst.bottomBarcolor),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(40),
-          topRight: Radius.circular(40),
+    return Container(
+        height:  340,
+        // height: (isAlignmentText.value == true) ? 320 : 400,
+        padding: EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: Color(ColorConst.bottomBarcolor),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
         ),
-      ),
-      child: TweenAnimationBuilder<double>(
-        tween: Tween<double>(begin: 50.0, end: 0.0),
-        duration: Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-        builder: (context, value, child) {
-          return Opacity(
-            opacity: (50.0 - value) / 50.0,
-            child: Transform.translate(
-              offset: Offset(0, value),
-              child: child,
-            ),
-          );
-        },
-        child: TextUIWithTabsScreen(constraints: contrainsts,imageKey: imagekey,),
-      ),
-    );
+        child: TextUIWithTabsScreen(constraints: contrainsts,imageKey: imagekey,));
   }
 
 
@@ -1462,7 +1468,24 @@ class ImageEditorController extends GetxController {
     );
   }
 
-
+  Widget _buildCameraButton(String text, Color color, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Icon(icon, color: Colors.white),
+            SizedBox(width: 10),
+            Text(text, style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> pickAndCropImage() async {
 

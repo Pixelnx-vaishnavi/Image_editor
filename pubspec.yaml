@@ -217,6 +217,7 @@ flutter:
      - assets/text/rightText.png
      - assets/collage.png
      - assets/presets.png
+     - assets/image_layer.png
 #     - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
