@@ -55,7 +55,9 @@ class ImageEditorController extends GetxController {
   List<Filter> filters = presetFiltersList;
   final picker = ImagePicker();
   File? selectedImage;
-  final Rxn<String> selectedimage = Rxn<String>();
+  // final Rxn<String> selectedimage = Rxn<String>();
+  RxList selectedimagelayer = [].obs;
+
   final originalImageBytes = Rxn<Uint8List>();
   final selectedFilter = Rxn<Filter>();
   final ValueNotifier<String> selectedCategory = ValueNotifier<String>("Natural");
@@ -63,6 +65,7 @@ class ImageEditorController extends GetxController {
   final StickerController stickerController = Get.put(StickerController());
   RxBool isBrushSelected = true.obs;
   final RxString selectedTab = 'Font'.obs;
+  final RxInt indexlayer = 0.obs;
   late LindiController controller;
   final GlobalKey globalkey = GlobalKey();
 
@@ -978,8 +981,8 @@ class ImageEditorController extends GetxController {
                       final path = imagePaths[index];
                       return GestureDetector(
                         onTap: () {
-                          selectedimage.value = path;
-                          print('Selected: ${selectedimage.value}');
+                          selectedimagelayer.value.add(path);
+                          print('Selected: ${selectedimagelayer.value}');
                           // stickerController.addSticker(path);
                           Widget widget = Container(
                             height: 100,
@@ -1297,6 +1300,7 @@ class ImageEditorController extends GetxController {
                   child: Image.file( LogoStcikerImage.value),
                 );
                 controller.selectedWidget!.edit(widget);
+
               }
             },
           ),

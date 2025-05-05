@@ -171,6 +171,7 @@ class TextEditorControllerWidget extends GetxController {
           ),
         );
         _controller.controller.selectedWidget!.edit(widget);
+
       }
       updateTextSize(selectedText.value!);
     } else if (newText.isNotEmpty) {
@@ -223,9 +224,9 @@ class TextEditorControllerWidget extends GetxController {
         ),
       );
       _controller.controller.add(widget);
+      _controller.selectedimagelayer.value.add(selectedText.value!.text.value);
       print('Created new text model: $newText');
     }
-
     update();
   }
 

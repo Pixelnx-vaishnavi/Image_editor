@@ -68,6 +68,7 @@ class ImageEditorScreen extends StatelessWidget {
     filtercontroller.setInitialImage(image);
 
     _controller.controller = LindiController(
+
       borderColor: Colors.white,
       shouldRotate: true,
       icons: [
@@ -121,7 +122,10 @@ class ImageEditorScreen extends StatelessWidget {
     // });
 
     _controller.controller.onPositionChange((index) {
+     _controller.controller.widgets[index];
       debugPrint("widgets size: ${_controller.controller.widgets.length}, current index: $index");
+
+
     });
 
     return SafeArea(
@@ -133,12 +137,12 @@ class ImageEditorScreen extends StatelessWidget {
           backgroundColor: Colors.black,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            icon:  Icon(Icons.arrow_back_ios_new, color: Colors.white),
             onPressed: () => Get.back(),
           ),
           actions: [
             Padding(
-              padding: const EdgeInsets.only(right: 20),
+              padding:  EdgeInsets.only(right: 20),
               child: Row(
                 children: [
                   GestureDetector(
@@ -146,9 +150,9 @@ class ImageEditorScreen extends StatelessWidget {
                       _controller.showImageLayer.value = true;
                     },
                       child: SizedBox(height: 20, child: Image.asset('assets/image_layer.png'))),
-                  const SizedBox(width: 25),
+                   SizedBox(width: 25),
                   SizedBox(height: 20, child: Image.asset('assets/Save.png')),
-                  const SizedBox(width: 15),
+                   SizedBox(width: 15),
                   SizedBox(
                     height: 20,
                     child: GestureDetector(
@@ -211,7 +215,6 @@ class ImageEditorScreen extends StatelessWidget {
                                         _controller.showFilterEditOptions.value ||
                                         _controller.showStickerEditOptions.value ||
                                         _controller.showtuneOptions.value;
-
                                 return RepaintBoundary(
                                   key: _repaintKey,
                                   child: LindiStickerWidget(
@@ -980,7 +983,7 @@ class ImageEditorScreen extends StatelessWidget {
                                 );
                               }),
                             ),
-                            const SizedBox(height: 15),
+                             SizedBox(height: 15),
                             if (!_controller.showEditOptions.value &&
                                 !_controller.showFilterEditOptions.value &&
                                 !_controller.showStickerEditOptions.value &&
