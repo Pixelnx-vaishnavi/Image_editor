@@ -1,215 +1,207 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-import 'package:image_editor/screens_ui/Text/Text_controller.dart';
+import 'package:image_editor/Const/color_const.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
 
 class ImageLayerWidget extends StatelessWidget {
-  final TextEditorControllerWidget textEditorControllerWidget = Get.find<TextEditorControllerWidget>();
   final StickerController stickerController = Get.find<StickerController>();
   final ImageEditorController _controller = Get.find<ImageEditorController>();
 
-  final Rx<dynamic> selectedLayer = Rx<dynamic>(null);
-  final RxString selectedType = ''.obs; // 'text' or 'image'
-
   ImageLayerWidget({super.key});
 
-  Widget _buildLayerWidget(String assetPath) {
-    if (assetPath.endsWith('.svg')) {
-      return SvgPicture.asset(
-        assetPath,
-        height: 40,
-        placeholderBuilder: (context) => const CircularProgressIndicator(),
+  Widget _buildLayerWidget(dynamic assetPath) {
+    if (assetPath is File) {
+      return Center(
+        child: Image.file(
+          assetPath,
+          height: 40,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+          const Icon(Icons.broken_image),
+        ),
       );
-    } else if (assetPath.endsWith('.png') ||
-        assetPath.endsWith('.jpg') ||
-        assetPath.endsWith('.jpeg') ||
-        assetPath.startsWith('http')) {
-      return Image.asset(
-        assetPath,
-        height: 40,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
-      );
-    } else {
-      return Text(
-        assetPath,
-        style: const TextStyle(fontSize: 16, color: Colors.black),
+    } else if (assetPath is String) {
+      if (assetPath.endsWith('.svg')) {
+        return Center(
+          child: SvgPicture.asset(
+            assetPath,
+            height: 40,
+            placeholderBuilder: (context) => CircularProgressIndicator(),
+          ),
+        );
+      }
+
+      if (assetPath.startsWith('http')) {
+        return Center(
+          child: Image.network(
+            assetPath,
+            height: 40,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) =>
+                Icon(Icons.broken_image),
+          ),
+        );
+      }
+
+      if (assetPath.endsWith('.png') ||
+          assetPath.endsWith('.jpg') ||
+          assetPath.endsWith('.jpeg')) {
+        return Center(
+          child: Image.asset(
+            assetPath,
+            height: 40,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) =>
+                Icon(Icons.broken_image),
+          ),
+        );
+      }
+
+      return Center(
+        child: Text(
+          assetPath,
+          style: TextStyle(fontSize: 16, color: Colors.black),
+        ),
       );
     }
+
+    return Icon(Icons.error_outline, color: Colors.red);
   }
 
-  void onReorder(int oldIndex, int newIndex) {
-    final textList = textEditorControllerWidget.text;
-    final imageList = _controller.selectedimagelayer;
+  void onReorderReal(int from, int to) {
+    final layerList = _controller.selectedimagelayer.value;
+    final widgetList = _controller.controller.widgets;
 
-    final combined = [
-      ...textList.map((t) => {'type': 'text', 'data': t}),
-      ...imageList.map((i) => {'type': 'image', 'data': i}),
-    ].reversed.toList();
+    if (from < 0 || to < 0 || from >= layerList.length || to >= layerList.length) return;
 
-    final item = combined.removeAt(oldIndex);
-    combined.insert(newIndex, item);
+    final movedLayer = layerList.removeAt(from);
+    layerList.insert(to, movedLayer);
 
-    final updated = combined.reversed.toList();
-
-    final newTextList = <dynamic>[];
-    final newImageList = <String>[];
-
-    for (var layer in updated) {
-      if (layer['type'] == 'text') {
-        newTextList.add(layer['data']);
-      } else if (layer['type'] == 'image') {
-        newImageList.add(layer['data']);
-      }
+    if (widgetList.length == layerList.length) {
+      final movedWidget = widgetList.removeAt(from);
+      widgetList.insert(to, movedWidget);
+    } else {
+      debugPrint(
+          'Warning: Widget list length (${widgetList.length}) does not match layer list length (${layerList.length})');
     }
 
-    textEditorControllerWidget.text.value = newTextList.cast();
-    _controller.selectedimagelayer.value = newImageList;
+    _controller.selectedimagelayer.value = List.from(layerList);
+    _controller.controller.onPositionChange((index) {
+      _controller.indexlayer.value = index;
+      _controller.indexlayer.notifyListeners();
+    });
+  }
 
-    textEditorControllerWidget.text.refresh();
-    _controller.selectedimagelayer.refresh();
+  void removeLayer(int index) {
+    if (index < _controller.selectedimagelayer.value.length) {
+      _controller.selectedimagelayer.value.removeAt(index);
+      _controller.selectedimagelayer.refresh();
+      if (_controller.selectedIndex.value == index) {
+        _controller.selectedIndex.value = -1;
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Image Layers'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            _controller.showImageLayer.value = false;
-          },
-        ),
-      ),
+      backgroundColor: Color(ColorConst.bottomBarcolor),
       body: Obx(() {
-        final textCount = textEditorControllerWidget.text.length;
-        final imageLayerCount = _controller.selectedimagelayer.value.length;
+        final originalLayers = _controller.selectedimagelayer.value;
+        final reversedLayers = originalLayers.reversed.toList();
 
-        // If no layers available
-        if (textCount == 0 && imageLayerCount == 0) {
-          return const Center(
-            child: Text(
-              'No layers available',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-          );
+        // Ensure editedImage is always at the end and not draggable
+        final displayLayers = List.from(reversedLayers);
+        final editedImage = _controller.editedImage.value;
+        if (!displayLayers.contains(editedImage)) {
+          displayLayers.add(editedImage);
         }
 
-        final List<Map<String, dynamic>> combinedLayers = [];
-
-        for (int i = 0; i < textCount; i++) {
-          combinedLayers.add({
-            'type': 'text',
-            'widget': Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                textEditorControllerWidget.text[i].text.value.isEmpty
-                    ? 'Empty Text'
-                    : textEditorControllerWidget.text[i].text.value,
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            'data': textEditorControllerWidget.text[i],
-          });
-        }
-
-        for (int i = 0; i < imageLayerCount; i++) {
-          combinedLayers.add({
-            'type': 'image',
-            'widget': _buildLayerWidget(_controller.selectedimagelayer.value[i]),
-            'data': _controller.selectedimagelayer.value[i],
-          });
-        }
-
-        final reversedLayers = combinedLayers.reversed.toList();
+        final totalCount = displayLayers.length;
 
         return ReorderableListView.builder(
-          padding:  EdgeInsets.all(16),
-          itemCount: reversedLayers.length,
-          onReorder: onReorder,
+          padding: EdgeInsets.all(16),
+          itemCount: totalCount,
+          buildDefaultDragHandles: false,
+          proxyDecorator: (child, index, animation) {
+            return Material(
+              color: Colors.transparent,
+              elevation: 6,
+              child: Opacity(opacity: 0.7, child: child),
+            );
+          },
+          onReorder: (oldIndex, newIndex) {
+            if (oldIndex == totalCount - 1 || newIndex == totalCount) return;
+
+            if (newIndex > oldIndex) newIndex -= 1;
+            final from = originalLayers.length - 1 - oldIndex;
+            final to = originalLayers.length - 1 - newIndex;
+            onReorderReal(from, to);
+          },
           itemBuilder: (context, index) {
-            final layer = reversedLayers[index];
-            final Widget widget = layer['widget'];
-            final dynamic data = layer['data'];
-            final String type = layer['type'];
+            final assetPath = displayLayers[index];
+            final isFile = assetPath is File;
+            final isEditedImage = assetPath == editedImage;
+            final originalIndex = originalLayers.length - 1 - index;
 
-            return KeyedSubtree(
-              key: ValueKey('$index-$type'),
-              child: Obx(() {
-                bool isSelected = selectedLayer.value == data;
+            final widget = _buildLayerWidget(assetPath);
 
-                return Container(
-                  margin:  EdgeInsets.symmetric(vertical: 8),
-                  padding:  EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: isSelected ? Colors.blue : Colors.grey.shade400, width: 2),
-                    borderRadius: BorderRadius.circular(8),
+
+            return ReorderableDragStartListener(
+            key: ValueKey('image-$index'),
+            index: index,
+            enabled: !isEditedImage,
+            child: GestureDetector(
+            onTap: () {
+            if (!isFile && !isEditedImage) {
+            _controller.controller.clearAllBorders();
+            if (originalIndex >= 0 &&
+            originalIndex < _controller.controller.widgets.length) {
+            _controller.controller.widgets[originalIndex].showBorder(true);
+            _controller.selectedIndex.value = originalIndex;
+            }
+            }
+            },
+
+              child: Container(
+                margin: EdgeInsets.symmetric(vertical: 8),
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: (_controller.selectedIndex.value == originalIndex)
+                        ? Colors.blue
+                        : Colors.grey.shade400,
+                    width: isEditedImage
+                        ? 0
+                        : (_controller.selectedIndex.value == originalIndex ? 3.0 : 1.0),
                   ),
-                  child: GestureDetector(
-                    onTap: () {
-                      selectedLayer.value = data;
-                      selectedType.value = type;
-                    },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Image.asset('assets/widget_image_layer_icon.png'),
+                    widget,
+                    Row(
                       children: [
-                        widget,
-                        if (isSelected)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit, color: Colors.green),
-                                onPressed: () {
-                                  if (type == 'text') {
-                                    // Add text editing logic here
-                                  }
-                                },
-                              ),
-                              IconButton(
-                                icon:  Icon(Icons.delete, color: Colors.red),
-                                onPressed: () {
-                                  if (type == 'text') {
-                                    textEditorControllerWidget.text.remove(data);
-                                    textEditorControllerWidget.text.refresh();
-                                  } else {
-                                    _controller.selectedimagelayer.value.remove(data);
-                                    _controller.selectedimagelayer.refresh();
-                                  }
-                                  selectedLayer.value = null;
-                                  selectedType.value = '';
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.arrow_upward, color: Colors.blue),
-                                onPressed: () {
-                                  if (type == 'text') {
-                                    textEditorControllerWidget.text.remove(data);
-                                    textEditorControllerWidget.text.add(data);
-                                    textEditorControllerWidget.text.refresh();
-                                  } else {
-                                    _controller.selectedimagelayer.value.remove(data);
-                                    _controller.selectedimagelayer.value.add(data);
-                                    _controller.selectedimagelayer.refresh();
-                                  }
-                                },
-                              ),
-                            ],
+                        if (!isFile && !isEditedImage)
+                          GestureDetector(
+                            onTap: () {
+                              _controller.controller.widgets[originalIndex].delete();
+                              removeLayer(originalIndex);
+                            },
+                            child: Icon(Icons.delete, color: Colors.red),
                           ),
                       ],
                     ),
-                  ),
-                );
-              }),
-            );
-
+                  ],
+                ),
+              ),
+            ));
           },
         );
       }),

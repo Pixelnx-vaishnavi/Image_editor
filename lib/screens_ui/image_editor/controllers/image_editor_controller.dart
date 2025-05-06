@@ -57,7 +57,7 @@ class ImageEditorController extends GetxController {
   File? selectedImage;
   // final Rxn<String> selectedimage = Rxn<String>();
   RxList selectedimagelayer = [].obs;
-
+  final selectedIndex = RxInt(-1); // Add this to track selected layer index
   final originalImageBytes = Rxn<Uint8List>();
   final selectedFilter = Rxn<Filter>();
   final ValueNotifier<String> selectedCategory = ValueNotifier<String>("Natural");
@@ -65,7 +65,7 @@ class ImageEditorController extends GetxController {
   final StickerController stickerController = Get.put(StickerController());
   RxBool isBrushSelected = true.obs;
   final RxString selectedTab = 'Font'.obs;
-  final RxInt indexlayer = 0.obs;
+  final indexlayer = ValueNotifier<int>(0);
   late LindiController controller;
   final GlobalKey globalkey = GlobalKey();
 

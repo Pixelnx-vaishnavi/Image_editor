@@ -69,8 +69,9 @@ class ImageEditorScreen extends StatelessWidget {
 
     _controller.controller = LindiController(
 
-      borderColor: Colors.white,
+      borderColor: Colors.blue,
       shouldRotate: true,
+      showBorders: true,
       icons: [
         LindiStickerIcon(
           icon: Icons.rotate_90_degrees_ccw,
@@ -123,6 +124,7 @@ class ImageEditorScreen extends StatelessWidget {
 
     _controller.controller.onPositionChange((index) {
      _controller.controller.widgets[index];
+
       debugPrint("widgets size: ${_controller.controller.widgets.length}, current index: $index");
 
 
