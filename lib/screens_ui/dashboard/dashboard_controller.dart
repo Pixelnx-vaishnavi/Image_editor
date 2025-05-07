@@ -7,6 +7,9 @@ import 'package:image_editor/Const/routes_const.dart';
 import 'package:image_picker/image_picker.dart';
 
 class BottomSheetController extends GetxController {
+  final ImagePicker pickerGallery = ImagePicker();
+  final ImagePicker pickerCamera = ImagePicker();
+
 
   void showCreateTemplateSheet() {
     Get.bottomSheet(
@@ -92,40 +95,45 @@ class BottomSheetController extends GetxController {
                        ),
                      ),
                      SizedBox(width: 10,),
-                     Container(
-                       height: 120,
-                       width: 130,
-                       decoration: BoxDecoration(
-                           borderRadius: BorderRadius.circular(10),
-                           // gradient: LinearGradient(
-                           //   begin: Alignment.topCenter,
-                           //   end: Alignment.bottomCenter,
-                           //   colors: [
-                           //     Color(ColorConst.skyBlue),
-                           //     Color(ColorConst.lightpurple),
-                           //   ],
-                           // ),
-                           border: Border.all(color: Color(ColorConst.lightishbordercolorgrey))
-                       ),
-                       child: Center(
-                         child: Column(
-                           mainAxisAlignment: MainAxisAlignment.center,
-                           children: [
-                           Image.asset('assets/magicpen.png'),
-                             SizedBox(height: 7,),
-                             Text(
-                               'Create From Gallery',
-                               style: TextStyle(
-                                 color: Color(ColorConst.textblackcolor),
-                                 fontFamily: 'Outfit',
-                                 fontWeight: FontWeight.w400,
-                                 fontSize: 12,
-                                 height: 1.0, // Line height 100%
-                                 letterSpacing: 0.0,
-                               ),
-                             )
+                     GestureDetector(
+                       onTap: () {
+                         Get.find<BottomSheetController>().pickImageFromGallery();
+                       },
+                       child: Container(
+                         height: 120,
+                         width: 130,
+                         decoration: BoxDecoration(
+                             borderRadius: BorderRadius.circular(10),
+                             // gradient: LinearGradient(
+                             //   begin: Alignment.topCenter,
+                             //   end: Alignment.bottomCenter,
+                             //   colors: [
+                             //     Color(ColorConst.skyBlue),
+                             //     Color(ColorConst.lightpurple),
+                             //   ],
+                             // ),
+                             border: Border.all(color: Color(ColorConst.lightishbordercolorgrey))
+                         ),
+                         child: Center(
+                           child: Column(
+                             mainAxisAlignment: MainAxisAlignment.center,
+                             children: [
+                             Image.asset('assets/magicpen.png'),
+                               SizedBox(height: 7,),
+                               Text(
+                                 'Create From Gallery',
+                                 style: TextStyle(
+                                   color: Color(ColorConst.textblackcolor),
+                                   fontFamily: 'Outfit',
+                                   fontWeight: FontWeight.w400,
+                                   fontSize: 12,
+                                   height: 1.0, // Line height 100%
+                                   letterSpacing: 0.0,
+                                 ),
+                               )
 
-                           ],
+                             ],
+                           ),
                          ),
                        ),
                      ),
@@ -185,10 +193,10 @@ class BottomSheetController extends GetxController {
   }
 
 
-  final ImagePicker _picker = ImagePicker();
 
-  Future<void> pickImageFromCamera() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+
+  Future<void> pickImageFromGallery() async {
+    final XFile? pickedFile = await pickerGallery.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       File imageFile = File(pickedFile.path);
 
@@ -199,4 +207,18 @@ class BottomSheetController extends GetxController {
       Get.snackbar('Cancelled', 'No image selected');
     }
   }
+
+Future<void> pickImageFromCamera() async {
+
+  final XFile? pickedFile = await pickerCamera.pickImage(source: ImageSource.camera);
+  if (pickedFile != null) {
+    File imageFile = File(pickedFile.path);
+
+    Get.back();
+    Get.toNamed(Consts.ImageEditorScreen, arguments: imageFile);
+
+  } else {
+    Get.snackbar('Cancelled', 'No image selected');
+  }
+}
 }

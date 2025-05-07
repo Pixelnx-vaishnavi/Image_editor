@@ -78,7 +78,6 @@ class TextEditorControllerWidget extends GetxController {
   Timer? _debounce;
   final Map<EditableTextModel, Size> _textSizes = {};
 
-  // Debounce helper to limit state updates
   void _debouncedUpdate(void Function() callback) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 10),

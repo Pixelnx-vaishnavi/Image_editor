@@ -123,86 +123,132 @@ class ImageLayerWidget extends StatelessWidget {
 
         final totalCount = displayLayers.length;
 
-        return ReorderableListView.builder(
-          padding: EdgeInsets.all(16),
-          itemCount: totalCount,
-          buildDefaultDragHandles: false,
-          proxyDecorator: (child, index, animation) {
-            return Material(
-              color: Colors.transparent,
-              elevation: 6,
-              child: Opacity(opacity: 0.7, child: child),
-            );
-          },
-          onReorder: (oldIndex, newIndex) {
-            if (oldIndex == totalCount - 1 || newIndex == totalCount) return;
-
-            if (newIndex > oldIndex) newIndex -= 1;
-            final from = originalLayers.length - 1 - oldIndex;
-            final to = originalLayers.length - 1 - newIndex;
-            onReorderReal(from, to);
-          },
-          itemBuilder: (context, index) {
-            final assetPath = displayLayers[index];
-            final isFile = assetPath is File;
-            final isEditedImage = assetPath == editedImage;
-            final originalIndex = originalLayers.length - 1 - index;
-
-            final widget = _buildLayerWidget(assetPath);
-
-
-            return ReorderableDragStartListener(
-            key: ValueKey('image-$index'),
-            index: index,
-            enabled: !isEditedImage,
-            child: GestureDetector(
-            onTap: () {
-            if (!isFile && !isEditedImage) {
-            _controller.controller.clearAllBorders();
-            if (originalIndex >= 0 &&
-            originalIndex < _controller.controller.widgets.length) {
-            _controller.controller.widgets[originalIndex].showBorder(true);
-            _controller.selectedIndex.value = originalIndex;
-            }
-            }
-            },
-
-              child: Container(
-                margin: EdgeInsets.symmetric(vertical: 8),
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: (_controller.selectedIndex.value == originalIndex)
-                        ? Colors.blue
-                        : Colors.grey.shade400,
-                    width: isEditedImage
-                        ? 0
-                        : (_controller.selectedIndex.value == originalIndex ? 3.0 : 1.0),
-                  ),
-                  borderRadius: BorderRadius.circular(8),
+        return Expanded(
+          child: Column(
+            children: [
+              Expanded(
+                child: ReorderableListView.builder(
+                  padding: EdgeInsets.all(16),
+                  itemCount: totalCount,
+                  buildDefaultDragHandles: false,
+                  proxyDecorator: (child, index, animation) {
+                    return Material(
+                      color: Colors.transparent,
+                      elevation: 6,
+                      child: Opacity(opacity: 0.7, child: child),
+                    );
+                  },
+                  onReorder: (oldIndex, newIndex) {
+                    if (oldIndex == totalCount - 1 || newIndex == totalCount) return;
+                          
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    final from = originalLayers.length - 1 - oldIndex;
+                    final to = originalLayers.length - 1 - newIndex;
+                    onReorderReal(from, to);
+                  },
+                  itemBuilder: (context, index) {
+                    final assetPath = displayLayers[index];
+                    final isFile = assetPath is File;
+                    final isEditedImage = assetPath == editedImage;
+                    final originalIndex = originalLayers.length - 1 - index;
+                          
+                    final widget = _buildLayerWidget(assetPath);
+                          
+                          
+                    return ReorderableDragStartListener(
+                    key: ValueKey('image-$index'),
+                    index: index,
+                    enabled: !isEditedImage,
+                    child: GestureDetector(
+                    onTap: () {
+                    if (!isFile && !isEditedImage) {
+                    _controller.controller.clearAllBorders();
+                    if (originalIndex >= 0 &&
+                    originalIndex < _controller.controller.widgets.length) {
+                    _controller.controller.widgets[originalIndex].showBorder(true);
+                    _controller.selectedIndex.value = originalIndex;
+                    }
+                    }
+                    },
+                          
+                      child: Container(
+                        margin: EdgeInsets.symmetric(vertical: 8),
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: (_controller.selectedIndex.value == originalIndex)
+                                ? Colors.blue
+                                : Colors.grey.shade400,
+                            width: isEditedImage
+                                ? 0
+                                : (_controller.selectedIndex.value == originalIndex ? 3.0 : 1.0),
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            if(isFile)
+                              Image.asset('assets/image_layer_icon_image.png'),
+                            if (!isFile && !isEditedImage)
+                            Image.asset('assets/widget_image_layer_icon.png'),
+                            widget,
+                            Row(
+                              children: [
+                                if (!isFile && !isEditedImage)
+                                  GestureDetector(
+                                    onTap: () {
+                                      _controller.controller.widgets[originalIndex].delete();
+                                      removeLayer(originalIndex);
+                                    },
+                                    child: Icon(Icons.delete, color: Colors.red),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ));
+                  },
                 ),
+              ),
+              Padding(
+                padding:  EdgeInsets.only(bottom: 20,left: 10,right: 10),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Image.asset('assets/widget_image_layer_icon.png'),
-                    widget,
-                    Row(
-                      children: [
-                        if (!isFile && !isEditedImage)
-                          GestureDetector(
-                            onTap: () {
-                              _controller.controller.widgets[originalIndex].delete();
-                              removeLayer(originalIndex);
-                            },
-                            child: Icon(Icons.delete, color: Colors.red),
-                          ),
-                      ],
+                    GestureDetector(
+                      onTap: () {
+                        _controller.showImageLayer.value = false;
+                      },
+                      child: SizedBox(
+                        height: 30,
+                        child: Image.asset('assets/cross.png'),
+                      ),
+                    ),
+                    Text(
+                      'Layers',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 20,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: ()  {
+                        _controller.showImageLayer.value = false;
+                        },
+
+                      child: SizedBox(
+                        height: 30,
+                        child: Image.asset('assets/right.png'),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ));
-          },
+              )
+            ],
+          ),
         );
       }),
     );

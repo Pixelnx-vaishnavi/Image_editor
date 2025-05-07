@@ -212,6 +212,8 @@ class TextUIWithTabsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Obx(() => TextFormField(
+
+                      undoController: _controller.undoController.value,
                       focusNode: _textFocusNode,
                       onTap: () {
                         if(_controller.isSelectingText.value == false) {

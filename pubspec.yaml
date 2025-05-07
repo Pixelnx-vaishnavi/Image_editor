@@ -55,6 +55,7 @@ dependencies:
   share_plus: ^11.0.0
   flutter_image_filters: ^0.0.24
   photofilters: any
+  undo: ^1.5.0
 
 
 
@@ -219,6 +220,7 @@ flutter:
      - assets/presets.png
      - assets/image_layer.png
      - assets/widget_image_layer_icon.png
+     - assets/image_layer_icon_image.png
 #     - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
