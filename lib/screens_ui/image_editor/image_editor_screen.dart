@@ -1230,6 +1230,12 @@ class Sticker {
   });
 }
 
+
+
+
+
+
+
 class ShapeSelectorSheet extends StatefulWidget {
   final LindiController controller;
   final Map<String, List<String>> shapeCategories;
@@ -1253,41 +1259,62 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
   final editedImage = ValueNotifier<File?>(null);
   final editedImageBytes = ValueNotifier<List<int>?>(null);
   final flippedBytes = ValueNotifier<List<int>?>(null);
+  final ImageEditorController _controller = Get.put(ImageEditorController());
 
   final List<Widget> _undoStack = [];
   final List<Widget> _redoStack = [];
+  int _redoIndex = 0;
 
-  void _addWidget(Widget widgets) {
-    // Assign a unique key to ensure widget identity
+  void _addWidget(Widget newWidget) {
+    if (newWidget == null) return;
+
     final keyedWidget = KeyedSubtree(
-      key: ValueKey(
-          '${DateTime.now().millisecondsSinceEpoch}_${widget.hashCode}'),
-      child: widgets,
+      key: ValueKey('${DateTime.now().millisecondsSinceEpoch}_${newWidget.hashCode}'),
+      child: newWidget,
     );
+
     if (!_undoStack.contains(keyedWidget)) {
-      widget.controller.add(keyedWidget);
-      _undoStack.add(keyedWidget);
-      _redoStack.clear();
-      print(
-          'Added widget to undo stack: ${_undoStack.length}, controller widgets: ${widget.controller.widgets.length}, widgets: ${widget.controller.widgets}');
-      setState(() {});
-      if (widget.controller is ChangeNotifier) {
-        (widget.controller as ChangeNotifier).notifyListeners();
+      try {
+        print('Adding widget: $keyedWidget');
+        widget.controller.add(keyedWidget);
+        _undoStack.add(keyedWidget);
+        _redoStack.clear();
+        _redoIndex = 0;
+        setState(() {});
+        if (widget.controller is ChangeNotifier) {
+          (widget.controller as ChangeNotifier).notifyListeners();
+        }
+      } catch (e, stackTrace) {
+        print('Error adding widget: $e');
+        print(stackTrace);
       }
     }
   }
 
   void _undo() {
-    print('Undo called');
     if (_undoStack.isNotEmpty) {
-      final widgets = _undoStack.removeLast();
-      widget.controller.widgets.remove(widget.controller.widgets.removeLast());
-      _redoStack.add(widgets);
-      print(
-          'Undo: Removed widget, undo stack: ${_undoStack.length}, redo stack: ${_redoStack.length}, controller widgets: ${widget.controller.widgets.length}, widgets: ${widget.controller.widgets}');
-      setState(() {});
-      if (widget.controller is ChangeNotifier) {
-        (widget.controller as ChangeNotifier).notifyListeners();
+      try {
+        print('Undo called, undoStack length: ${_undoStack.length}');
+        final undoneWidget = _undoStack.removeLast();
+        if (widget.controller.widgets.isNotEmpty) {
+          widget.controller.widgets.removeLast();
+        } else {
+          print('Warning: controller.widgets is empty during undo');
+        }
+        _redoStack.add(undoneWidget);
+        _redoIndex = 0;
+        // widget.controller.clearAllBorders();
+        widget.controller.showBorders = true;
+        print('Undo completed, redoStack: ${_redoStack.length}, '
+            'controller.widgets: ${widget.controller.widgets.length}, '
+            'selectedWidget: ${widget.controller.selectedWidget}');
+        setState(() {});
+        if (widget.controller is ChangeNotifier) {
+          (widget.controller as ChangeNotifier).notifyListeners();
+        }
+      } catch (e, stackTrace) {
+        print('Error during undo: $e');
+        print(stackTrace);
       }
     } else {
       print('Undo stack is empty');
@@ -1295,20 +1322,63 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
   }
 
   void _redo() {
-    print('Redo called');
-    if (_redoStack.isNotEmpty) {
-      final widgets = _redoStack[1];
-      widget.controller.add(widgets);
-      _undoStack.add(widgets);
-      print(
-          'Redo: Added widget, undo stack: ${_undoStack.length}, redo stack: ${_redoStack.length}, controller widgets: ${widget.controller.widgets.length}, widgets: ${widget.controller.widgets}');
+    if (_redoStack.isEmpty) {
+      print('Redo stack is empty');
+      return;
+    }
+
+    try {
+      print('Redo called, redoStack length: ${_redoStack.length}');
+      final redoneWidget = _redoStack.removeLast();
+      print('Processing redo widget: $redoneWidget');
+
+      // Extract child if KeyedSubtree
+      Widget? widgetToAddToController = redoneWidget;
+      if (redoneWidget is KeyedSubtree) {
+        widgetToAddToController = redoneWidget.child;
+        print('Extracted child: $widgetToAddToController');
+      }
+
+      if (widgetToAddToController == null) {
+        print('Error: Null widget in redo');
+        return;
+      }
+
+      widget.controller.showBorders = true;
+      print('After clearAllBorders: selectedWidget=${widget.controller.selectedWidget}');
+
+      widget.controller.add(widgetToAddToController);
+      print('Added to controller, widgets: ${widget.controller.widgets}, '
+          'length: ${widget.controller.widgets.length}, '
+          'selectedWidget: ${widget.controller.selectedWidget}');
+
+      _undoStack.add(redoneWidget);
+      print('Redo completed, undoStack: ${_undoStack.length}, '
+          'redoStack: ${_redoStack.length}');
+
       setState(() {});
       if (widget.controller is ChangeNotifier) {
         (widget.controller as ChangeNotifier).notifyListeners();
       }
-    } else {
-      print('Redo stack is empty');
+    } catch (e, stackTrace) {
+      print('Error in redo: $e');
+      print(stackTrace);
+      _redoStack.clear();
+      print('Cleared redoStack for recovery, length: ${_redoStack.length}');
+      setState(() {});
     }
+  }
+
+  @override
+  void dispose() {
+    selectedTabIndex.dispose();
+    selectedimagelayer.dispose();
+    showStickerEditOptions.dispose();
+    showEditOptions.dispose();
+    editedImage.dispose();
+    editedImageBytes.dispose();
+    flippedBytes.dispose();
+    super.dispose();
   }
 
   @override
@@ -1345,13 +1415,13 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                         onTap: () {
                           selectedimagelayer.value.add(path);
                           print('Selected: ${selectedimagelayer.value}');
-                          Widget widget = Container(
+                          Widget newWidget = Container(
                             height: 100,
                             width: 100,
                             padding: EdgeInsets.all(12),
                             child: SvgPicture.asset(path),
                           );
-                          _addWidget(widget);
+                          _addWidget(newWidget);
                         },
                         child: Column(
                           children: [
@@ -1377,24 +1447,16 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
               valueListenable: selectedTabIndex,
               builder: (context, currentIndex, _) {
                 return TabBar(
-                  onTap: (index) {
-                    selectedTabIndex.value = index;
-                  },
+                  onTap: (index) => selectedTabIndex.value = index,
                   isScrollable: true,
                   labelPadding: EdgeInsets.symmetric(horizontal: 8),
                   indicatorColor: Colors.transparent,
                   dividerColor: Colors.transparent,
-                  tabs: widget.shapeCategories.keys
-                      .toList()
-                      .asMap()
-                      .entries
-                      .map((entry) {
-                    final index = entry.key;
-                    final category = entry.value;
+                  tabs: widget.shapeCategories.keys.map((category) {
+                    final index = widget.shapeCategories.keys.toList().indexOf(category);
                     return Tab(
                       child: Container(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: index == currentIndex
                               ? Color(ColorConst.tabhighlightbutton)
@@ -1427,17 +1489,23 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                     children: [
                       GestureDetector(
                         onTap: _undoStack.isNotEmpty ? _undo : null,
-                        child: Opacity(
-                          opacity: _undoStack.isNotEmpty ? 1.0 : 0.5,
-
+                        child: Visibility(
+                          visible: false,
+                          child: Opacity(
+                            opacity: _undoStack.isNotEmpty ? 1.0 : 0.5,
+                            child: Image.asset('assets/undo.png', height: 40),
+                          ),
                         ),
                       ),
                       SizedBox(width: 10),
                       GestureDetector(
                         onTap: _redoStack.isNotEmpty ? _redo : null,
-                        child: Opacity(
-                          opacity: _redoStack.isNotEmpty ? 1.0 : 0.5,
-
+                        child: Visibility(
+                          visible: false,
+                          child: Opacity(
+                            opacity: _redoStack.isNotEmpty ? 1.0 : 0.5,
+                            child: Image.asset('assets/redo.png', height: 40),
+                          ),
                         ),
                       ),
                       SizedBox(width: 10),
@@ -1450,10 +1518,11 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                           _undoStack.clear();
                           _redoStack.clear();
                           widget.controller.widgets.clear();
+                          _redoIndex = 0;
+                          widget.controller.clearAllBorders();
                           setState(() {});
                           if (widget.controller is ChangeNotifier) {
-                            (widget.controller as ChangeNotifier)
-                                .notifyListeners();
+                            (widget.controller as ChangeNotifier).notifyListeners();
                           }
                         },
                         child: SizedBox(
@@ -1473,13 +1542,12 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                   ),
                   GestureDetector(
                     onTap: () async {
-                      showEditOptions.value = false;
-                      showStickerEditOptions.value = false;
+                      _controller.showEditOptions.value = false;
+                      _controller.showStickerEditOptions.value = false;
 
                       if (flippedBytes.value != null) {
                         final tempDir = await getTemporaryDirectory();
-                        final path =
-                            '${tempDir.path}/confirmed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                        final path = '${tempDir.path}/confirmed_${DateTime.now().millisecondsSinceEpoch}.jpg';
                         final file = File(path);
                         await file.writeAsBytes(flippedBytes.value!);
 
@@ -1488,8 +1556,7 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                         flippedBytes.value = null;
                       }
 
-                      Get.toNamed('/ImageEditorScreen',
-                          arguments: editedImage.value);
+                      Get.toNamed('/ImageEditorScreen', arguments: editedImage.value);
                     },
                     child: SizedBox(
                       height: 40,
@@ -1505,3 +1572,11 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
     );
   }
 }
+
+
+
+
+
+
+
+

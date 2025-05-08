@@ -236,6 +236,69 @@ class ImageEditorController extends GetxController {
   // ];
 
 
+  final RxList _undoStack = [].obs;
+  final RxList _redoStack = [].obs;
+  int _redoIndex = 0;
+
+  void addWidget(Widget newWidget) {
+    if (newWidget == null) return;
+
+    final keyedWidget = KeyedSubtree(
+      key: ValueKey('${DateTime.now().millisecondsSinceEpoch}_${newWidget.hashCode}'),
+      child: newWidget,
+    );
+
+    if (!_undoStack.contains(keyedWidget)) {
+      try {
+        controller.add(keyedWidget);
+        _undoStack.add(keyedWidget);
+        _redoStack.clear();
+        _redoIndex = 0;
+
+        if (controller is ChangeNotifier) {
+          (controller as ChangeNotifier).notifyListeners();
+        }
+      } catch (_) {}
+    }
+  }
+
+  void undo() {
+    if (_undoStack.isNotEmpty) {
+      try {
+        final undoneWidget = _undoStack.removeLast();
+        if (controller.widgets.isNotEmpty) {
+          controller.widgets.removeLast();
+        }
+        _redoStack.add(undoneWidget);
+        _redoIndex = 0;
+        controller.clearAllBorders();
+
+        if (controller is ChangeNotifier) {
+          (controller as ChangeNotifier).notifyListeners();
+        }
+      } catch (_) {}
+    }
+  }
+
+  void redo() {
+    if (_redoStack.isEmpty) return;
+
+    // Pop the last item from redo stack
+    final Widget redoneWidget = _redoStack.removeAt(0); // FIFO instead of LIFO
+
+    _undoStack.add(redoneWidget);
+
+   controller.add(redoneWidget);
+
+
+
+    if (controller is ChangeNotifier) {
+      (controller as ChangeNotifier).notifyListeners();
+    }
+  }
+
+
+
   void setInitialImage(File image) async {
     editedImage.value = image;
     editedImageBytes.value = null;
