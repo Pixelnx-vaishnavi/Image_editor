@@ -112,6 +112,7 @@ class ImageEditorScreen extends StatelessWidget {
     );
 
     _controller.controller.onPositionChange((index) {
+   // print('=====onPostionChanged=====${_controller.controller.selectedWidget!.key}');
       debugPrint(
           "widgets size: ${_controller.controller.widgets.length}, current index: $index");
     });
@@ -1236,148 +1237,248 @@ class Sticker {
 
 
 
+class WidgetWithPosition {
+  final Widget widget;
+  final Alignment position;
+  final GlobalKey globalKey;
+
+  WidgetWithPosition({
+    required this.widget,
+    required this.position,
+    required this.globalKey,
+  });
+}
+
 class ShapeSelectorSheet extends StatefulWidget {
   final LindiController controller;
   final Map<String, List<String>> shapeCategories;
 
   const ShapeSelectorSheet({
-    Key? key,
+    super.key,
     required this.controller,
     required this.shapeCategories,
-  }) : super(key: key);
+  });
 
   @override
-  _ShapeSelectorSheetState createState() => _ShapeSelectorSheetState();
+  State<ShapeSelectorSheet> createState() => _ShapeSelectorSheetState();
 }
 
 class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
   final selectedTabIndex = ValueNotifier<int>(0);
-  final selectedimagelayer = ValueNotifier<List<String>>([]);
+  final selectedImageLayer = ValueNotifier<List<String>>([]);
   final stickerController = Get.find<StickerController>();
   final showStickerEditOptions = ValueNotifier<bool>(false);
   final showEditOptions = ValueNotifier<bool>(false);
   final editedImage = ValueNotifier<File?>(null);
   final editedImageBytes = ValueNotifier<List<int>?>(null);
   final flippedBytes = ValueNotifier<List<int>?>(null);
-  final ImageEditorController _controller = Get.put(ImageEditorController());
+  final ImageEditorController editorController = Get.put(ImageEditorController());
 
-  final List<Widget> _undoStack = [];
-  final List<Widget> _redoStack = [];
-  int _redoIndex = 0;
+  final List<WidgetWithPosition> _undoStack = [];
+  final List<WidgetWithPosition> _redoStack = [];
 
-  void _addWidget(Widget newWidget) {
-    if (newWidget == null) return;
+  @override
+  void initState() {
+    super.initState();
+    // Listen for position changes to update widget positions after dragging
+    widget.controller.onPositionChange((index) {
+      if (index >= 0 && index < widget.controller.widgets.length) {
+        final widgetWithPosition = _undoStack.firstWhere(
+              (w) => w.globalKey == widget.controller.widgets[index].key,
 
-    final keyedWidget = KeyedSubtree(
-      key: ValueKey('${DateTime.now().millisecondsSinceEpoch}_${newWidget.hashCode}'),
-      child: newWidget,
-    );
-
-    if (!_undoStack.contains(keyedWidget)) {
-      try {
-        print('Adding widget: $keyedWidget');
-        widget.controller.add(keyedWidget);
-        _undoStack.add(keyedWidget);
-        _redoStack.clear();
-        _redoIndex = 0;
-        setState(() {});
-        if (widget.controller is ChangeNotifier) {
-          (widget.controller as ChangeNotifier).notifyListeners();
-        }
-      } catch (e, stackTrace) {
-        print('Error adding widget: $e');
-        print(stackTrace);
-      }
-    }
-  }
-
-  void _undo() {
-    if (_undoStack.isNotEmpty) {
-      try {
-        print('Undo called, undoStack length: ${_undoStack.length}');
-        final undoneWidget = _undoStack.removeLast();
-        if (widget.controller.widgets.isNotEmpty) {
-          widget.controller.widgets.removeLast();
+        );
+        if (widgetWithPosition != null) {
+          Future.delayed(Duration(milliseconds: 100), () {
+            _updateWidgetPosition(widgetWithPosition);
+          });
         } else {
-          print('Warning: controller.widgets is empty during undo');
+          print('No matching widget found in _undoStack for key: ${widget.controller.widgets[index].key}');
         }
-        _redoStack.add(undoneWidget);
-        _redoIndex = 0;
-        // widget.controller.clearAllBorders();
-        widget.controller.showBorders = true;
-        print('Undo completed, redoStack: ${_redoStack.length}, '
-            'controller.widgets: ${widget.controller.widgets.length}, '
-            'selectedWidget: ${widget.controller.selectedWidget}');
-        setState(() {});
-        if (widget.controller is ChangeNotifier) {
-          (widget.controller as ChangeNotifier).notifyListeners();
-        }
-      } catch (e, stackTrace) {
-        print('Error during undo: $e');
-        print(stackTrace);
       }
-    } else {
-      print('Undo stack is empty');
+    });
+  }
+
+  /// Updates the position of a widget in the undo stack after dragging or before undo
+  Alignment _getWidgetPosition(WidgetWithPosition widgetWithPosition) {
+    try {
+      final renderBox = widgetWithPosition.globalKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        final position = renderBox.localToGlobal(Offset.zero);
+        final size = renderBox.size;
+        final stickerWidgetBox = LindiStickerWidget.globalKey.currentContext?.findRenderObject() as RenderBox?;
+        if (stickerWidgetBox != null) {
+          final stickerSize = stickerWidgetBox.size;
+          final stickerOffset = stickerWidgetBox.localToGlobal(Offset.zero);
+          final widgetCenter = Offset(
+            position.dx + size.width/2,
+            position.dy + size.height/2 ,
+          );
+          final alignmentX = ((widgetCenter.dx - stickerOffset.dx) / stickerSize.width) * 2- 1;
+          final alignmentY = ((widgetCenter.dy - stickerOffset.dy) / stickerSize.height) * 2- 1;
+          final newPosition = Alignment(alignmentX.clamp(-1, 1.0), alignmentY.clamp(-1, 1.0));
+          print('Calculated position for widget ${widgetWithPosition.globalKey}: $newPosition'
+              '(dx: ${widgetCenter.dx}, dy: ${widgetCenter.dy})');
+          return newPosition;
+        } else {
+          print('Warning: LindiStickerWidget.globalKey is null, using stored position');
+        }
+      } else {
+        print('Warning: RenderBox is null for widget ${widgetWithPosition.globalKey}');
+      }
+    } catch (e, stackTrace) {
+      print('Error calculating widget position: $e');
+      print(stackTrace);
+    }
+    return widgetWithPosition.position; // Fallback to stored position
+  }
+
+  /// Updates the position in _undoStack after dragging
+  void _updateWidgetPosition(WidgetWithPosition widgetWithPosition) {
+    final newPosition = _getWidgetPosition(widgetWithPosition);
+    print('====newPosition=====${newPosition}');
+    final index = _undoStack.indexWhere((w) => w.globalKey == widgetWithPosition.globalKey);
+    if (index != -1) {
+      _undoStack[index] = WidgetWithPosition(
+        widget: widgetWithPosition.widget,
+        position: newPosition,
+        globalKey: widgetWithPosition.globalKey,
+      );
     }
   }
 
+  /// Adds a new widget to the controller and undo stack, preventing duplicates.
+  void _addWidget(Widget newWidget, {Alignment? initialPosition}) {
+    if (newWidget == null) return;
+    try {
+      final globalKey = GlobalKey();
+      final keyedWidget = KeyedSubtree(
+        key: globalKey,
+        child: newWidget,
+      );
+      final position = initialPosition ?? Alignment.center;
+      print('Adding widget: $keyedWidget (key: ${keyedWidget.key}) at position: $position');
+      if (!widget.controller.widgets.any((w) => w.key == globalKey)) {
+        widget.controller.add(keyedWidget, position: position);
+        _undoStack.add(WidgetWithPosition(
+          widget: keyedWidget,
+          position: position,
+          globalKey: globalKey,
+        ));
+        _redoStack.clear();
+        print('Widget added, undoStack: ${_undoStack.length}, controller.widgets: ${widget.controller.widgets.length}');
+        setState(() {});
+        widget.controller.notifyListeners();
+      } else {
+        print('Widget with key ${keyedWidget.key} already exists, skipping add');
+      }
+    } catch (e, stackTrace) {
+      print('Error adding widget: $e');
+      print(stackTrace);
+    }
+  }
+
+  /// Removes the last widget from the undo stack and adds it to the redo stack.
+  void _undo() {
+    if (_undoStack.isEmpty) {
+      print('Undo stack is empty');
+      return;
+    }
+    try {
+      print('Undo called, undoStack length: ${_undoStack.length}');
+      final undoneWidgetWithPosition = _undoStack.last;
+      final undoneWidget = undoneWidgetWithPosition.widget;
+      final widgetKey = (undoneWidget as KeyedSubtree).key;
+
+      final currentPosition = _getWidgetPosition(undoneWidgetWithPosition);
+
+      // _undoStack.removeLast();
+
+      // final index = widget.controller.widgets.indexWhere((w) => w.key == widgetKey);
+      // if (index != -1) {
+      //   widget.controller.widgets[index].showBorder(true);
+      //   widget.controller.widgets[index].delete();
+      //   print('Deleted widget with key $widgetKey at index $index');
+      // } else {
+      //   print('Warning: Widget with key $widgetKey not found in controller.widgets');
+      // }
+      // widget.controller.widgets.last.showBorder(true);
+      print('=====currentPsiton======${currentPosition.x}');
+      print('=====currentPsiton======${currentPosition.y}');
+      // final index = widget.controller.widgets.indexWhere((w) => w.key == widgetKey);
+
+        // widget.controller.delete(index); // Use LindiController's delete method
+        // print('Widget with key $widgetKey removed from controller at index $index');
+
+      widget.controller.widgets.last.delete();
+      widget.controller.add(undoneWidget, position: currentPosition);
+      _redoStack.add(WidgetWithPosition(
+        widget: undoneWidget,
+        position: currentPosition,
+        globalKey: undoneWidgetWithPosition.globalKey,
+      ));
+
+      setState(() {});
+      widget.controller.notifyListeners();
+    } catch (e, stackTrace) {
+      print('Error during undo: $e');
+      print(stackTrace);
+    }
+  }
+
+  /// Re-adds the last widget from the redo stack to the controller and undo stack.
   void _redo() {
     if (_redoStack.isEmpty) {
       print('Redo stack is empty');
       return;
     }
-
     try {
       print('Redo called, redoStack length: ${_redoStack.length}');
-      final redoneWidget = _redoStack.removeLast();
-      print('Processing redo widget: $redoneWidget');
+      final redoneWidgetWithPosition = _redoStack.removeLast();
+      final redoneWidget = redoneWidgetWithPosition.widget;
+      final widgetKey = (redoneWidget as KeyedSubtree).key;
+      print('Processing redo widget: $redoneWidget (key: $widgetKey)');
+      print('===position===x====${redoneWidgetWithPosition.position.x}');
+      print('===position===y====${redoneWidgetWithPosition.position.y}');
 
-      // Extract child if KeyedSubtree
-      Widget? widgetToAddToController = redoneWidget;
-      if (redoneWidget is KeyedSubtree) {
-        widgetToAddToController = redoneWidget.child;
-        print('Extracted child: $widgetToAddToController');
+      if (!widget.controller.widgets.any((w) => w.key == widgetKey)) {
+        widget.controller.add(redoneWidget, position: redoneWidgetWithPosition.position);
+        _undoStack.add(redoneWidgetWithPosition);
+        widget.controller.showBorders = true;
+        print('Redo completed, undoStack: ${_undoStack.length}, '
+            'redoStack: ${_redoStack.length}, '
+            'controller.widgets: ${widget.controller.widgets.length}');
+      } else {
+        print('Widget with key $widgetKey already exists in controller.widgets, skipping redo');
       }
-
-      if (widgetToAddToController == null) {
-        print('Error: Null widget in redo');
-        return;
-      }
-
-      widget.controller.showBorders = true;
-      print('After clearAllBorders: selectedWidget=${widget.controller.selectedWidget}');
-
-      widget.controller.add(widgetToAddToController);
-      print('Added to controller, widgets: ${widget.controller.widgets}, '
-          'length: ${widget.controller.widgets.length}, '
-          'selectedWidget: ${widget.controller.selectedWidget}');
-
-      _undoStack.add(redoneWidget);
-      print('Redo completed, undoStack: ${_undoStack.length}, '
-          'redoStack: ${_redoStack.length}');
 
       setState(() {});
-      if (widget.controller is ChangeNotifier) {
-        (widget.controller as ChangeNotifier).notifyListeners();
-      }
+      widget.controller.notifyListeners();
     } catch (e, stackTrace) {
       print('Error in redo: $e');
       print(stackTrace);
-      _redoStack.clear();
-      print('Cleared redoStack for recovery, length: ${_redoStack.length}');
-      setState(() {});
     }
+  }
+
+  /// Programmatically triggers undo and redo for testing or automatic actions.
+  void _triggerUndoRedoProgrammatically() {
+    _undo();
+    print('Undo triggered programmatically');
+    Future.delayed(const Duration(seconds: 1), () {
+      _redo();
+      print('Redo triggered programmatically');
+    });
   }
 
   @override
   void dispose() {
     selectedTabIndex.dispose();
-    selectedimagelayer.dispose();
+    selectedImageLayer.dispose();
     showStickerEditOptions.dispose();
     showEditOptions.dispose();
     editedImage.dispose();
     editedImageBytes.dispose();
     flippedBytes.dispose();
+    widget.controller.close();
     super.dispose();
   }
 
@@ -1386,8 +1487,8 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
     return DefaultTabController(
       length: widget.shapeCategories.keys.length,
       child: Container(
-        decoration: BoxDecoration(
-          color: Color(ColorConst.bottomBarcolor),
+        decoration: const BoxDecoration(
+          color: Color(0xFF1E1E1E),
           borderRadius: BorderRadius.only(
             topRight: Radius.circular(20),
             topLeft: Radius.circular(20),
@@ -1401,9 +1502,9 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
               child: TabBarView(
                 children: widget.shapeCategories.values.map((imagePaths) {
                   return GridView.builder(
-                    padding: EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(12),
                     itemCount: imagePaths.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -1412,23 +1513,36 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                     itemBuilder: (context, index) {
                       final path = imagePaths[index];
                       return GestureDetector(
-                        onTap: () {
-                          selectedimagelayer.value.add(path);
-                          print('Selected: ${selectedimagelayer.value}');
-                          Widget newWidget = Container(
+                        onTapDown: (details) {
+                          selectedImageLayer.value.add(path);
+                          print('Selected: ${selectedImageLayer.value}');
+                          final newWidget = Container(
                             height: 100,
                             width: 100,
-                            padding: EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(12),
                             child: SvgPicture.asset(path),
                           );
-                          _addWidget(newWidget);
+                          final tapPosition = details.globalPosition;
+                          final stickerWidgetBox = LindiStickerWidget.globalKey.currentContext?.findRenderObject() as RenderBox?;
+                          Alignment initialPosition = Alignment.center;
+                          if (stickerWidgetBox != null) {
+                            final stickerSize = stickerWidgetBox.size;
+                            final stickerOffset = stickerWidgetBox.localToGlobal(Offset.zero);
+                            final alignmentX = ((tapPosition.dx - stickerOffset.dx) / stickerSize.width) * 2 - 1;
+                            final alignmentY = ((tapPosition.dy - stickerOffset.dy) / stickerSize.height) * 2 - 1;
+                            initialPosition = Alignment(alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
+                          } else {
+                            print('Warning: LindiStickerWidget.globalKey is null, using default position');
+                          }
+                          print('Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
+                          _addWidget(newWidget, initialPosition: initialPosition);
                         },
                         child: Column(
                           children: [
                             Container(
                               width: 80,
                               height: 80,
-                              padding: EdgeInsets.all(6),
+                              padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
                                 color: Colors.grey.shade800,
@@ -1449,18 +1563,18 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                 return TabBar(
                   onTap: (index) => selectedTabIndex.value = index,
                   isScrollable: true,
-                  labelPadding: EdgeInsets.symmetric(horizontal: 8),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8),
                   indicatorColor: Colors.transparent,
                   dividerColor: Colors.transparent,
                   tabs: widget.shapeCategories.keys.map((category) {
                     final index = widget.shapeCategories.keys.toList().indexOf(category);
                     return Tab(
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: index == currentIndex
-                              ? Color(ColorConst.tabhighlightbutton)
-                              : Color(ColorConst.tabdefaultcolor),
+                              ? const Color(0xFF6200EE)
+                              : const Color(0xFF424242),
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Text(
@@ -1468,9 +1582,7 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 14,
-                            fontWeight: index == currentIndex
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                            fontWeight: index == currentIndex ? FontWeight.bold : FontWeight.normal,
                           ),
                         ),
                       ),
@@ -1479,36 +1591,32 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                 );
               },
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Padding(
-              padding: EdgeInsets.only(left: 10, right: 10, bottom: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              padding: const EdgeInsets.only(left: 10, right: 10, bottom: 10),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
                         onTap: _undoStack.isNotEmpty ? _undo : null,
-                        child: Visibility(
-                          visible: false,
-                          child: Opacity(
-                            opacity: _undoStack.isNotEmpty ? 1.0 : 0.5,
-                            child: Image.asset('assets/undo.png', height: 40),
-                          ),
+                        child: Opacity(
+                          opacity: _undoStack.isNotEmpty ? 1.0 : 0.5,
+                          child: Image.asset('assets/undo.png', height: 40),
                         ),
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       GestureDetector(
                         onTap: _redoStack.isNotEmpty ? _redo : null,
-                        child: Visibility(
-                          visible: false,
-                          child: Opacity(
-                            opacity: _redoStack.isNotEmpty ? 1.0 : 0.5,
-                            child: Image.asset('assets/redo.png', height: 40),
-                          ),
+                        child: Opacity(
+                          opacity: _redoStack.isNotEmpty ? 1.0 : 0.5,
+                          child: Image.asset('assets/redo.png', height: 40),
                         ),
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       GestureDetector(
                         onTap: () {
                           stickerController.clearStickers();
@@ -1518,12 +1626,9 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                           _undoStack.clear();
                           _redoStack.clear();
                           widget.controller.widgets.clear();
-                          _redoIndex = 0;
                           widget.controller.clearAllBorders();
                           setState(() {});
-                          if (widget.controller is ChangeNotifier) {
-                            (widget.controller as ChangeNotifier).notifyListeners();
-                          }
+                          widget.controller.notifyListeners();
                         },
                         child: SizedBox(
                           height: 40,
@@ -1532,7 +1637,7 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                       ),
                     ],
                   ),
-                  Text(
+                  const Text(
                     'Sticker',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
@@ -1542,20 +1647,18 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
                   ),
                   GestureDetector(
                     onTap: () async {
-                      _controller.showEditOptions.value = false;
-                      _controller.showStickerEditOptions.value = false;
-
+                      editorController.showEditOptions.value = false;
+                      editorController.showStickerEditOptions.value = false;
                       if (flippedBytes.value != null) {
                         final tempDir = await getTemporaryDirectory();
-                        final path = '${tempDir.path}/confirmed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                        final path =
+                            '${tempDir.path}/confirmed_${DateTime.now().millisecondsSinceEpoch}.jpg';
                         final file = File(path);
                         await file.writeAsBytes(flippedBytes.value!);
-
                         editedImage.value = file;
                         editedImageBytes.value = null;
                         flippedBytes.value = null;
                       }
-
                       Get.toNamed('/ImageEditorScreen', arguments: editedImage.value);
                     },
                     child: SizedBox(
@@ -1572,6 +1675,15 @@ class _ShapeSelectorSheetState extends State<ShapeSelectorSheet> {
     );
   }
 }
+
+
+
+
+
+
+
+/// Mock class for color constants (replace with actual implementation).
+
 
 
 
