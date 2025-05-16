@@ -212,7 +212,6 @@ class TextUIWithTabsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Obx(() => TextFormField(
-
                       undoController: _controller.undoController.value,
                       focusNode: _textFocusNode,
                       onTap: () {
@@ -227,6 +226,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                         _unfocus();
 
                       },
+
                       onChanged: (value) {
                         print('TextField changed: $value');
                         _debouncedUpdateText(value);

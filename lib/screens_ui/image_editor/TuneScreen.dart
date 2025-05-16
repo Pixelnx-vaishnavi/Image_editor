@@ -27,6 +27,8 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
 
   void _updateTune() {
     widget.onTuneChanged(_controller.contrast.value, _controller.brightness.value);
+    // _controller.applyTune(_controller.contrast.value, _controller.brightness.value);
+    _controller.saveImageState(contrast: _controller.contrast.value, brightness: _controller.brightness.value);
   }
 
   @override

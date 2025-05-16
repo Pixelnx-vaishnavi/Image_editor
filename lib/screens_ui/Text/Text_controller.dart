@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
+import 'package:image_editor/undo_redo_add/undo_redo_controller.dart';
 
 class EditableTextModel {
   RxString text;
@@ -119,96 +120,40 @@ class TextEditorControllerWidget extends GetxController {
     getTextSize(textModel);
   }
 
+
+
+
   void updateText(String newText) {
+    final ImageEditorController controller = Get.find<ImageEditorController>();
     print('updateText called with: $newText');
+
+    // Limit the number of text items
     if (text.length >= 20) {
       Get.snackbar('Limit Reached', 'Cannot add more than 20 text items');
       return;
     }
-    if (selectedText.value != null) {
-      if (newText.isEmpty) {
-        selectedText.value!.text.value = '';
-        print('Cleared text for selected item');
-      } else {
-        selectedText.value!.text.value = newText;
-        final textModel = selectedText.value;
-        Widget widget = Container(
-          padding: EdgeInsets.all(12),
-          decoration:
-          BoxDecoration(
-              color: textModel!.backgroundColor.value,
-              borderRadius: BorderRadius.all(Radius.circular(20))),
-          child: Text(
-            selectedText.value!.text.value,
-            textAlign: textModel!.textAlign.value,
-            style: GoogleFonts.getFont(
-              textModel.fontFamily.value.isEmpty
-                  ? 'Roboto'
-                  : textModel.fontFamily.value,
-              fontSize: textModel.fontSize.value.toDouble(),
-              color: textModel.textColor.value.withOpacity(textModel.opacity.value),
-              fontWeight:
-              textModel.isBold.value ? FontWeight.bold : FontWeight.normal,
-              fontStyle:
-              textModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
-              decoration: textModel.isUnderline.value
-                  ? TextDecoration.underline
-                  : (textModel.isStrikethrough.value
-                  ? TextDecoration.lineThrough
-                  : null),
-              shadows: [
-                Shadow(
-                  blurRadius: textModel.shadowBlur.value,
-                  color: textModel.shadowColor.value,
-                  offset: Offset(
-                    textModel.shadowOffsetX.value,
-                    textModel.shadowOffsetY.value,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-        _controller.controller.selectedWidget!.edit(widget);
 
-      }
-      updateTextSize(selectedText.value!);
-    } else if (newText.isNotEmpty) {
-      final newModel = EditableTextModel(
-        text: newText,
-        left: 50,
-        top: 50,
-        fontSize: 15,
-        textColor: Colors.white,
-      );
-      text.add(newModel);
-      selectedText.value = newModel;
-      updateTextSize(newModel);
-      final textModel = selectedText.value;
-      Widget widget = Container(
-        padding: EdgeInsets.all(12),
-        decoration:
-        BoxDecoration(
-            color: textModel!.backgroundColor.value,
-            borderRadius: BorderRadius.all(Radius.circular(20))),
+    // Helper function to create a text widget with a GlobalKey
+    Widget createTextWidget(EditableTextModel textModel, GlobalKey key) {
+      return Container(
+        key: key,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: textModel.backgroundColor.value,
+          borderRadius: const BorderRadius.all(Radius.circular(20)),
+        ),
         child: Text(
-          selectedText.value!.text.value,
-          textAlign: textModel!.textAlign.value,
+          textModel.text.value,
+          textAlign: textModel.textAlign.value,
           style: GoogleFonts.getFont(
-            textModel.fontFamily.value.isEmpty
-                ? 'Roboto'
-                : textModel.fontFamily.value,
+            textModel.fontFamily.value.isEmpty ? 'Roboto' : textModel.fontFamily.value,
             fontSize: textModel.fontSize.value.toDouble(),
             color: textModel.textColor.value.withOpacity(textModel.opacity.value),
-            fontWeight:
-            textModel.isBold.value ? FontWeight.bold : FontWeight.normal,
-            fontStyle:
-            textModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
+            fontWeight: textModel.isBold.value ? FontWeight.bold : FontWeight.normal,
+            fontStyle: textModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
             decoration: textModel.isUnderline.value
                 ? TextDecoration.underline
-                : (textModel.isStrikethrough.value
-                ? TextDecoration.lineThrough
-                : null),
+                : (textModel.isStrikethrough.value ? TextDecoration.lineThrough : null),
             shadows: [
               Shadow(
                 blurRadius: textModel.shadowBlur.value,
@@ -222,11 +167,116 @@ class TextEditorControllerWidget extends GetxController {
           ),
         ),
       );
-      _controller.controller.add(widget);
-      _controller.selectedimagelayer.value.add(selectedText.value!.text.value);
+    }
+
+    // Helper function to get widget position using GlobalKey
+    Offset? getWidgetPosition(GlobalKey key) {
+      final renderBox = key.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null && controller.canvasWidth.value > 0 && controller.canvasHeight.value > 0) {
+        final position = renderBox.localToGlobal(Offset.zero);
+        return Offset(
+          position.dx.clamp(0, controller.canvasWidth.value),
+          position.dy.clamp(0, controller.canvasHeight.value),
+        );
+      }
+      print('Warning: Could not get widget position via GlobalKey');
+      return null;
+    }
+
+    // Helper function to convert Alignment to Offset
+    Offset alignmentToOffset(Alignment alignment) {
+      if (controller.canvasWidth.value == 0 || controller.canvasHeight.value == 0) {
+        print('Warning: Invalid canvas size, using default position');
+        return const Offset(150, 200); // Center of a 300x400 canvas
+      }
+      return Offset(
+        ((alignment.x + 1) / 2) * controller.canvasWidth.value,
+        ((alignment.y + 1) / 2) * controller.canvasHeight.value,
+      );
+    }
+
+    if (selectedText.value != null) {
+      // Editing an existing text widget
+      final textModel = selectedText.value!;
+      if (newText.isEmpty) {
+        textModel.text.value = '';
+        print('Cleared text for selected item');
+      } else {
+        textModel.text.value = newText;
+        final widgetKey = GlobalKey();
+        final widget = createTextWidget(textModel, widgetKey);
+
+        if (controller.controller.selectedWidget != null) {
+          // Edit the widget
+          controller.controller.selectedWidget!.edit(widget);
+
+          // Get the position using GlobalKey (after rendering)
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final position = getWidgetPosition(widgetKey) ?? Offset(textModel.left.value, textModel.top.value);
+            print('Edited widget position: $position');
+
+            // Update undoStack
+            final editedWidget = controller.controller.widgets.last;
+            controller.undoStack.add(WidgetWithPosition(
+              widget: editedWidget,
+              position: position,
+              globalKey: widgetKey,
+            ));
+            controller.redoStack.clear();
+            print('Updated undoStack, length: ${controller.undoStack.length}');
+          });
+        } else {
+          print('Warning: No selected widget found for editing');
+          Get.snackbar('Error', 'No widget selected for editing');
+          return;
+        }
+
+        updateTextSize(textModel);
+      }
+    } else if (newText.isNotEmpty) {
+      // Adding a new text widget
+      final newModel = EditableTextModel(
+        text: newText,
+        left: controller.canvasWidth.value / 2, // Center x
+        top: controller.canvasHeight.value / 2, // Center y
+        fontSize: 15,
+        textColor: Colors.white,
+      );
+     text.add(newModel);
+      selectedText.value = newModel;
+      updateTextSize(newModel);
+
+      final widgetKey = GlobalKey();
+      final widget = createTextWidget(newModel, widgetKey);
+
+      // Set position to center
+      const alignment = Alignment.center; // Alignment(0, 0)
+      final position = alignmentToOffset(alignment); // Center in pixel coordinates
+
+      // Add the widget at the center
+      controller.controller.add(widget, position: alignment);
+
+      // Get the position (use calculated position as fallback)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final runtimePosition = getWidgetPosition(widgetKey) ?? position;
+        print('Added widget position: $runtimePosition');
+
+        // Update undoStack
+        final newWidget = controller.controller.widgets.last;
+        controller.undoStack.add(WidgetWithPosition(
+          widget: newWidget,
+          position: runtimePosition,
+          globalKey: widgetKey,
+        ));
+        controller.redoStack.clear();
+        print('Added to undoStack, length: ${controller.undoStack.length}');
+      });
+
+      controller.selectedimagelayer.value.add(newModel.text.value);
       print('Created new text model: $newText');
     }
-    update();
+
+    controller.update();
   }
 
   void selectText(EditableTextModel textModel) {
