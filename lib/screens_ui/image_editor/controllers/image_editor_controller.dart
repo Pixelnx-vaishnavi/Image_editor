@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
@@ -14,6 +15,7 @@ import 'package:image/image.dart' as img;
 import 'package:image_editor/screens_ui/Text/Text_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/TuneScreen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/crop/crop_screen.dart';
+import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stciker_model.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/textScreens.dart';
 import 'package:image_editor/screens_ui/image_layer/image_layer_screen.dart';
@@ -73,7 +75,7 @@ class ImageEditorController extends GetxController {
   var contrast = 0.0.obs;
   var brightness = 0.0.obs;
   var opacity = 0.0.obs;
-
+var filePath =''.obs;
   String? fileName;
   List<Filter> filters = presetFiltersList;
   final picker = ImagePicker();
@@ -349,13 +351,21 @@ class ImageEditorController extends GetxController {
     print('Saved image state, imageUndoStack length: ${imageUndoStack.length}');
   }
 
-  void addWidget(Widget sticker, Offset position) {
+  void addWidget(Widget sticker, Offset position,path) {
     try {
       final alignment = Alignment(
         (position.dx / canvasWidth.value) * 2 - 1,
         (position.dy / canvasHeight.value) * 2 - 1,
       );
-
+     stickerController.stickers.add(StickerModel(
+       path: path,
+       top: position.dx.obs,
+       left:position.dy.obs,
+       scale: 1.0.obs,
+       rotation: 0.0.obs,
+       isFlipped: false.obs,
+     )
+     );
       controller.add(sticker, position: alignment);
       final addedWidget = controller.widgets.last;
 
@@ -524,7 +534,8 @@ class ImageEditorController extends GetxController {
     }
   }
 
-  void setInitialImage(File image) async {
+  void setInitialImage(File image)  {
+    SchedulerBinding.instance.addPostFrameCallback((_) async {
     editedImage.value = image;
     editedImageBytes.value = null;
 
@@ -535,7 +546,7 @@ class ImageEditorController extends GetxController {
     if (decoded != null) {
       final img.Image thumb = img.copyResize(decoded, width: 100);
       thumbnailBytes.value = Uint8List.fromList(img.encodeJpg(thumb));
-    }
+    }; });
   }
 
   void applyPreset(ImagePreset preset) {
@@ -1222,7 +1233,7 @@ class ImageEditorController extends GetxController {
                   print('Warning: LindiStickerWidget.globalKey is null, using default position');
                 }
                 print('Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
-                addWidget(widget, tapPosition);
+                addWidget(widget, tapPosition,LogoStcikerImage.value);
               }
             },
           ),

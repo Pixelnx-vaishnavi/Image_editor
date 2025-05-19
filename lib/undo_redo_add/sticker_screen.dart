@@ -83,7 +83,8 @@ class ShapeSelectorSheet extends StatelessWidget {
                             print('Warning: LindiStickerWidget.globalKey is null, using default position');
                           }
                           print('Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
-                          _controller.addWidget(newWidget, tapPosition);
+                          _controller.addWidget(newWidget, tapPosition,path);
+
                         },
                         child: Column(
                           children: [

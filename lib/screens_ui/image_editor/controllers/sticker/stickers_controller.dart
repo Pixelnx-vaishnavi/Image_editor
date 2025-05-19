@@ -17,18 +17,18 @@ class StickerController extends GetxController {
     final renderBox = imagekey.value.currentContext?.findRenderObject() as RenderBox?;
     final size = renderBox?.size ?? Size(350, 300);
 
-    final newSticker = StickerModel(
-      path: path,
-      top: RxDouble(size.height / 2 - 40),
-      left: RxDouble(size.width / 1- 90),
+    // final newSticker = StickerModel(
+    //   path: path,
+    //   top: RxDouble(size.height / 2 - 40),
+    //   left: RxDouble(size.width / 1- 90),
+    //
+    //   scale: 1.0.obs,
+    //   rotation: 0.0.obs,
+    //   isFlipped: false.obs,
+    // );
 
-      scale: 1.0.obs,
-      rotation: 0.0.obs,
-      isFlipped: false.obs,
-    );
-
-    stickers.add(newSticker);
-    selectedSticker.value = newSticker;
+    // stickers.add(newSticker);
+    // selectedSticker.value = newSticker;
     selectedStickerTapped.value = true;
   }
 

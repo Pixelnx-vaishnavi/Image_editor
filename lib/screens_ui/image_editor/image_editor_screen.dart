@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -13,8 +15,8 @@ import 'package:image_editor/screens_ui/Collage/collage_controller.dart';
 import 'package:image_editor/screens_ui/Text/Text_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_filter.dart';
+import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stciker_model.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
-import 'package:image_editor/screens_ui/presets/presets_model.dart';
 import 'package:image_editor/screens_ui/save_file/save_image_screen.dart';
 import 'package:image_editor/screens_ui/save_file/saved_image_model.dart';
 import 'package:image_editor/undo_redo_add/sticker_screen.dart';
@@ -26,16 +28,84 @@ import 'package:lindi_sticker_widget/lindi_sticker_widget.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as path;
+import 'package:sqflite/sqflite.dart';
 
-class ImageEditorScreen extends StatelessWidget {
+class ImageEditorScreen extends StatefulWidget {
+  @override
+  _ImageEditorScreenState createState() => _ImageEditorScreenState();
+}
+
+class _ImageEditorScreenState extends State<ImageEditorScreen> {
   final ImageEditorController _controller = Get.put(ImageEditorController());
-  final ImageFilterController filtercontroller = Get.put(ImageFilterController());
+  final ImageFilterController filterController = Get.put(ImageFilterController());
   final StickerController stickerController = Get.put(StickerController());
   final CollageController collageController = Get.put(CollageController());
   final TextEditorControllerWidget textEditorControllerWidget = Get.put(TextEditorControllerWidget());
-  final TemplateController CollageTemplatecontroller = Get.put(TemplateController());
+  final TemplateController collageTemplateController = Get.put(TemplateController());
   final GlobalKey _imageKey = GlobalKey();
-  final GlobalKey _repaintKey = GlobalKey();
+  late GlobalKey _repaintKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _repaintKey = GlobalKey(); // Initialize unique key per instance
+    // Initialize LindiController
+    _controller.controller = LindiController(
+      borderColor: Colors.blue,
+      shouldRotate: true,
+      showBorders: true,
+      icons: [
+        LindiStickerIcon(
+          icon: Icons.rotate_90_degrees_ccw,
+          iconColor: Colors.purple,
+          alignment: Alignment.topRight,
+          type: IconType.resize,
+        ),
+        LindiStickerIcon(
+          icon: Icons.lock_open,
+          alignment: Alignment.topCenter,
+          onTap: () {
+            _controller.controller.clearAllBorders();
+          },
+        ),
+        LindiStickerIcon(
+          icon: Icons.close,
+          alignment: Alignment.topLeft,
+          onTap: () {
+            _controller.controller.selectedWidget?.delete();
+          },
+        ),
+        LindiStickerIcon(
+          icon: Icons.flip,
+          alignment: Alignment.bottomLeft,
+          onTap: () {
+            _controller.controller.selectedWidget?.flip();
+          },
+        ),
+        LindiStickerIcon(
+          icon: Icons.crop_free,
+          alignment: Alignment.bottomRight,
+          type: IconType.resize,
+        ),
+      ],
+    );
+    _controller.controller.onPositionChange((index) {
+      debugPrint("widgets size: ${_controller.controller.widgets.length}, current index: $index");
+    });
+    // Reset controllers to prevent stale data
+    // _controller.reset(); // Assuming reset method exists
+    stickerController.stickers.clear();
+    textEditorControllerWidget.text.clear();
+  }
+
+  @override
+  void dispose() {
+    // Clean up controllers to prevent memory leaks
+    _controller.controller.widgets.clear();
+    stickerController.stickers.clear();
+    textEditorControllerWidget.text.clear();
+    super.dispose();
+  }
 
   Future<Uint8List?> captureView() async {
     try {
@@ -73,7 +143,7 @@ class ImageEditorScreen extends StatelessWidget {
         final dbHelper = DatabaseHelper.instance;
         await dbHelper.saveImage(filePath);
         Get.snackbar("Success", "Image saved successfully");
-        Get.to(() => SavedImagesScreen());
+        Get.off(() => SavedImagesScreen()); // Use Get.off to replace screen
       } else {
         Get.snackbar("Error", "Failed to capture image");
       }
@@ -82,65 +152,341 @@ class ImageEditorScreen extends StatelessWidget {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final image = Get.arguments;
-    File? fileImage;
-    Uint8List? memoryImage;
+  Future<void> saveTemplate() async {
+    try {
+      final Uint8List? capturedImage = await captureView();
+      if (capturedImage != null) {
+        final directory = await getApplicationDocumentsDirectory();
+        _controller.filePath.value = path.join(directory.path, 'image_${DateTime.now().millisecondsSinceEpoch}.png');
+        final file = File(_controller.filePath.value!);
+        await file.writeAsBytes(capturedImage);
 
-    if (image is File) {
-      fileImage = image;
-    } else if (image is Uint8List) {
-      memoryImage = image;
+        // final dbHelper = DatabaseHelper.instance;
+        // await dbHelper.saveImage(_controller.filePath!);
+        Get.snackbar("Success", "Image saved successfully");
+
+      } else {
+
+        Get.snackbar("Error", "Failed to capture image");
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Failed to save image: $e");
     }
 
-    _controller.setInitialImage(fileImage ?? File(''));
-    _controller.decodeEditedImage();
-    filtercontroller.setInitialImage(fileImage ?? File(''));
+    try {
+      final File? imageFile = _controller.editedImage.value;
+      if (imageFile == null || imageFile.path.isEmpty) {
+        Get.snackbar("Error", "No image to save as template");
+        return;
+      }
 
-    _controller.controller = LindiController(
-      borderColor: Colors.blue,
-      shouldRotate: true,
-      showBorders: true,
-      icons: [
-        LindiStickerIcon(
-          icon: Icons.rotate_90_degrees_ccw,
-          iconColor: Colors.purple,
-          alignment: Alignment.topRight,
-          type: IconType.resize,
-        ),
-        LindiStickerIcon(
-          icon: Icons.lock_open,
-          alignment: Alignment.topCenter,
-          onTap: () {
-            _controller.controller.clearAllBorders();
+      final editingState = {
+        'imagePath': imageFile.path,
+        // 'stickers':_controller.controller.widgets,
+        'stickers': stickerController.stickers.map((sticker) => {
+          'path': sticker.path,
+          'top': sticker.top.value,
+          'left': sticker.left.value,
+          'scale': sticker.scale.value,
+          'rotation': sticker.rotation.value,
+          'isFlipped': sticker.isFlipped.value,
+        }).toList(),
+        'text': textEditorControllerWidget.text.map((textModel) => {
+          'text': textModel.text,
+          'top': textModel.top,
+          'left': textModel.left,
+          'fontSize': textModel.fontSize,
+          'fontFamily': textModel.fontFamily,
+          'textColor': textModel.textColor.value,
+          'backgroundColor': textModel.backgroundColor.value,
+          'opacity': textModel.opacity,
+          'isBold': textModel.isBold,
+          'isItalic': textModel.isItalic,
+          'isUnderline': textModel.isUnderline,
+          'isStrikethrough': textModel.isStrikethrough,
+          'shadowBlur': textModel.shadowBlur,
+          'shadowColor': textModel.shadowColor.value,
+          'shadowOffsetX': textModel.shadowOffsetX,
+          'shadowOffsetY': textModel.shadowOffsetY,
+          'rotation': textModel.rotation,
+          'isFlippedHorizontally': textModel.isFlippedHorizontally,
+          'textAlign': textModel.textAlign.toString(),
+        }).toList(),
+        'filters': {
+          'brightness': _controller.brightness.value,
+          'contrast': _controller.contrast.value,
+        },
+        'transformations': {
+          'scale': _controller.scale.value,
+          'offset': {
+            'dx': _controller.offset.value.dx,
+            'dy': _controller.offset.value.dy,
           },
-        ),
-        LindiStickerIcon(
-          icon: Icons.close,
-          alignment: Alignment.topLeft,
-          onTap: () {
-            _controller.controller.selectedWidget!.delete();
-          },
-        ),
-        LindiStickerIcon(
-          icon: Icons.flip,
-          alignment: Alignment.bottomLeft,
-          onTap: () {
-            _controller.controller.selectedWidget!.flip();
-          },
-        ),
-        LindiStickerIcon(
-          icon: Icons.crop_free,
-          alignment: Alignment.bottomRight,
-          type: IconType.resize,
-        ),
-      ],
-    );
+        },
+      };
+print('=============editingState=========${editingState}');
+      final dbHelper = DatabaseHelper.instance;
+      await dbHelper.saveTemplate('Template_${DateTime.now().millisecondsSinceEpoch}', editingState,_controller.filePath.value!);
+      Get.snackbar("Success", "Template saved successfully");
+      Get.off(() => SavedImagesScreen()); // Use Get.off to replace screen
+    } catch (e) {
+      Get.snackbar("Error", "Failed to save template: $e");
+      print("Error saving template: $e");
+    }
+  }
 
-    _controller.controller.onPositionChange((index) {
-      debugPrint("widgets size: ${_controller.controller.widgets.length}, current index: $index");
+  void _loadSavedState(Map<String, dynamic> state) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      // Restore image
+      final String? imagePath = state['imagePath'];
+      if (imagePath != null && imagePath.isNotEmpty && File(imagePath).existsSync()) {
+        final File imageFile = File(imagePath);
+        _controller.setInitialImage(imageFile);
+        _controller.decodeEditedImage();
+        filterController.setInitialImage(imageFile);
+      } else {
+        Get.snackbar("Error", "Image file not found");
+      }
+
+      // Clear existing widgets
+      // stickerController.stickers.clear();
+      _controller.controller.widgets.clear();
+      textEditorControllerWidget.text.clear();
+
+      // Restore stickers
+      for (var stickerData in state['stickers'] ?? []) {
+        final sticker = StickerModel(
+          path: stickerData['path'] ?? '',
+          top: RxDouble(stickerData['top']?.toDouble() ?? 0.0),
+          left: RxDouble(stickerData['left']?.toDouble() ?? 0.0),
+          scale: RxDouble(stickerData['scale']?.toDouble() ?? 1.0),
+          rotation: RxDouble(stickerData['rotation']?.toDouble() ?? 0.0),
+          isFlipped: RxBool(stickerData['isFlipped'] ?? false),
+        );
+        print('===========before adding to lindi sticker widget=====${stickerData['path']}');
+        print('===========before adding to lindi sticker widget=====${stickerData['top']}');
+        print('===========before adding to lindi sticker widget=====${stickerData['left']}');
+        Widget widget = Container(
+          height:100,
+          width: 100,
+          child: SvgPicture.asset(stickerData['path']),
+        );
+
+        final alignment = Alignment(
+      (stickerData['left']/_controller.canvasWidth.value) * 4 - 1,
+      (stickerData['top']/ _controller.canvasHeight.value) * 4 - 1
+        );
+        _controller.controller.add(widget,position:alignment);
+        stickerController.stickers.add(sticker);
+        if (File(sticker.path).existsSync()) {
+          _controller.controller.widgets.add(
+            DraggableWidget(
+              position: null,
+              borderWidth: null,
+              shouldMove: null,
+              shouldScale: null,
+              minScale: null,
+              maxScale: null,
+              onBorder: null,
+              onDelete: null,
+              onLayer: null,
+              insidePadding: null,
+              borderColor: Colors.blue,
+              shouldRotate: true,
+              showBorders: true,
+              icons: [
+                LindiStickerIcon(
+                  icon: Icons.rotate_90_degrees_ccw,
+                  iconColor: Colors.purple,
+                  alignment: Alignment.topRight,
+                  type: IconType.resize,
+                ),
+                LindiStickerIcon(
+                  icon: Icons.lock_open,
+                  alignment: Alignment.topCenter,
+                  onTap: () {
+                    _controller.controller.clearAllBorders();
+                  },
+                ),
+                LindiStickerIcon(
+                  icon: Icons.close,
+                  alignment: Alignment.topLeft,
+                  onTap: () {
+                    _controller.controller.selectedWidget?.delete();
+                  },
+                ),
+                LindiStickerIcon(
+                  icon: Icons.flip,
+                  alignment: Alignment.bottomLeft,
+                  onTap: () {
+                    _controller.controller.selectedWidget?.flip();
+                  },
+                ),
+                LindiStickerIcon(
+                  icon: Icons.crop_free,
+                  alignment: Alignment.bottomRight,
+                  type: IconType.resize,
+                ),
+              ],
+              child: Transform(
+                transform: Matrix4.identity()
+                  ..translate(sticker.left.value, sticker.top.value)
+                  ..rotateZ(sticker.rotation.value)
+                  ..scale(sticker.isFlipped.value ? -sticker.scale.value : sticker.scale.value, sticker.scale.value),
+                child: Image.file(
+                  File(sticker.path),
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Icon(Icons.error, color: Colors.red),
+                ),
+              ),
+            ),
+          );
+        }
+      }
+
+      // Restore text
+      for (var textData in state['text'] ?? []) {
+        final textModel = EditableTextModel(
+          text: textData['text'] ?? '',
+          top: textData['top']?.toDouble() ?? 0.0,
+          left: textData['left']?.toDouble() ?? 0.0,
+          fontSize: textData['fontSize']?.toDouble() ?? 16.0,
+          fontFamily: textData['fontFamily'] ?? 'Roboto',
+          textColor: Color(textData['textColor'] ?? Colors.black.value),
+          backgroundColor: Color(textData['backgroundColor'] ?? Colors.transparent.value),
+          opacity: textData['opacity']?.toDouble() ?? 1.0,
+          isBold: textData['isBold'] ?? false,
+          isItalic: textData['isItalic'] ?? false,
+          isUnderline: textData['isUnderline'] ?? false,
+          isStrikethrough: textData['isStrikethrough'] ?? false,
+          shadowBlur: textData['shadowBlur']?.toDouble() ?? 0.0,
+          shadowColor: Color(textData['shadowColor'] ?? Colors.black.value),
+          shadowOffsetX: textData['shadowOffsetX']?.toDouble() ?? 0.0,
+          shadowOffsetY: textData['shadowOffsetY']?.toDouble() ?? 0.0,
+          rotation: textData['rotation']?.toDouble() ?? 0.0,
+          isFlippedHorizontally: textData['isFlippedHorizontally'] ?? false,
+          textAlign: TextAlign.values.firstWhere(
+                (e) => e.toString() == textData['textAlign'],
+            orElse: () => TextAlign.left,
+          ),
+        );
+        textEditorControllerWidget.text.add(textModel);
+        _controller.controller.widgets.add(
+          DraggableWidget(
+            position: null,
+            borderWidth: null,
+            shouldMove: null,
+            shouldScale: null,
+            minScale: null,
+            maxScale: null,
+            onBorder: null,
+            onDelete: null,
+            onLayer: null,
+            insidePadding: null,
+            borderColor: Colors.blue,
+            shouldRotate: true,
+            showBorders: true,
+            icons: [
+              LindiStickerIcon(
+                icon: Icons.rotate_90_degrees_ccw,
+                iconColor: Colors.purple,
+                alignment: Alignment.topRight,
+                type: IconType.resize,
+              ),
+              LindiStickerIcon(
+                icon: Icons.lock_open,
+                alignment: Alignment.topCenter,
+                onTap: () {
+                  _controller.controller.clearAllBorders();
+                },
+              ),
+              LindiStickerIcon(
+                icon: Icons.close,
+                alignment: Alignment.topLeft,
+                onTap: () {
+                  _controller.controller.selectedWidget?.delete();
+                  textEditorControllerWidget.text.remove(textModel);
+                },
+              ),
+              LindiStickerIcon(
+                icon: Icons.flip,
+                alignment: Alignment.bottomLeft,
+                onTap: () {
+                  _controller.controller.selectedWidget?.flip();
+                },
+              ),
+              LindiStickerIcon(
+                icon: Icons.crop_free,
+                alignment: Alignment.bottomRight,
+                type: IconType.resize,
+              ),
+            ],
+            child: Transform(
+              transform: Matrix4.identity()
+                ..translate(textModel.left, textModel.top.value)
+                ..rotateZ(textModel.rotation.value)
+                ..scale(textModel.isFlippedHorizontally.value ? -1.0 : 1.0, 1.0),
+              child: Text(
+                textModel.text.value,
+                style: GoogleFonts.getFont(
+                  textModel.fontFamily.value,
+                  fontSize: textModel.fontSize.toDouble(),
+                  color: textModel.textColor.value.withOpacity(textModel.opacity.value),
+                  fontWeight: textModel.isBold.value ? FontWeight.bold : FontWeight.normal,
+                  fontStyle: textModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
+                  decoration: textModel.isUnderline.value ? TextDecoration.underline : TextDecoration.none,
+                  shadows: [
+                    Shadow(
+                      blurRadius: textModel.shadowBlur.value,
+                      color: textModel.shadowColor.value,
+                      offset: Offset(textModel.shadowOffsetX.value, textModel.shadowOffsetY.value),
+                    ),
+                  ],
+                ),
+                textAlign: textModel.textAlign.value,
+              ),
+            ),
+          ),
+        );
+      }
+
+      // Restore filters
+      _controller.brightness.value = state['filters']?['brightness']?.toDouble() ?? 0.0;
+      _controller.contrast.value = state['filters']?['contrast']?.toDouble() ?? 1.0;
+
+      // Restore transformations
+      _controller.scale.value = state['transformations']?['scale']?.toDouble() ?? 1.0;
+      _controller.offset.value = Offset(
+        state['transformations']?['offset']?['dx']?.toDouble() ?? 0.0,
+        state['transformations']?['offset']?['dy']?.toDouble() ?? 0.0,
+      );
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dynamic imageArg = Get.arguments;
+    File? fileImage;
+    Uint8List? memoryImage;
+    Map<String, dynamic>? savedState;
+
+    if (imageArg is File) {
+      fileImage = imageArg;
+    } else if (imageArg is Uint8List) {
+      memoryImage = imageArg;
+    } else if (imageArg is Map<String, dynamic>) {
+      savedState = imageArg;
+      fileImage = File(savedState['imagePath'] ?? '');
+    }
+
+    // Initialize controllers with initial image or saved state
+    if (savedState != null) {
+      _loadSavedState(savedState);
+    } else {
+      _controller.setInitialImage(fileImage ?? File(''));
+      _controller.decodeEditedImage();
+      filterController.setInitialImage(fileImage ?? File(''));
+    }
 
     return SafeArea(
       bottom: true,
@@ -167,58 +513,77 @@ class ImageEditorScreen extends StatelessWidget {
       ),
       SizedBox(width: 10),
       IconButton(
-          onPressed: () {
-    _controller.redo();
-    },
-      icon: Icon(Icons.redo, color: Colors.white),
-    ),
-    SizedBox(width: 25),
-    GestureDetector(
-    onTap: () {
-    _controller.showImageLayer.value = true;
-    },
-    child: SizedBox(
-    height: 20,
-    child: Image.asset('assets/image_layer.png'),
-    ),
-    ),
-    SizedBox(width: 25),
-    SizedBox(
-    height: 20,
-    child: GestureDetector(
-    onTap: saveImage,
-    child: Image.asset('assets/Save.png'),
-    ),
-    ),
-    SizedBox(width: 25),
-    SizedBox(
-    height: 20,
-    child: GestureDetector(
-    onTap: () async {
-    try {
-    final Uint8List? capturedImage = await captureView();
-    if (capturedImage != null) {
-    final tempDir = await getTemporaryDirectory();
-    final file = await File('${tempDir.path}/shared_image.png').create();
-    await file.writeAsBytes(capturedImage);
+        onPressed: () {
+          _controller.redo();
+        },
+        icon: Icon(Icons.redo, color: Colors.white),
+      ),
+      SizedBox(width: 25),
+      GestureDetector(
+        onTap: () {
+          _controller.showImageLayer.value = true;
+        },
+        child: SizedBox(
+          height: 20,
+          child: Image.asset(
+            'assets/image_layer.png',
+            errorBuilder: (context, error, stackTrace) => Icon(Icons.image, color: Colors.white),
+          ),
+        ),
+      ),
+      SizedBox(width: 25),
+      SizedBox(
+        height: 20,
+        child: GestureDetector(
+          onTap: saveImage,
+          child: Image.asset(
+            'assets/Save.png',
+            errorBuilder: (context, error, stackTrace) => Icon(Icons.save_alt, color: Colors.white),
+          ),
+        ),
+      ),
+      SizedBox(width: 25),
+      SizedBox(
+        height: 20,
+        child: GestureDetector(
+          onTap: saveTemplate,
+          child: Image.asset(
+            'assets/template.png',
+            errorBuilder: (context, error, stackTrace) => Icon(Icons.save, color: Colors.white),
+          ),
+        ),
+      ),
+        SizedBox(
+          height: 20,
+          child: GestureDetector(
+            onTap: () async {
+              try {
+                final Uint8List? capturedImage = await captureView();
+                if (capturedImage != null) {
+                  final tempDir = await getTemporaryDirectory();
+                  final file = await File('${tempDir.path}/shared_image.png').create();
+                  await file.writeAsBytes(capturedImage);
 
-    await Share.shareXFiles(
-    [XFile(file.path)],
-    text: 'Check out my edited image!',
-    );
-    } else {
-    Get.snackbar("Error", "Failed to capture image");
-    }
-    } catch (e) {
-    Get.snackbar("Error", "Failed to share image: $e");
-    print("Error sharing image: $e");
-    }
-    },
-    child: Image.asset('assets/Export.png'),
-    ),
-    ),
-    ],
-    ),
+                  await Share.shareXFiles(
+                    [XFile(file.path)],
+                    text: 'Check out my edited image!',
+                  );
+                } else {
+                  Get.snackbar("Error", "Failed to capture image");
+                }
+              } catch (e) {
+                Get.snackbar("Error", "Failed to share image: $e");
+                print("Error sharing image: $e");
+              }
+            },
+            child: Image.asset(
+              'assets/Export.png',
+              errorBuilder: (context, error, stackTrace) => Icon(Icons.share, color: Colors.white),
+            ),
+          ),
+        ),
+        ],
+      ),
     ),
     ],
     ),
@@ -239,11 +604,11 @@ class ImageEditorScreen extends StatelessWidget {
     return Stack(
     children: [
     Container(
-    height: 700,
+    height: constraints.maxHeight,
     child: (_controller.isSelectingText.value == true)
     ? SingleChildScrollView(
     child: Container(
-    height: 700,
+    height: constraints.maxHeight,
     child: Column(
     children: [
     Expanded(
@@ -252,7 +617,12 @@ class ImageEditorScreen extends StatelessWidget {
     _controller.showFilterEditOptions.value ||
     _controller.showStickerEditOptions.value ||
     _controller.showtuneOptions.value;
-    return RepaintBoundary(
+    return ConstrainedBox(
+    constraints: BoxConstraints(
+    maxWidth: constraints.maxWidth,
+    maxHeight: constraints.maxHeight,
+    ),
+    child: RepaintBoundary(
     key: _repaintKey,
     child: LindiStickerWidget(
     controller: _controller.controller,
@@ -281,6 +651,10 @@ class ImageEditorScreen extends StatelessWidget {
     ? Image.file(
     editedFileImage,
     fit: BoxFit.contain,
+    errorBuilder: (context, error, stackTrace) => Text(
+    "Error loading image",
+    style: TextStyle(color: Colors.white),
+    ),
     )
         : (memoryImage != null
     ? Image.memory(
@@ -291,6 +665,10 @@ class ImageEditorScreen extends StatelessWidget {
     ? Image.file(
     fileImage,
     fit: BoxFit.contain,
+    errorBuilder: (context, error, stackTrace) => Text(
+    "Error loading image",
+    style: TextStyle(color: Colors.white),
+    ),
     )
         : Text(
     "No image loaded",
@@ -299,6 +677,7 @@ class ImageEditorScreen extends StatelessWidget {
     ),
     ),
     ],
+    ),
     ),
     ),
     ),
@@ -329,7 +708,7 @@ class ImageEditorScreen extends StatelessWidget {
     _controller.TextEditControls(constraints, _imageKey),
     if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
     if (collageController.showCollageOption.value)
-    CollageTemplatecontroller.openTemplatePickerBottomSheet(),
+    collageTemplateController.openTemplatePickerBottomSheet(),
     if (_controller.showFilterEditOptions.value)
     _controller.buildFilterControlsSheet(onClose: () {
     _controller.showFilterEditOptions.value = false;
@@ -350,7 +729,12 @@ class ImageEditorScreen extends StatelessWidget {
     _controller.showFilterEditOptions.value ||
     _controller.showStickerEditOptions.value ||
     _controller.showtuneOptions.value;
-    return RepaintBoundary(
+    return ConstrainedBox(
+    constraints: BoxConstraints(
+    maxWidth: constraints.maxWidth,
+    maxHeight: constraints.maxHeight,
+    ),
+    child: RepaintBoundary(
     key: _repaintKey,
     child: LindiStickerWidget(
     controller: _controller.controller,
@@ -392,6 +776,10 @@ class ImageEditorScreen extends StatelessWidget {
     ? Image.file(
     editedFileImage,
     fit: BoxFit.contain,
+    errorBuilder: (context, error, stackTrace) => Text(
+    "Error loading image",
+    style: TextStyle(color: Colors.white),
+    ),
     )
         : (memoryImage != null
     ? Image.memory(
@@ -402,6 +790,10 @@ class ImageEditorScreen extends StatelessWidget {
     ? Image.file(
     fileImage,
     fit: BoxFit.contain,
+    errorBuilder: (context, error, stackTrace) => Text(
+    "Error loading image",
+    style: TextStyle(color: Colors.white),
+    ),
     )
         : Text(
     "No image loaded",
@@ -414,6 +806,7 @@ class ImageEditorScreen extends StatelessWidget {
     }),
     ),
     ],
+    ),
     ),
     ),
     ),
@@ -444,7 +837,7 @@ class ImageEditorScreen extends StatelessWidget {
     _controller.TextEditControls(constraints, _imageKey),
     if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
     if (collageController.showCollageOption.value)
-    CollageTemplatecontroller.openTemplatePickerBottomSheet(),
+    collageTemplateController.openTemplatePickerBottomSheet(),
     if (_controller.showFilterEditOptions.value)
     _controller.buildFilterControlsSheet(onClose: () {
     _controller.showFilterEditOptions.value = false;
@@ -460,7 +853,7 @@ class ImageEditorScreen extends StatelessWidget {
     Positioned.fill(
     child: Container(
     color: Colors.black.withOpacity(0.8),
-    child: const Center(
+    child: Center(
     child: CircularProgressIndicator(
     strokeWidth: 6.0,
     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -556,22 +949,4 @@ class ImageEditorScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-class Sticker {
-  final String path;
-  final RxDouble top;
-  final RxDouble left;
-  final RxDouble scale;
-  final RxDouble rotation;
-  final RxBool isFlipped;
-
-  Sticker({
-    required this.path,
-    required this.top,
-    required this.left,
-    required this.scale,
-    required this.rotation,
-    required this.isFlipped,
-  });
 }

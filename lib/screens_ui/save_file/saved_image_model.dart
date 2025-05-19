@@ -1,6 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
-
-import 'package:path/path.dart';
+import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -17,37 +17,60 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String fileName) async {
-    final dbPath = await getApplicationDocumentsDirectory();
-    final path = join(dbPath.path, fileName);
+    final dbPath = await getDatabasesPath();
+    final paths = path.join(dbPath, fileName);
 
     return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _createDB,
+      paths,
+      version: 2, // Incremented version for migration
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            filePath TEXT
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            state TEXT,
+            filePath TEXT
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Add filePath column to existing templates table
+          await db.execute('ALTER TABLE templates ADD COLUMN filePath TEXT');
+        }
+      },
     );
   }
 
-  Future _createDB(Database db, int version) async {
-    await db.execute('''
-    CREATE TABLE images (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      file_path TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )
-    ''');
+  Future<void> saveImage(String filePath) async {
+    final db = await database;
+    await db.insert('images', {'filePath': filePath});
   }
 
-  Future<int> saveImage(String filePath) async {
+  Future<void> saveTemplate(String name, Map<String, dynamic> state, String filePath) async {
     final db = await database;
-    return await db.insert('images', {
-      'file_path': filePath,
-      'created_at': DateTime.now().toIso8601String(),
+    await db.insert('templates', {
+      'name': name,
+      'state': jsonEncode(state),
+      'filePath': filePath,
     });
+    print('=========after save template=========$state');
   }
 
   Future<List<Map<String, dynamic>>> getImages() async {
     final db = await database;
-    return await db.query('images', orderBy: 'created_at DESC');
+    return await db.query('images');
+  }
+
+  Future<List<Map<String, dynamic>>> getTemplates() async {
+    final db = await database;
+    return await db.query('templates');
   }
 
   Future<String?> getImagePathById(int id) async {
@@ -55,7 +78,7 @@ class DatabaseHelper {
     final result = await db.query('images', where: 'id = ?', whereArgs: [id]);
 
     if (result.isNotEmpty) {
-      return result.first['file_path'] as String?;
+      return result.first['filePath'] as String?;
     }
     return null;
   }
