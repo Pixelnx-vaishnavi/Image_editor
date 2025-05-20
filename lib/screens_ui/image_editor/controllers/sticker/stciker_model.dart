@@ -6,7 +6,7 @@ class StickerModel {
   RxDouble scale;
   RxDouble rotation;
   RxBool isFlipped;
-  String path;
+  var path;
 
   StickerModel({
     required this.top,

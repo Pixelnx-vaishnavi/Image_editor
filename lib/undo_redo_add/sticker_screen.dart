@@ -64,8 +64,8 @@ class ShapeSelectorSheet extends StatelessWidget {
                           _controller.selectedimagelayer.add(path);
                           print('Selected: ${_controller.selectedimagelayer.length}');
                           final newWidget = Container(
-                            height: 100,
-                            width: 100,
+                            height: 60,
+                            width: 60,
                             padding: const EdgeInsets.all(12),
                             child: SvgPicture.asset(path),
                           );

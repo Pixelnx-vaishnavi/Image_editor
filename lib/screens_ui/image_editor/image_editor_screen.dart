@@ -44,11 +44,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   final TemplateController collageTemplateController = Get.put(TemplateController());
   final GlobalKey _imageKey = GlobalKey();
   late GlobalKey _repaintKey;
+  // Map to store widget keys and their associated models
+  final Map<Key, dynamic> _widgetModels = {};
 
   @override
   void initState() {
     super.initState();
-    _repaintKey = GlobalKey(); // Initialize unique key per instance
+    _repaintKey = GlobalKey();
     // Initialize LindiController
     _controller.controller = LindiController(
       borderColor: Colors.blue,
@@ -72,7 +74,17 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           icon: Icons.close,
           alignment: Alignment.topLeft,
           onTap: () {
-            _controller.controller.selectedWidget?.delete();
+            final selectedWidget = _controller.controller.selectedWidget;
+            if (selectedWidget != null) {
+              final model = _widgetModels[selectedWidget.key];
+              if (model is StickerModel) {
+                stickerController.stickers.remove(model);
+              } else if (model is EditableTextModel) {
+                textEditorControllerWidget.text.remove(model);
+              }
+              _widgetModels.remove(selectedWidget.key);
+              selectedWidget.delete();
+            }
           },
         ),
         LindiStickerIcon(
@@ -89,21 +101,78 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         ),
       ],
     );
+
+    // Track position changes during dragging
     _controller.controller.onPositionChange((index) {
-      debugPrint("widgets size: ${_controller.controller.widgets.length}, current index: $index");
+      if (index >= 0 && index < _controller.controller.widgets.length) {
+        _controller.indexvalueOnChange.value = index;
+        print('index value=====${_controller.indexvalueOnChange.value}');
+        final DraggableWidget widget = _controller.controller.widgets[index];
+        final Key widgetKey = widget.key!;
+        debugPrint('Widget $index (key: $widgetKey) moved.');
+
+        // Debug DraggableWidget properties
+        debugPrint('Widget properties: ${widget.toString()}');
+
+        // Get canvas size and position
+        final RenderBox? canvasBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
+        if (canvasBox != null) {
+          final Size canvasSize = canvasBox.size;
+          final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
+          debugPrint('Canvas size: width=${canvasSize.width}, height=${canvasSize.height}');
+          debugPrint('Canvas position: x=${canvasPosition.dx}, y=${canvasPosition.dy}');
+
+          // Get widget position using GlobalKey
+          final GlobalKey widgetKey = widget.centerKey ;
+          final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+          if (widgetBox != null) {
+            final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
+            // Calculate position relative to canvas
+            final double x = widgetPosition.dx - canvasPosition.dx;
+            final double y = widgetPosition.dy - canvasPosition.dy;
+            debugPrint('Widget $index position: x=$x, y=$y');
+
+            // Update corresponding model
+            final model = _widgetModels[widgetKey];
+            if (model is StickerModel) {
+              model.left.value = x;
+              model.top.value = y;
+              debugPrint('Updated Sticker $index: top=${model.top.value}, left=${model.left.value}');
+            } else if (model is EditableTextModel) {
+              model.left = x.obs;
+              model.top = y.obs;
+              debugPrint('Updated Text ${index - stickerController.stickers.length}: top=${model.top}, left=${model.left}');
+            }
+          } else {
+            debugPrint('Failed to get widget RenderBox for key: $widgetKey');
+          }
+        } else {
+          debugPrint('Failed to get canvas RenderBox');
+        }
+
+        // Attempt to find position via DraggableWidget properties
+        try {
+          debugPrint('Check DraggableWidget source for transform/offset properties.');
+        } catch (e) {
+          debugPrint('Error accessing widget $index properties: $e');
+        }
+      } else {
+        debugPrint('Invalid index: $index');
+      }
     });
-    // Reset controllers to prevent stale data
-    // _controller.reset(); // Assuming reset method exists
+
+    // Reset controllers
     stickerController.stickers.clear();
     textEditorControllerWidget.text.clear();
+    _widgetModels.clear();
   }
 
   @override
   void dispose() {
-    // Clean up controllers to prevent memory leaks
     _controller.controller.widgets.clear();
     stickerController.stickers.clear();
     textEditorControllerWidget.text.clear();
+    _widgetModels.clear();
     super.dispose();
   }
 
@@ -143,7 +212,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         final dbHelper = DatabaseHelper.instance;
         await dbHelper.saveImage(filePath);
         Get.snackbar("Success", "Image saved successfully");
-        Get.off(() => SavedImagesScreen()); // Use Get.off to replace screen
+        Get.off(() => SavedImagesScreen());
       } else {
         Get.snackbar("Error", "Failed to capture image");
       }
@@ -160,13 +229,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         _controller.filePath.value = path.join(directory.path, 'image_${DateTime.now().millisecondsSinceEpoch}.png');
         final file = File(_controller.filePath.value!);
         await file.writeAsBytes(capturedImage);
-
-        // final dbHelper = DatabaseHelper.instance;
-        // await dbHelper.saveImage(_controller.filePath!);
         Get.snackbar("Success", "Image saved successfully");
-
       } else {
-
         Get.snackbar("Error", "Failed to capture image");
       }
     } catch (e) {
@@ -179,10 +243,62 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         Get.snackbar("Error", "No image to save as template");
         return;
       }
+      if ( _controller.indexvalueOnChange.value >= 0 &&  _controller.indexvalueOnChange.value < _controller.controller.widgets.length) {
+        // _controller.indexvalueOnChange.value = index;
+        // print('index value=====${_controller.indexvalueOnChange.value}');
+        final DraggableWidget widget = _controller.controller.widgets[ _controller.indexvalueOnChange.value];
+        final Key widgetKey = widget.key!;
+        debugPrint('Widget ${_controller.indexvalueOnChange.value} (key: $widgetKey) moved.');
 
+        // Debug DraggableWidget properties
+        debugPrint('Widget properties: ${widget.toString()}');
+
+        // Get canvas size and position
+        final RenderBox? canvasBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
+        if (canvasBox != null) {
+          final Size canvasSize = canvasBox.size;
+          final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
+          debugPrint('Canvas size: width=${canvasSize.width}, height=${canvasSize.height}');
+          debugPrint('Canvas position: x=${canvasPosition.dx}, y=${canvasPosition.dy}');
+
+          // Get widget position using GlobalKey
+          final GlobalKey widgetKey = widget.centerKey ;
+          final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+          if (widgetBox != null) {
+            final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
+            // Calculate position relative to canvas
+            final double x = widgetPosition.dx - canvasPosition.dx;
+            final double y = widgetPosition.dy - canvasPosition.dy;
+            debugPrint('Widget ${ _controller.indexvalueOnChange.value} position: x=$x, y=$y');
+
+            // Update corresponding model
+            final model = _widgetModels[widgetKey];
+            if (model is StickerModel) {
+              model.left.value = x;
+              model.top.value = y;
+              debugPrint('Updated Sticker ${ _controller.indexvalueOnChange.value}: top=${model.top.value}, left=${model.left.value}');
+            } else if (model is EditableTextModel) {
+              model.left = x.obs;
+              model.top = y.obs;
+              debugPrint('Updated Text ${ _controller.indexvalueOnChange.value} - stickerController.stickers.length}: top=${model.top}, left=${model.left}');
+            }
+          } else {
+            debugPrint('Failed to get widget RenderBox for key: $widgetKey');
+          }
+        } else {
+          debugPrint('Failed to get canvas RenderBox');
+        }
+
+        // Attempt to find position via DraggableWidget properties
+        try {
+          debugPrint('Check DraggableWidget source for transform/offset properties.');
+        } catch (e) {
+          debugPrint('Error accessing widget ${ _controller.indexvalueOnChange.value} properties: $e');
+        }
+      } else {
+        debugPrint('Invalid index: ${ _controller.indexvalueOnChange.value}');}
       final editingState = {
         'imagePath': imageFile.path,
-        // 'stickers':_controller.controller.widgets,
         'stickers': stickerController.stickers.map((sticker) => {
           'path': sticker.path,
           'top': sticker.top.value,
@@ -224,11 +340,11 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           },
         },
       };
-print('=============editingState=========${editingState}');
+      print('=============editingState=========${editingState}');
       final dbHelper = DatabaseHelper.instance;
-      await dbHelper.saveTemplate('Template_${DateTime.now().millisecondsSinceEpoch}', editingState,_controller.filePath.value!);
+      await dbHelper.saveTemplate('Template_${DateTime.now().millisecondsSinceEpoch}', editingState, _controller.filePath.value!);
       Get.snackbar("Success", "Template saved successfully");
-      Get.off(() => SavedImagesScreen()); // Use Get.off to replace screen
+      Get.off(() => SavedImagesScreen());
     } catch (e) {
       Get.snackbar("Error", "Failed to save template: $e");
       print("Error saving template: $e");
@@ -249,9 +365,10 @@ print('=============editingState=========${editingState}');
       }
 
       // Clear existing widgets
-      // stickerController.stickers.clear();
+      stickerController.stickers.clear();
       _controller.controller.widgets.clear();
       textEditorControllerWidget.text.clear();
+      _widgetModels.clear();
 
       // Restore stickers
       for (var stickerData in state['stickers'] ?? []) {
@@ -263,85 +380,26 @@ print('=============editingState=========${editingState}');
           rotation: RxDouble(stickerData['rotation']?.toDouble() ?? 0.0),
           isFlipped: RxBool(stickerData['isFlipped'] ?? false),
         );
+        final GlobalKey widgetKey = GlobalKey();
         print('===========before adding to lindi sticker widget=====${stickerData['path']}');
         print('===========before adding to lindi sticker widget=====${stickerData['top']}');
         print('===========before adding to lindi sticker widget=====${stickerData['left']}');
         Widget widget = Container(
-          height:100,
-          width: 100,
-          child: SvgPicture.asset(stickerData['path']),
+          key: widgetKey,
+          height: 60,
+          width: 60,
+          child: (stickerData['path'].toString().contains('svg'))
+              ? SvgPicture.asset(stickerData['path'])
+              : Image.file(File(stickerData['path'])),
+        );
+        final alignment = Alignment(
+          (stickerData['left'] / _controller.canvasWidth.value) * 2 - 1,
+          (stickerData['top'] / _controller.canvasHeight.value) * 2 - 1,
         );
 
-        final alignment = Alignment(
-      (stickerData['left']/_controller.canvasWidth.value) * 4 - 1,
-      (stickerData['top']/ _controller.canvasHeight.value) * 4 - 1
-        );
-        _controller.controller.add(widget,position:alignment);
+        _controller.controller.add(widget, position: alignment);
         stickerController.stickers.add(sticker);
-        if (File(sticker.path).existsSync()) {
-          _controller.controller.widgets.add(
-            DraggableWidget(
-              position: null,
-              borderWidth: null,
-              shouldMove: null,
-              shouldScale: null,
-              minScale: null,
-              maxScale: null,
-              onBorder: null,
-              onDelete: null,
-              onLayer: null,
-              insidePadding: null,
-              borderColor: Colors.blue,
-              shouldRotate: true,
-              showBorders: true,
-              icons: [
-                LindiStickerIcon(
-                  icon: Icons.rotate_90_degrees_ccw,
-                  iconColor: Colors.purple,
-                  alignment: Alignment.topRight,
-                  type: IconType.resize,
-                ),
-                LindiStickerIcon(
-                  icon: Icons.lock_open,
-                  alignment: Alignment.topCenter,
-                  onTap: () {
-                    _controller.controller.clearAllBorders();
-                  },
-                ),
-                LindiStickerIcon(
-                  icon: Icons.close,
-                  alignment: Alignment.topLeft,
-                  onTap: () {
-                    _controller.controller.selectedWidget?.delete();
-                  },
-                ),
-                LindiStickerIcon(
-                  icon: Icons.flip,
-                  alignment: Alignment.bottomLeft,
-                  onTap: () {
-                    _controller.controller.selectedWidget?.flip();
-                  },
-                ),
-                LindiStickerIcon(
-                  icon: Icons.crop_free,
-                  alignment: Alignment.bottomRight,
-                  type: IconType.resize,
-                ),
-              ],
-              child: Transform(
-                transform: Matrix4.identity()
-                  ..translate(sticker.left.value, sticker.top.value)
-                  ..rotateZ(sticker.rotation.value)
-                  ..scale(sticker.isFlipped.value ? -sticker.scale.value : sticker.scale.value, sticker.scale.value),
-                child: Image.file(
-                  File(sticker.path),
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => Icon(Icons.error, color: Colors.red),
-                ),
-              ),
-            ),
-          );
-        }
+        _widgetModels[widgetKey] = sticker;
       }
 
       // Restore text
@@ -370,57 +428,11 @@ print('=============editingState=========${editingState}');
             orElse: () => TextAlign.left,
           ),
         );
+        final GlobalKey widgetKey = GlobalKey();
         textEditorControllerWidget.text.add(textModel);
-        _controller.controller.widgets.add(
-          DraggableWidget(
-            position: null,
-            borderWidth: null,
-            shouldMove: null,
-            shouldScale: null,
-            minScale: null,
-            maxScale: null,
-            onBorder: null,
-            onDelete: null,
-            onLayer: null,
-            insidePadding: null,
-            borderColor: Colors.blue,
-            shouldRotate: true,
-            showBorders: true,
-            icons: [
-              LindiStickerIcon(
-                icon: Icons.rotate_90_degrees_ccw,
-                iconColor: Colors.purple,
-                alignment: Alignment.topRight,
-                type: IconType.resize,
-              ),
-              LindiStickerIcon(
-                icon: Icons.lock_open,
-                alignment: Alignment.topCenter,
-                onTap: () {
-                  _controller.controller.clearAllBorders();
-                },
-              ),
-              LindiStickerIcon(
-                icon: Icons.close,
-                alignment: Alignment.topLeft,
-                onTap: () {
-                  _controller.controller.selectedWidget?.delete();
-                  textEditorControllerWidget.text.remove(textModel);
-                },
-              ),
-              LindiStickerIcon(
-                icon: Icons.flip,
-                alignment: Alignment.bottomLeft,
-                onTap: () {
-                  _controller.controller.selectedWidget?.flip();
-                },
-              ),
-              LindiStickerIcon(
-                icon: Icons.crop_free,
-                alignment: Alignment.bottomRight,
-                type: IconType.resize,
-              ),
-            ],
+        _controller.controller.add(
+          Container(
+            key: widgetKey,
             child: Transform(
               transform: Matrix4.identity()
                 ..translate(textModel.left, textModel.top.value)
@@ -447,7 +459,12 @@ print('=============editingState=========${editingState}');
               ),
             ),
           ),
+          position: Alignment(
+            (textModel.left / _controller.canvasWidth.value) * 2 - 1,
+            (textModel.top / _controller.canvasHeight.value) * 2 - 1,
+          ),
         );
+        _widgetModels[widgetKey] = textModel;
       }
 
       // Restore filters
@@ -479,7 +496,6 @@ print('=============editingState=========${editingState}');
       fileImage = File(savedState['imagePath'] ?? '');
     }
 
-    // Initialize controllers with initial image or saved state
     if (savedState != null) {
       _loadSavedState(savedState);
     } else {
@@ -494,379 +510,369 @@ print('=============editingState=========${editingState}');
         resizeToAvoidBottomInset: true,
         backgroundColor: Colors.black,
         appBar: AppBar(
-            backgroundColor: Colors.black,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back_ios_new, color: Colors.white),
-              onPressed: () => Get.back(),
-            ),
-            actions: [
-        Padding(
-        padding: EdgeInsets.only(right: 20),
-        child: Row(
-            children: [
-            IconButton(
-            onPressed: () {
-      _controller.undo();
-      },
-        icon: Icon(Icons.undo, color: Colors.white),
-      ),
-      SizedBox(width: 10),
-      IconButton(
-        onPressed: () {
-          _controller.redo();
-        },
-        icon: Icon(Icons.redo, color: Colors.white),
-      ),
-      SizedBox(width: 25),
-      GestureDetector(
-        onTap: () {
-          _controller.showImageLayer.value = true;
-        },
-        child: SizedBox(
-          height: 20,
-          child: Image.asset(
-            'assets/image_layer.png',
-            errorBuilder: (context, error, stackTrace) => Icon(Icons.image, color: Colors.white),
+          backgroundColor: Colors.black,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            onPressed: () => Get.back(),
           ),
-        ),
-      ),
-      SizedBox(width: 25),
-      SizedBox(
-        height: 20,
-        child: GestureDetector(
-          onTap: saveImage,
-          child: Image.asset(
-            'assets/Save.png',
-            errorBuilder: (context, error, stackTrace) => Icon(Icons.save_alt, color: Colors.white),
-          ),
-        ),
-      ),
-      SizedBox(width: 25),
-      SizedBox(
-        height: 20,
-        child: GestureDetector(
-          onTap: saveTemplate,
-          child: Image.asset(
-            'assets/template.png',
-            errorBuilder: (context, error, stackTrace) => Icon(Icons.save, color: Colors.white),
-          ),
-        ),
-      ),
-        SizedBox(
-          height: 20,
-          child: GestureDetector(
-            onTap: () async {
-              try {
-                final Uint8List? capturedImage = await captureView();
-                if (capturedImage != null) {
-                  final tempDir = await getTemporaryDirectory();
-                  final file = await File('${tempDir.path}/shared_image.png').create();
-                  await file.writeAsBytes(capturedImage);
+          actions: [
+            Padding(
+              padding: EdgeInsets.only(right: 20),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      _controller.undo();
+                    },
+                    icon: Icon(Icons.undo, color: Colors.white),
+                  ),
+                  SizedBox(width: 10),
+                  IconButton(
+                    onPressed: () {
+                      _controller.redo();
+                    },
+                    icon: Icon(Icons.redo, color: Colors.white),
+                  ),
+                  SizedBox(width: 25),
+                  GestureDetector(
+                    onTap: () {
+                      _controller.showImageLayer.value = true;
+                    },
+                    child: SizedBox(
+                      height: 20,
+                      child: Image.asset(
+                        'assets/image_layer.png',
+                        errorBuilder: (context, error, stackTrace) => Icon(Icons.image, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 25),
+                  SizedBox(
+                    height: 20,
+                    child: GestureDetector(
+                      onTap: saveTemplate,
+                      child: Image.asset(
+                        'assets/template.png',
+                        errorBuilder: (context, error, stackTrace) => Icon(Icons.save, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 25),
+                  SizedBox(
+                    height: 20,
+                    child: GestureDetector(
+                      onTap: () async {
+                        try {
+                          final Uint8List? capturedImage = await captureView();
+                          if (capturedImage != null) {
+                            final tempDir = await getTemporaryDirectory();
+                            final file = await File('${tempDir.path}/shared_image.png').create();
+                            await file.writeAsBytes(capturedImage);
 
-                  await Share.shareXFiles(
-                    [XFile(file.path)],
-                    text: 'Check out my edited image!',
-                  );
-                } else {
-                  Get.snackbar("Error", "Failed to capture image");
-                }
-              } catch (e) {
-                Get.snackbar("Error", "Failed to share image: $e");
-                print("Error sharing image: $e");
-              }
-            },
-            child: Image.asset(
-              'assets/Export.png',
-              errorBuilder: (context, error, stackTrace) => Icon(Icons.share, color: Colors.white),
+                            await Share.shareXFiles(
+                              [XFile(file.path)],
+                              text: 'Check out my edited image!',
+                            );
+                          } else {
+                            Get.snackbar("Error", "Failed to capture image");
+                          }
+                        } catch (e) {
+                          Get.snackbar("Error", "Failed to share image: $e");
+                          print("Error sharing image: $e");
+                        }
+                      },
+                      child: Image.asset(
+                        'assets/Export.png',
+                        errorBuilder: (context, error, stackTrace) => Icon(Icons.share, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
-        ],
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final RenderBox? renderBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
+              if (renderBox != null) {
+                final position = renderBox.localToGlobal(Offset.zero);
+                final size = renderBox.size;
+                _controller.canvasWidth.value = size.width;
+                _controller.canvasHeight.value = size.height;
+                print('Image bounds: position=($position), size=($size)');
+              }
+            });
+            return Obx(() {
+              final Uint8List? editedMemoryImage = _controller.editedImageBytes.value;
+              final File? editedFileImage = _controller.editedImage.value;
+              print('Rebuilding ImageEditorScreen UI, text count: ${textEditorControllerWidget.text.length}');
+              return Stack(
+                children: [
+                  Container(
+                    height: constraints.maxHeight,
+                    child: (_controller.isSelectingText.value == true)
+                        ? SingleChildScrollView(
+                      child: Container(
+                        height: constraints.maxHeight,
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Obx(() {
+                                bool isAnyEditOpen = _controller.showEditOptions.value ||
+                                    _controller.showFilterEditOptions.value ||
+                                    _controller.showStickerEditOptions.value ||
+                                    _controller.showtuneOptions.value;
+                                return ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: constraints.maxWidth,
+                                    maxHeight: constraints.maxHeight,
+                                  ),
+                                  child: RepaintBoundary(
+                                    key: _repaintKey,
+                                    child: LindiStickerWidget(
+                                      controller: _controller.controller,
+                                      child: AnimatedContainer(
+                                        duration: Duration(milliseconds: 200),
+                                        curve: Curves.easeInOut,
+                                        transform: Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
+                                          ..scale(isAnyEditOpen ? 0.94 : 1.0),
+                                        child: Padding(
+                                          padding: EdgeInsets.symmetric(horizontal: 10),
+                                          child: Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                            Container(
+                                            key: _imageKey,
+                                            child: ColorFiltered(
+                                              colorFilter: ColorFilter.matrix(
+                                                _controller.calculateColorMatrix(),
+                                              ),
+                                              child: editedMemoryImage != null
+                                                  ? Image.memory(
+                                                editedMemoryImage,
+                                                fit: BoxFit.contain,
+                                              )
+                                                  : (editedFileImage != null && editedFileImage.path.isNotEmpty
+                                                  ? Image.file(
+                                                editedFileImage,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (context, error, stackTrace) => Text(
+                                                  "Error loading image",
+                                                  style: TextStyle(color: Colors.white),
+                                                ),
+                                              )
+                                                  : (memoryImage != null
+                                                  ? Image.memory(
+                                                memoryImage,
+                                                fit: BoxFit.contain,
+                                              )
+                                                  : (fileImage != null && fileImage.path.isNotEmpty
+                                                  ? Image.file(
+                                                fileImage,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (context, error, stackTrace) => Text(
+                                                  "Error loading image",
+                                                  style: TextStyle(color: Colors.white),
+                                                ),
+                                              )
+                                                  : Text(
+                                                "No image loaded",
+                                                style: TextStyle(color: Colors.white),
+                                              )))),
+                                            ),
+                                            )],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                            const SizedBox(height: 15),
+                            if (!_controller.showEditOptions.value &&
+                                !_controller.showFilterEditOptions.value &&
+                                !_controller.showStickerEditOptions.value &&
+                                !_controller.showtuneOptions.value &&
+                                !_controller.TextEditOptions.value &&
+                                !_controller.CameraEditSticker.value &&
+                                !collageController.showCollageOption.value &&
+                                !_controller.showPresetsEditOptions.value &&
+                                !_controller.showImageLayer.value)
+                              _buildToolBar(context),
+                            if (_controller.showEditOptions.value) _controller.buildEditControls(),
+                            if (_controller.showStickerEditOptions.value)
+                              ShapeSelectorSheet(
+                                controller: _controller.controller,
+                                shapeCategories: _controller.shapeCategories,
+                              ),
+                            if (_controller.showImageLayer.value) _controller.buildImageLayerSheet(),
+                            if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
+                            if (_controller.TextEditOptions.value)
+                              _controller.TextEditControls(constraints, _imageKey),
+                            if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
+                            if (collageController.showCollageOption.value)
+                              collageTemplateController.openTemplatePickerBottomSheet(),
+                            if (_controller.showFilterEditOptions.value)
+                              _controller.buildFilterControlsSheet(onClose: () {
+                                _controller.showFilterEditOptions.value = false;
+                              }),
+                            if (_controller.showPresetsEditOptions.value)
+                              _controller.showFilterControlsBottomSheet(context, () {
+                                _controller.showFilterEditOptions.value = false;
+                              }),
+                          ],
+                        ),
+                      ),
+                    )
+                        : Column(
+                      children: [
+                        Expanded(
+                          child: Obx(() {
+                            bool isAnyEditOpen = _controller.showEditOptions.value ||
+                                _controller.showFilterEditOptions.value ||
+                                _controller.showStickerEditOptions.value ||
+                                _controller.showtuneOptions.value;
+                            return ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: constraints.maxWidth,
+                                maxHeight: constraints.maxHeight,
+                              ),
+                              child: RepaintBoundary(
+                                key: _repaintKey,
+                                child: LindiStickerWidget(
+                                  controller: _controller.controller,
+                                  child: AnimatedContainer(
+                                    duration: Duration(milliseconds: 200),
+                                    curve: Curves.easeInOut,
+                                    transform: Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
+                                      ..scale(isAnyEditOpen ? 0.94 : 1.0),
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 10),
+                                      child: Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          GestureDetector(
+                                            onScaleStart: (details) {
+                                              _controller.baseScale.value = _controller.scale.value;
+                                            },
+                                            onScaleUpdate: (details) {
+                                              final newScale = (_controller.baseScale.value * details.scale).clamp(1.0, 5.0);
+                                              _controller.scale.value = newScale;
+                                            },
+                                            child: Obx(() {
+                                              return Transform.translate(
+                                                  offset: _controller.offset.value,
+                                                  child: Transform.scale(
+                                                  scale: _controller.scale.value,
+                                                  child: Container(
+                                                  key: _imageKey,
+                                                  child: ColorFiltered(
+                                                  colorFilter: ColorFilter.matrix(
+                                                  _controller.calculateColorMatrix(),
+                                              ),
+                                              child: editedMemoryImage != null
+                                              ? Image.memory(
+                                              editedMemoryImage,
+                                              fit: BoxFit.contain,
+                                              )
+                                                  : (editedFileImage != null && editedFileImage.path.isNotEmpty
+                                              ? Image.file(
+                                              editedFileImage,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (context, error, stackTrace) => Text(
+                                              "Error loading image",
+                                              style: TextStyle(color: Colors.white),
+                                              ),
+                                              )
+                                                  : (memoryImage != null
+                                              ? Image.memory(
+                                              memoryImage,
+                                              fit: BoxFit.contain,
+                                              )
+                                                  : (fileImage != null && fileImage.path.isNotEmpty
+                                              ? Image.file(
+                                              fileImage,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (context, error, stackTrace) => Text(
+                                              "Error loading image",
+                                              style: TextStyle(color: Colors.white),
+                                              ),
+                                              )
+                                                  : Text(
+                                              "No image loaded",
+                                              style: TextStyle(color: Colors.white),
+                                              )))),
+                                              ),
+                                              ),
+                                              ));
+                                            }),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        SizedBox(height: 15),
+                        if (!_controller.showEditOptions.value &&
+                            !_controller.showFilterEditOptions.value &&
+                            !_controller.showStickerEditOptions.value &&
+                            !_controller.showtuneOptions.value &&
+                            !_controller.TextEditOptions.value &&
+                            !_controller.CameraEditSticker.value &&
+                            !collageController.showCollageOption.value &&
+                            !_controller.showPresetsEditOptions.value &&
+                            !_controller.showImageLayer.value)
+                          _buildToolBar(context),
+                        if (_controller.showEditOptions.value) _controller.buildEditControls(),
+                        if (_controller.showStickerEditOptions.value)
+                          ShapeSelectorSheet(
+                            controller: _controller.controller,
+                            shapeCategories: _controller.shapeCategories,
+                          ),
+                        if (_controller.showImageLayer.value) _controller.buildImageLayerSheet(),
+                        if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
+                        if (_controller.TextEditOptions.value)
+                          _controller.TextEditControls(constraints, _imageKey),
+                        if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
+                        if (collageController.showCollageOption.value)
+                          collageTemplateController.openTemplatePickerBottomSheet(),
+                        if (_controller.showFilterEditOptions.value)
+                          _controller.buildFilterControlsSheet(onClose: () {
+                            _controller.showFilterEditOptions.value = false;
+                          }),
+                        if (_controller.showPresetsEditOptions.value)
+                          _controller.showFilterControlsBottomSheet(context, () {
+                            _controller.showFilterEditOptions.value = false;
+                          }),
+                      ],
+                    ),
+                  ),
+                  if (_controller.isFlipping.value)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withOpacity(0.8),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 6.0,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            });
+          },
+        ),
       ),
-    ),
-    ],
-    ),
-    body: LayoutBuilder(
-    builder: (context, constraints) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-    final RenderBox? renderBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox != null) {
-    final position = renderBox.localToGlobal(Offset.zero);
-    final size = renderBox.size;
-    print('Image bounds: position=($position), size=($size)');
-    }
-    });
-    return Obx(() {
-    final Uint8List? editedMemoryImage = _controller.editedImageBytes.value;
-    final File? editedFileImage = _controller.editedImage.value;
-    print('Rebuilding ImageEditorScreen UI, text count: ${textEditorControllerWidget.text.length}');
-    return Stack(
-    children: [
-    Container(
-    height: constraints.maxHeight,
-    child: (_controller.isSelectingText.value == true)
-    ? SingleChildScrollView(
-    child: Container(
-    height: constraints.maxHeight,
-    child: Column(
-    children: [
-    Expanded(
-    child: Obx(() {
-    bool isAnyEditOpen = _controller.showEditOptions.value ||
-    _controller.showFilterEditOptions.value ||
-    _controller.showStickerEditOptions.value ||
-    _controller.showtuneOptions.value;
-    return ConstrainedBox(
-    constraints: BoxConstraints(
-    maxWidth: constraints.maxWidth,
-    maxHeight: constraints.maxHeight,
-    ),
-    child: RepaintBoundary(
-    key: _repaintKey,
-    child: LindiStickerWidget(
-    controller: _controller.controller,
-    child: AnimatedContainer(
-    duration: Duration(milliseconds: 200),
-    curve: Curves.easeInOut,
-    transform: Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
-    ..scale(isAnyEditOpen ? 0.94 : 1.0),
-    child: Padding(
-    padding: EdgeInsets.symmetric(horizontal: 10),
-    child: Stack(
-    alignment: Alignment.center,
-    children: [
-    Container(
-    key: _imageKey,
-    child: ColorFiltered(
-    colorFilter: ColorFilter.matrix(
-    _controller.calculateColorMatrix(),
-    ),
-    child: editedMemoryImage != null
-    ? Image.memory(
-    editedMemoryImage,
-    fit: BoxFit.contain,
-    )
-        : (editedFileImage != null && editedFileImage.path.isNotEmpty
-    ? Image.file(
-    editedFileImage,
-    fit: BoxFit.contain,
-    errorBuilder: (context, error, stackTrace) => Text(
-    "Error loading image",
-    style: TextStyle(color: Colors.white),
-    ),
-    )
-        : (memoryImage != null
-    ? Image.memory(
-    memoryImage,
-    fit: BoxFit.contain,
-    )
-        : (fileImage != null && fileImage.path.isNotEmpty
-    ? Image.file(
-    fileImage,
-    fit: BoxFit.contain,
-    errorBuilder: (context, error, stackTrace) => Text(
-    "Error loading image",
-    style: TextStyle(color: Colors.white),
-    ),
-    )
-        : Text(
-    "No image loaded",
-    style: TextStyle(color: Colors.white),
-    )))),
-    ),
-    ),
-    ],
-    ),
-    ),
-    ),
-    ),
-    ),
-    );
-    }),
-    ),
-    const SizedBox(height: 15),
-    if (!_controller.showEditOptions.value &&
-    !_controller.showFilterEditOptions.value &&
-    !_controller.showStickerEditOptions.value &&
-    !_controller.showtuneOptions.value &&
-    !_controller.TextEditOptions.value &&
-    !_controller.CameraEditSticker.value &&
-    !collageController.showCollageOption.value &&
-    !_controller.showPresetsEditOptions.value &&
-    !_controller.showImageLayer.value)
-    _buildToolBar(context),
-    if (_controller.showEditOptions.value) _controller.buildEditControls(),
-    if (_controller.showStickerEditOptions.value)
-    ShapeSelectorSheet(
-    controller: _controller.controller,
-    shapeCategories: _controller.shapeCategories,
-    ),
-    if (_controller.showImageLayer.value) _controller.buildImageLayerSheet(),
-    if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
-    if (_controller.TextEditOptions.value)
-    _controller.TextEditControls(constraints, _imageKey),
-    if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
-    if (collageController.showCollageOption.value)
-    collageTemplateController.openTemplatePickerBottomSheet(),
-    if (_controller.showFilterEditOptions.value)
-    _controller.buildFilterControlsSheet(onClose: () {
-    _controller.showFilterEditOptions.value = false;
-    }),
-    if (_controller.showPresetsEditOptions.value)
-    _controller.showFilterControlsBottomSheet(context, () {
-    _controller.showFilterEditOptions.value = false;
-    }),
-    ],
-    ),
-    ),
-    )
-        : Column(
-    children: [
-    Expanded(
-    child: Obx(() {
-    bool isAnyEditOpen = _controller.showEditOptions.value ||
-    _controller.showFilterEditOptions.value ||
-    _controller.showStickerEditOptions.value ||
-    _controller.showtuneOptions.value;
-    return ConstrainedBox(
-    constraints: BoxConstraints(
-    maxWidth: constraints.maxWidth,
-    maxHeight: constraints.maxHeight,
-    ),
-    child: RepaintBoundary(
-    key: _repaintKey,
-    child: LindiStickerWidget(
-    controller: _controller.controller,
-    child: AnimatedContainer(
-    duration: Duration(milliseconds: 200),
-    curve: Curves.easeInOut,
-    transform: Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
-    ..scale(isAnyEditOpen ? 0.94 : 1.0),
-    child: Padding(
-    padding: EdgeInsets.symmetric(horizontal: 10),
-    child: Stack(
-    alignment: Alignment.center,
-    children: [
-    GestureDetector(
-    onScaleStart: (details) {
-    _controller.baseScale.value = _controller.scale.value;
-    },
-    onScaleUpdate: (details) {
-    final newScale = (_controller.baseScale.value * details.scale).clamp(1.0, 5.0);
-    _controller.scale.value = newScale;
-    },
-    child: Obx(() {
-    return Transform.translate(
-    offset: _controller.offset.value,
-    child: Transform.scale(
-    scale: _controller.scale.value,
-    child: Container(
-    key: _imageKey,
-    child: ColorFiltered(
-    colorFilter: ColorFilter.matrix(
-    _controller.calculateColorMatrix(),
-    ),
-    child: editedMemoryImage != null
-    ? Image.memory(
-    editedMemoryImage,
-    fit: BoxFit.contain,
-    )
-        : (editedFileImage != null && editedFileImage.path.isNotEmpty
-    ? Image.file(
-    editedFileImage,
-    fit: BoxFit.contain,
-    errorBuilder: (context, error, stackTrace) => Text(
-    "Error loading image",
-    style: TextStyle(color: Colors.white),
-    ),
-    )
-        : (memoryImage != null
-    ? Image.memory(
-    memoryImage,
-    fit: BoxFit.contain,
-    )
-        : (fileImage != null && fileImage.path.isNotEmpty
-    ? Image.file(
-    fileImage,
-    fit: BoxFit.contain,
-    errorBuilder: (context, error, stackTrace) => Text(
-    "Error loading image",
-    style: TextStyle(color: Colors.white),
-    ),
-    )
-        : Text(
-    "No image loaded",
-    style: TextStyle(color: Colors.white),
-    )))),
-    ),
-    ),
-    ),
-    );
-    }),
-    ),
-    ],
-    ),
-    ),
-    ),
-    ),
-    ),
-    );
-    }),
-    ),
-    SizedBox(height: 15),
-    if (!_controller.showEditOptions.value &&
-    !_controller.showFilterEditOptions.value &&
-    !_controller.showStickerEditOptions.value &&
-    !_controller.showtuneOptions.value &&
-    !_controller.TextEditOptions.value &&
-    !_controller.CameraEditSticker.value &&
-    !collageController.showCollageOption.value &&
-    !_controller.showPresetsEditOptions.value &&
-    !_controller.showImageLayer.value)
-    _buildToolBar(context),
-    if (_controller.showEditOptions.value) _controller.buildEditControls(),
-    if (_controller.showStickerEditOptions.value)
-    ShapeSelectorSheet(
-    controller: _controller.controller,
-    shapeCategories: _controller.shapeCategories,
-    ),
-    if (_controller.showImageLayer.value) _controller.buildImageLayerSheet(),
-    if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
-    if (_controller.TextEditOptions.value)
-    _controller.TextEditControls(constraints, _imageKey),
-    if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
-    if (collageController.showCollageOption.value)
-    collageTemplateController.openTemplatePickerBottomSheet(),
-    if (_controller.showFilterEditOptions.value)
-    _controller.buildFilterControlsSheet(onClose: () {
-    _controller.showFilterEditOptions.value = false;
-    }),
-    if (_controller.showPresetsEditOptions.value)
-    _controller.showFilterControlsBottomSheet(context, () {
-    _controller.showFilterEditOptions.value = false;
-    }),
-    ],
-    ),
-    ),
-    if (_controller.isFlipping.value)
-    Positioned.fill(
-    child: Container(
-    color: Colors.black.withOpacity(0.8),
-    child: Center(
-    child: CircularProgressIndicator(
-    strokeWidth: 6.0,
-    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-    ),
-    ),
-    ),
-    ),
-    ],
-    );
-    });
-    },
-    ),
-    ),
     );
   }
 
@@ -941,7 +947,7 @@ print('=============editingState=========${editingState}');
               collageController.showCollageOption.value = true;
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Presets', 'assets/presets.png', () {
+            _controller.buildToolButton('Pres  ets', 'assets/presets.png', () {
               _controller.showPresetsEditOptions.value = true;
             }),
           ],

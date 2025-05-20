@@ -67,6 +67,7 @@ class ImageEditorController extends GetxController {
   RxBool showFilterEditOptions = false.obs;
   RxBool showPresetsEditOptions = false.obs;
   RxBool showtuneOptions = false.obs;
+  var indexvalueOnChange = 0.obs;
   RxBool selectedtapped = false.obs;
   RxBool isAlignmentText = false.obs;
   final Rx<Uint8List?> flippedBytes = Rx<Uint8List?>(null);

@@ -542,3 +542,244 @@
 //     required this.isFlipped,
 //   });
 // }
+
+import 'package:flutter/material.dart';
+import 'package:lindi_sticker_widget/draggable_widget.dart';
+import 'package:lindi_sticker_widget/lindi_controller.dart';
+import 'package:lindi_sticker_widget/lindi_sticker_widget.dart';
+import 'package:lindi_sticker_widget/lindi_sticker_icon.dart';
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  late LindiController controller;
+  final GlobalKey _stickerWidgetKey = GlobalKey();
+  final Map<Key, Alignment> _initialPositions = {};
+  bool useCustomDragging = true; // Use custom dragging for real-time x, y
+  List<Widget> customWidgets = [];
+  List<Offset> customPositions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize LindiController
+    controller = LindiController(
+      borderColor: Colors.blue,
+      shouldRotate: true,
+      showBorders: true,
+      icons: [
+        LindiStickerIcon(
+          icon: Icons.rotate_90_degrees_ccw,
+          iconColor: Colors.purple,
+          alignment: Alignment.topRight,
+          type: IconType.resize,
+        ),
+        LindiStickerIcon(
+          icon: Icons.lock_open,
+          alignment: Alignment.topCenter,
+          onTap: () {
+            controller.clearAllBorders();
+          },
+        ),
+        LindiStickerIcon(
+          icon: Icons.close,
+          alignment: Alignment.topLeft,
+          onTap: () {
+            controller.selectedWidget?.delete();
+          },
+        ),
+        LindiStickerIcon(
+          icon: Icons.flip,
+          alignment: Alignment.bottomLeft,
+          onTap: () {
+            controller.selectedWidget?.flip();
+          },
+        ),
+        LindiStickerIcon(
+          icon: Icons.crop_free,
+          alignment: Alignment.bottomRight,
+          type: IconType.resize,
+        ),
+      ],
+    );
+
+    // Add a sample widget
+    if (useCustomDragging) {
+      _addCustomWidget(
+        child: SizedBox(
+          height: 100,
+          width: 100,
+          child: Image.network('https://picsum.photos/200/200'),
+        ),
+      );
+    } else {
+      _addLindiWidget(
+        child: SizedBox(
+          height: 100,
+          width: 100,
+          child: Image.network('https://picsum.photos/200/200'),
+        ),
+        position: Alignment.center,
+      );
+    }
+
+    // Listen for position changes (for LindiStickerWidget)
+    controller.onPositionChange((index) {
+      if (index >= 0 && index < controller.widgets.length) {
+        final DraggableWidget widget = controller.widgets[index];
+        final Key widgetKey = widget.key!;
+        debugPrint('Widget $index (key: $widgetKey) moved.');
+
+        // Log initial position
+        final Alignment? initialPosition = _initialPositions[widgetKey];
+        if (initialPosition != null) {
+          debugPrint('Initial position: x=${initialPosition.x}, y=${initialPosition.y}');
+          final RenderBox? renderBox = _stickerWidgetKey.currentContext?.findRenderObject() as RenderBox?;
+          if (renderBox != null) {
+            final Size size = renderBox.size;
+            double pixelX = (initialPosition.x + 1) * (size.width / 2);
+            double pixelY = (initialPosition.y + 1) * (size.height / 2);
+            debugPrint('Initial pixel position: x=$pixelX, y=$pixelY');
+            debugPrint('LindiStickerWidget size: width=${size.width}, height=${size.height}');
+          }
+        }
+
+        // Debug DraggableWidget properties
+        debugPrint('Widget properties: ${widget.toString()}');
+        try {
+          debugPrint('Check DraggableWidget source for position data (e.g., transform, matrix, offset).');
+        } catch (e) {
+          debugPrint('Error accessing widget $index properties: $e');
+        }
+      } else {
+        debugPrint('Invalid index: $index');
+      }
+    });
+  }
+
+  void _addLindiWidget({required Widget child, Alignment position = Alignment.center}) {
+    final Key key = Key('lindi-${DateTime.now().millisecondsSinceEpoch}');
+    _initialPositions[key] = position;
+    controller.add(child, position: position);
+    debugPrint('Added Lindi widget with key $key at initial position: x=${position.x}, y=${position.y}');
+  }
+
+  void _addCustomWidget({required Widget child, Offset initialPosition = const Offset(100, 100)}) {
+    setState(() {
+      customWidgets.add(
+        _CustomDraggableWidget(
+          child: child,
+          initialPosition: initialPosition,
+          onPositionChanged: (offset) {
+            debugPrint('Custom widget moved to: x=${offset.dx}, y=${offset.dy}');
+            customPositions[customWidgets.length - 1] = offset;
+          },
+        ),
+      );
+      customPositions.add(initialPosition);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: double.infinity,
+            child: Image.network('https://picsum.photos/200/300', fit: BoxFit.cover),
+          ),
+          if (!useCustomDragging)
+            LindiStickerWidget(
+              key: _stickerWidgetKey,
+              controller: controller,
+              child: Container(),
+            ),
+          if (useCustomDragging) ...customWidgets,
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          if (useCustomDragging) {
+            _addCustomWidget(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                ),
+                child: const Text('New Sticker', style: TextStyle(color: Colors.white)),
+              ),
+            );
+          }
+          else {
+            _addLindiWidget(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                ),
+                child: const Text('New Sticker', style: TextStyle(color: Colors.white)),
+              ),
+            );
+          }
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    controller.close();
+    super.dispose();
+  }
+}
+
+class _CustomDraggableWidget extends StatefulWidget {
+  final Widget child;
+  final Offset initialPosition;
+  final Function(Offset) onPositionChanged;
+
+  const _CustomDraggableWidget({
+    required this.child,
+    required this.initialPosition,
+    required this.onPositionChanged,
+  });
+
+  @override
+  _CustomDraggableWidgetState createState() => _CustomDraggableWidgetState();
+}
+
+class _CustomDraggableWidgetState extends State<_CustomDraggableWidget> {
+  late Offset position;
+
+  @override
+  void initState() {
+    super.initState();
+    position = widget.initialPosition;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: position.dx,
+      top: position.dy,
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          setState(() {
+            position += details.delta;
+            widget.onPositionChanged(position);
+          });
+        },
+        child: widget.child,
+      ),
+    );
+  }
+}
