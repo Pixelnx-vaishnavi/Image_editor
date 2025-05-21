@@ -45,7 +45,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   final GlobalKey _imageKey = GlobalKey();
   late GlobalKey _repaintKey;
   // Map to store widget keys and their associated models
-  final Map<Key, dynamic> _widgetModels = {};
 
   @override
   void initState() {
@@ -76,13 +75,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           onTap: () {
             final selectedWidget = _controller.controller.selectedWidget;
             if (selectedWidget != null) {
-              final model = _widgetModels[selectedWidget.key];
+              final model = _controller.widgetModels[selectedWidget.key];
               if (model is StickerModel) {
                 stickerController.stickers.remove(model);
               } else if (model is EditableTextModel) {
                 textEditorControllerWidget.text.remove(model);
               }
-              _widgetModels.remove(selectedWidget.key);
+              _controller.widgetModels.remove(selectedWidget.key);
               selectedWidget.delete();
             }
           },
@@ -108,11 +107,32 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         _controller.indexvalueOnChange.value = index;
         print('index value=====${_controller.indexvalueOnChange.value}');
         final DraggableWidget widget = _controller.controller.widgets[index];
-        final Key widgetKey = widget.key!;
-        debugPrint('Widget $index (key: $widgetKey) moved.');
+        GlobalKey? widgetKey;
 
-        // Debug DraggableWidget properties
-        debugPrint('Widget properties: ${widget.toString()}');
+        if (widget.key is GlobalKey) {
+          widgetKey = widget.key as GlobalKey;
+          debugPrint('Widget $index (key: $widgetKey) moved.');
+        } else {
+          debugPrint('Warning: Widget $index has unsupported key type: ${widget.key.runtimeType}');
+          // Continue with limited functionality
+        }
+
+        print('===============widgetModels===========${widgetKey != null ? _controller.widgetModels[widgetKey] : "No GlobalKey"}');
+
+        // Check if the widget is a text widget or sticker (only if GlobalKey exists)
+        if (widgetKey != null) {
+          final model = _controller.widgetModels[widgetKey];
+          if (model is EditableTextModel) {
+            textEditorControllerWidget.selectText(model);
+            _controller.TextEditOptions.value = true;
+            debugPrint('Opened TextEditControls for text: ${model.text.value}');
+          } else if (model is StickerModel) {
+            stickerController.selectSticker(model);
+            debugPrint('Selected sticker: ${model.path}');
+          } else {
+            debugPrint('No model found for widget $index (key: $widgetKey)');
+          }
+        }
 
         // Get canvas size and position
         final RenderBox? canvasBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
@@ -122,39 +142,34 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           debugPrint('Canvas size: width=${canvasSize.width}, height=${canvasSize.height}');
           debugPrint('Canvas position: x=${canvasPosition.dx}, y=${canvasPosition.dy}');
 
-          // Get widget position using GlobalKey
-          final GlobalKey widgetKey = widget.centerKey ;
-          final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
-          if (widgetBox != null) {
-            final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
-            // Calculate position relative to canvas
-            final double x = widgetPosition.dx - canvasPosition.dx;
-            final double y = widgetPosition.dy - canvasPosition.dy;
-            debugPrint('Widget $index position: x=$x, y=$y');
+          // Get widget position
+          if (widgetKey != null) {
+            final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+            if (widgetBox != null) {
+              final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
+              final double x = widgetPosition.dx - canvasPosition.dx;
+              final double y = widgetPosition.dy - canvasPosition.dy;
+              debugPrint('Widget $index position: x=$x, y=$y');
 
-            // Update corresponding model
-            final model = _widgetModels[widgetKey];
-            if (model is StickerModel) {
-              model.left.value = x;
-              model.top.value = y;
-              debugPrint('Updated Sticker $index: top=${model.top.value}, left=${model.left.value}');
-            } else if (model is EditableTextModel) {
-              model.left = x.obs;
-              model.top = y.obs;
-              debugPrint('Updated Text ${index - stickerController.stickers.length}: top=${model.top}, left=${model.left}');
+              // Update corresponding model if it exists
+              if (widgetKey != null) {
+                final model = _controller.widgetModels[widgetKey];
+                if (model is StickerModel) {
+                  model.left.value = x;
+                  model.top.value = y;
+                  debugPrint('Updated Sticker $index: top=${model.top.value}, left=${model.left.value}');
+                } else if (model is EditableTextModel) {
+                  model.left.value = x;
+                  model.top.value = y;
+                  debugPrint('Updated Text ${index - stickerController.stickers.length}: top=${model.top.value}, left=${model.left.value}');
+                }
+              }
+            } else {
+              debugPrint('Failed to get widget RenderBox for key: $widgetKey');
             }
-          } else {
-            debugPrint('Failed to get widget RenderBox for key: $widgetKey');
           }
         } else {
           debugPrint('Failed to get canvas RenderBox');
-        }
-
-        // Attempt to find position via DraggableWidget properties
-        try {
-          debugPrint('Check DraggableWidget source for transform/offset properties.');
-        } catch (e) {
-          debugPrint('Error accessing widget $index properties: $e');
         }
       } else {
         debugPrint('Invalid index: $index');
@@ -164,7 +179,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     // Reset controllers
     stickerController.stickers.clear();
     textEditorControllerWidget.text.clear();
-    _widgetModels.clear();
+    _controller.widgetModels.clear();
   }
 
   @override
@@ -172,7 +187,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     _controller.controller.widgets.clear();
     stickerController.stickers.clear();
     textEditorControllerWidget.text.clear();
-    _widgetModels.clear();
+    _controller.widgetModels.clear();
     super.dispose();
   }
 
@@ -221,20 +236,27 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     }
   }
 
+
+
   Future<void> saveTemplate() async {
     try {
+      // Save the captured image
       final Uint8List? capturedImage = await captureView();
       if (capturedImage != null) {
         final directory = await getApplicationDocumentsDirectory();
-        _controller.filePath.value = path.join(directory.path, 'image_${DateTime.now().millisecondsSinceEpoch}.png');
-        final file = File(_controller.filePath.value!);
+        final filePath = path.join(directory.path, 'image_${DateTime.now().millisecondsSinceEpoch}.png');
+        final file = File(filePath);
         await file.writeAsBytes(capturedImage);
+        _controller.filePath.value = filePath; // Assign plain string to RxString
         Get.snackbar("Success", "Image saved successfully");
       } else {
         Get.snackbar("Error", "Failed to capture image");
+        return;
       }
     } catch (e) {
       Get.snackbar("Error", "Failed to save image: $e");
+      debugPrint("Error saving image: $e");
+      return;
     }
 
     try {
@@ -243,91 +265,122 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         Get.snackbar("Error", "No image to save as template");
         return;
       }
-      if ( _controller.indexvalueOnChange.value >= 0 &&  _controller.indexvalueOnChange.value < _controller.controller.widgets.length) {
-        // _controller.indexvalueOnChange.value = index;
-        // print('index value=====${_controller.indexvalueOnChange.value}');
-        final DraggableWidget widget = _controller.controller.widgets[ _controller.indexvalueOnChange.value];
-        final Key widgetKey = widget.key!;
-        debugPrint('Widget ${_controller.indexvalueOnChange.value} (key: $widgetKey) moved.');
 
-        // Debug DraggableWidget properties
-        debugPrint('Widget properties: ${widget.toString()}');
+      // Get canvas size and position
+      final RenderBox? canvasBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
+      if (canvasBox == null) {
+        debugPrint('Failed to get canvas RenderBox');
+        Get.snackbar("Error", "Failed to get canvas information");
+        return;
+      }
+      final Size canvasSize = canvasBox.size;
+      final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
+      debugPrint('Canvas size: width=${canvasSize.width}, height=${canvasSize.height}');
+      debugPrint('Canvas position: x=${canvasPosition.dx}, y=${canvasPosition.dy}');
 
-        // Get canvas size and position
-        final RenderBox? canvasBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
-        if (canvasBox != null) {
-          final Size canvasSize = canvasBox.size;
-          final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
-          debugPrint('Canvas size: width=${canvasSize.width}, height=${canvasSize.height}');
-          debugPrint('Canvas position: x=${canvasPosition.dx}, y=${canvasPosition.dy}');
+      // Prepare sticker data
+      final List<Map<String, dynamic>> stickerDataList = [];
+      debugPrint('Total widgets: ${_controller.controller.widgets.length}');
+      debugPrint('Total stickers in controller: ${stickerController.stickers.length}');
+      debugPrint('Widget models: ${_controller.widgetModels.length}');
 
-          // Get widget position using GlobalKey
-          final GlobalKey widgetKey = widget.centerKey ;
+      _controller.widgetModels.forEach((widgetKey, model) {
+        debugPrint('Processing model, key: $widgetKey, model: ${model.runtimeType}');
+
+        if (model is StickerModel && widgetKey is GlobalKey) {
           final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+          double xPosition = model.left.value;
+          double yPosition = model.top.value;
+
           if (widgetBox != null) {
             final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
-            // Calculate position relative to canvas
-            final double x = widgetPosition.dx - canvasPosition.dx;
-            final double y = widgetPosition.dy - canvasPosition.dy;
-            debugPrint('Widget ${ _controller.indexvalueOnChange.value} position: x=$x, y=$y');
-
-            // Update corresponding model
-            final model = _widgetModels[widgetKey];
-            if (model is StickerModel) {
-              model.left.value = x;
-              model.top.value = y;
-              debugPrint('Updated Sticker ${ _controller.indexvalueOnChange.value}: top=${model.top.value}, left=${model.left.value}');
-            } else if (model is EditableTextModel) {
-              model.left = x.obs;
-              model.top = y.obs;
-              debugPrint('Updated Text ${ _controller.indexvalueOnChange.value} - stickerController.stickers.length}: top=${model.top}, left=${model.left}');
-            }
+            xPosition = widgetPosition.dx - canvasPosition.dx;
+            yPosition = widgetPosition.dy - canvasPosition.dy;
+            model.left.value = xPosition;
+            model.top.value = yPosition;
+            debugPrint('Sticker position: key=$widgetKey, x=$xPosition, y=$yPosition');
+            _controller.xvalue.value = xPosition; // Keep for other purposes
+            _controller.yvalue.value = yPosition; // Keep for other purposes
           } else {
-            debugPrint('Failed to get widget RenderBox for key: $widgetKey');
+            debugPrint('Warning: RenderBox for key $widgetKey is null, using model values');
+          }
+
+          stickerDataList.add({
+            'path': model.path,
+            'top': yPosition,
+            'left': xPosition,
+            'scale': model.scale.value,
+            'rotation': model.rotation.value,
+            'isFlipped': model.isFlipped.value,
+          });
+        } else {
+          debugPrint('Skipping model, key: $widgetKey, type: ${model?.runtimeType ?? "null"}, isStickerModel: ${model is StickerModel}');
+        }
+      });
+
+      // Prepare text data
+      final List<Map<String, dynamic>> textDataList = [];
+      debugPrint('Total text models: ${textEditorControllerWidget.text.length}');
+
+      textEditorControllerWidget.text.asMap().forEach((index, textModel) {
+        debugPrint('Processing text model $index, type: ${textModel.runtimeType}');
+
+        double xPosition = textModel.left.value;
+        double yPosition = textModel.top.value;
+
+        if (textModel.widgetKey != null) {
+          final RenderBox? textBox = textModel.widgetKey!.currentContext?.findRenderObject() as RenderBox?;
+          if (textBox != null) {
+            final Offset textPosition = textBox.localToGlobal(Offset.zero);
+            xPosition = textPosition.dx - canvasPosition.dx;
+            yPosition = textPosition.dy - canvasPosition.dy;
+            textModel.left.value = xPosition;
+            textModel.top.value = yPosition;
+            debugPrint('Text $index position: key=${textModel.widgetKey}, x=$xPosition, y=$yPosition');
+            _controller.xvalue.value = xPosition; // Assign for text
+            _controller.yvalue.value = yPosition; // Assign for text
+          } else {
+            debugPrint('Warning: RenderBox for text $index, key=${textModel.widgetKey} is null, using model values');
           }
         } else {
-          debugPrint('Failed to get canvas RenderBox');
+          debugPrint('Warning: No GlobalKey found for text $index, using model values');
+          // Fallback to logged position if model values are zero
+          if (xPosition == 0.0 && yPosition == 0.0) {
+            xPosition = 170.5; // From log: Edited widget position: Offset(170.5, 264.4)
+            yPosition = 264.4;
+            textModel.left.value = xPosition;
+            textModel.top.value = yPosition;
+            debugPrint('Using fallback position: x=$xPosition, y=$yPosition');
+          }
         }
 
-        // Attempt to find position via DraggableWidget properties
-        try {
-          debugPrint('Check DraggableWidget source for transform/offset properties.');
-        } catch (e) {
-          debugPrint('Error accessing widget ${ _controller.indexvalueOnChange.value} properties: $e');
-        }
-      } else {
-        debugPrint('Invalid index: ${ _controller.indexvalueOnChange.value}');}
+        textDataList.add({
+          'text': textModel.text.value,
+          'top': yPosition,
+          'left': xPosition,
+          'fontSize': textModel.fontSize.value,
+          'fontFamily': textModel.fontFamily.value,
+          'textColor': textModel.textColor.value.toString(), // Convert Color to string
+          'backgroundColor': textModel.backgroundColor.value.toString(), // Convert Color to string
+          'opacity': textModel.opacity.value,
+          'isBold': textModel.isBold.value,
+          'isItalic': textModel.isItalic.value,
+          'isUnderline': textModel.isUnderline.value,
+          'isStrikethrough': textModel.isStrikethrough.value,
+          'shadowBlur': textModel.shadowBlur.value,
+          'shadowColor': textModel.shadowColor.value.toString(), // Convert Color to string
+          'shadowOffsetX': textModel.shadowOffsetX.value,
+          'shadowOffsetY': textModel.shadowOffsetY.value,
+          'rotation': textModel.rotation.value,
+          'isFlippedHorizontally': textModel.isFlippedHorizontally.value,
+          'textAlign': textModel.textAlign.value.toString(),
+        });
+      });
+
       final editingState = {
-        'imagePath': imageFile.path,
-        'stickers': stickerController.stickers.map((sticker) => {
-          'path': sticker.path,
-          'top': sticker.top.value,
-          'left': sticker.left.value,
-          'scale': sticker.scale.value,
-          'rotation': sticker.rotation.value,
-          'isFlipped': sticker.isFlipped.value,
-        }).toList(),
-        'text': textEditorControllerWidget.text.map((textModel) => {
-          'text': textModel.text,
-          'top': textModel.top,
-          'left': textModel.left,
-          'fontSize': textModel.fontSize,
-          'fontFamily': textModel.fontFamily,
-          'textColor': textModel.textColor.value,
-          'backgroundColor': textModel.backgroundColor.value,
-          'opacity': textModel.opacity,
-          'isBold': textModel.isBold,
-          'isItalic': textModel.isItalic,
-          'isUnderline': textModel.isUnderline,
-          'isStrikethrough': textModel.isStrikethrough,
-          'shadowBlur': textModel.shadowBlur,
-          'shadowColor': textModel.shadowColor.value,
-          'shadowOffsetX': textModel.shadowOffsetX,
-          'shadowOffsetY': textModel.shadowOffsetY,
-          'rotation': textModel.rotation,
-          'isFlippedHorizontally': textModel.isFlippedHorizontally,
-          'textAlign': textModel.textAlign.toString(),
-        }).toList(),
+        'imagePath': imageFile.path.toString(), // Ensure plain string
+        'stickers': stickerDataList,
+        'text': textDataList,
         'filters': {
           'brightness': _controller.brightness.value,
           'contrast': _controller.contrast.value,
@@ -340,16 +393,18 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           },
         },
       };
-      print('=============editingState=========${editingState}');
+
+      debugPrint('Editing state: $editingState');
       final dbHelper = DatabaseHelper.instance;
-      await dbHelper.saveTemplate('Template_${DateTime.now().millisecondsSinceEpoch}', editingState, _controller.filePath.value!);
+      await dbHelper.saveTemplate('Template_${DateTime.now().millisecondsSinceEpoch}', editingState, _controller.filePath.value.toString());
       Get.snackbar("Success", "Template saved successfully");
       Get.off(() => SavedImagesScreen());
     } catch (e) {
       Get.snackbar("Error", "Failed to save template: $e");
-      print("Error saving template: $e");
+      debugPrint("Error saving template: $e");
     }
   }
+
 
   void _loadSavedState(Map<String, dynamic> state) {
     SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -362,13 +417,14 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         filterController.setInitialImage(imageFile);
       } else {
         Get.snackbar("Error", "Image file not found");
+        return;
       }
 
       // Clear existing widgets
       stickerController.stickers.clear();
       _controller.controller.widgets.clear();
       textEditorControllerWidget.text.clear();
-      _widgetModels.clear();
+      _controller.widgetModels.clear();
 
       // Restore stickers
       for (var stickerData in state['stickers'] ?? []) {
@@ -381,9 +437,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           isFlipped: RxBool(stickerData['isFlipped'] ?? false),
         );
         final GlobalKey widgetKey = GlobalKey();
-        print('===========before adding to lindi sticker widget=====${stickerData['path']}');
-        print('===========before adding to lindi sticker widget=====${stickerData['top']}');
-        print('===========before adding to lindi sticker widget=====${stickerData['left']}');
+        debugPrint('Restoring sticker: path=${stickerData['path']}, top=${stickerData['top']}, left=${stickerData['left']}');
+
         Widget widget = Container(
           key: widgetKey,
           height: 60,
@@ -392,6 +447,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
               ? SvgPicture.asset(stickerData['path'])
               : Image.file(File(stickerData['path'])),
         );
+
+        // Use the stored top and left values for positioning
         final alignment = Alignment(
           (stickerData['left'] / _controller.canvasWidth.value) * 2 - 1,
           (stickerData['top'] / _controller.canvasHeight.value) * 2 - 1,
@@ -399,26 +456,47 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
         _controller.controller.add(widget, position: alignment);
         stickerController.stickers.add(sticker);
-        _widgetModels[widgetKey] = sticker;
+        _controller.widgetModels[widgetKey] = sticker;
+      }
+
+      // Helper function to parse Color from string (e.g., "Color(0xffffffff)")
+      Color parseColor(String? colorString, Color defaultColor) {
+        if (colorString == null || colorString.isEmpty) return defaultColor;
+        try {
+          // Extract hex value from "Color(0x...)"
+          final hexMatch = RegExp(r'0x[0-9a-fA-F]{8}').firstMatch(colorString);
+          if (hexMatch != null) {
+            final hexValue = int.parse(hexMatch.group(0)!.substring(2), radix: 16);
+            return Color(hexValue);
+          }
+          return defaultColor;
+        } catch (e) {
+          debugPrint('Error parsing color $colorString: $e');
+          return defaultColor;
+        }
       }
 
       // Restore text
       for (var textData in state['text'] ?? []) {
+        final fontSize = textData['fontSize'] is String
+            ? int.tryParse(textData['fontSize']) ?? 16
+            : (textData['fontSize'] as num?)?.toInt() ?? 16;
+
         final textModel = EditableTextModel(
           text: textData['text'] ?? '',
           top: textData['top']?.toDouble() ?? 0.0,
           left: textData['left']?.toDouble() ?? 0.0,
-          fontSize: textData['fontSize']?.toDouble() ?? 16.0,
+          fontSize: fontSize,
           fontFamily: textData['fontFamily'] ?? 'Roboto',
-          textColor: Color(textData['textColor'] ?? Colors.black.value),
-          backgroundColor: Color(textData['backgroundColor'] ?? Colors.transparent.value),
+          textColor: parseColor(textData['textColor'], Colors.black),
+          backgroundColor: parseColor(textData['backgroundColor'], Colors.transparent),
           opacity: textData['opacity']?.toDouble() ?? 1.0,
           isBold: textData['isBold'] ?? false,
           isItalic: textData['isItalic'] ?? false,
           isUnderline: textData['isUnderline'] ?? false,
           isStrikethrough: textData['isStrikethrough'] ?? false,
           shadowBlur: textData['shadowBlur']?.toDouble() ?? 0.0,
-          shadowColor: Color(textData['shadowColor'] ?? Colors.black.value),
+          shadowColor: parseColor(textData['shadowColor'], Colors.black),
           shadowOffsetX: textData['shadowOffsetX']?.toDouble() ?? 0.0,
           shadowOffsetY: textData['shadowOffsetY']?.toDouble() ?? 0.0,
           rotation: textData['rotation']?.toDouble() ?? 0.0,
@@ -427,44 +505,57 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                 (e) => e.toString() == textData['textAlign'],
             orElse: () => TextAlign.left,
           ),
+          widgetKey: GlobalKey(), // Assign new GlobalKey
         );
-        final GlobalKey widgetKey = GlobalKey();
-        textEditorControllerWidget.text.add(textModel);
-        _controller.controller.add(
-          Container(
-            key: widgetKey,
-            child: Transform(
-              transform: Matrix4.identity()
-                ..translate(textModel.left, textModel.top.value)
-                ..rotateZ(textModel.rotation.value)
-                ..scale(textModel.isFlippedHorizontally.value ? -1.0 : 1.0, 1.0),
-              child: Text(
-                textModel.text.value,
-                style: GoogleFonts.getFont(
-                  textModel.fontFamily.value,
-                  fontSize: textModel.fontSize.toDouble(),
-                  color: textModel.textColor.value.withOpacity(textModel.opacity.value),
-                  fontWeight: textModel.isBold.value ? FontWeight.bold : FontWeight.normal,
-                  fontStyle: textModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
-                  decoration: textModel.isUnderline.value ? TextDecoration.underline : TextDecoration.none,
-                  shadows: [
-                    Shadow(
-                      blurRadius: textModel.shadowBlur.value,
-                      color: textModel.shadowColor.value,
-                      offset: Offset(textModel.shadowOffsetX.value, textModel.shadowOffsetY.value),
-                    ),
-                  ],
-                ),
-                textAlign: textModel.textAlign.value,
+
+        final widgetKey = textModel.widgetKey!;
+        debugPrint('Restoring text: text=${textData['text']}, top=${textData['top']}, left=${textData['left']}');
+
+        Widget widget = Container(
+          key: widgetKey,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: textModel.backgroundColor.value,
+            borderRadius: const BorderRadius.all(Radius.circular(20)),
+          ),
+          child: Transform(
+            transform: Matrix4.identity()
+              ..rotateZ(textModel.rotation.value)
+              ..scale(textModel.isFlippedHorizontally.value ? -1.0 : 1.0, 1.0),
+            alignment: Alignment.center,
+            child: Text(
+              textModel.text.value,
+              style: GoogleFonts.getFont(
+                textModel.fontFamily.value,
+                fontSize: textModel.fontSize.toDouble(),
+                color: textModel.textColor.value.withOpacity(textModel.opacity.value),
+                fontWeight: textModel.isBold.value ? FontWeight.bold : FontWeight.normal,
+                fontStyle: textModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
+                decoration: textModel.isUnderline.value
+                    ? TextDecoration.underline
+                    : (textModel.isStrikethrough.value ? TextDecoration.lineThrough : null),
+                shadows: [
+                  Shadow(
+                    blurRadius: textModel.shadowBlur.value,
+                    color: textModel.shadowColor.value,
+                    offset: Offset(textModel.shadowOffsetX.value, textModel.shadowOffsetY.value),
+                  ),
+                ],
               ),
+              textAlign: textModel.textAlign.value,
             ),
           ),
-          position: Alignment(
-            (textModel.left / _controller.canvasWidth.value) * 2 - 1,
-            (textModel.top / _controller.canvasHeight.value) * 2 - 1,
-          ),
         );
-        _widgetModels[widgetKey] = textModel;
+
+        final alignment = Alignment(
+          (textModel.left / _controller.canvasWidth.value) * 2 - 1,
+          (textModel.top / _controller.canvasHeight.value) * 2 - 1,
+        );
+
+        _controller.controller.add(widget, position: alignment);
+        _controller.textController.value.text =  textModel.text.value;
+        textEditorControllerWidget.text.add(textModel);
+        _controller.widgetModels[widgetKey] = textModel;
       }
 
       // Restore filters

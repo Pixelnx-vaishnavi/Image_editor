@@ -27,6 +27,7 @@ class EditableTextModel {
   RxDouble rotation;
   RxBool isFlippedHorizontally;
   RxBool isFlippedVertically;
+  GlobalKey? widgetKey; // New property to store GlobalKey
 
   EditableTextModel({
     required String text,
@@ -49,6 +50,7 @@ class EditableTextModel {
     double rotation = 0.0,
     bool isFlippedHorizontally = false,
     bool isFlippedVertically = false,
+    this.widgetKey,
   })  : text = text.obs,
         top = top.obs,
         left = left.obs,
@@ -136,37 +138,36 @@ class TextEditorControllerWidget extends GetxController {
     // Helper function to create a text widget with a GlobalKey
     Widget createTextWidget(EditableTextModel textModel, GlobalKey key) {
       return Container(
-        key: key,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: textModel.backgroundColor.value,
-          borderRadius: const BorderRadius.all(Radius.circular(20)),
-        ),
-        child: Text(
-          textModel.text.value,
-          textAlign: textModel.textAlign.value,
-          style: GoogleFonts.getFont(
-            textModel.fontFamily.value.isEmpty ? 'Roboto' : textModel.fontFamily.value,
-            fontSize: textModel.fontSize.value.toDouble(),
-            color: textModel.textColor.value.withOpacity(textModel.opacity.value),
-            fontWeight: textModel.isBold.value ? FontWeight.bold : FontWeight.normal,
-            fontStyle: textModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
-            decoration: textModel.isUnderline.value
-                ? TextDecoration.underline
-                : (textModel.isStrikethrough.value ? TextDecoration.lineThrough : null),
-            shadows: [
-              Shadow(
-                blurRadius: textModel.shadowBlur.value,
-                color: textModel.shadowColor.value,
-                offset: Offset(
-                  textModel.shadowOffsetX.value,
-                  textModel.shadowOffsetY.value,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+          key: key,
+          padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+      color: textModel.backgroundColor.value,
+      borderRadius: const BorderRadius.all(Radius.circular(20)),
+      ),
+      child: Text(
+      textModel.text.value,
+      textAlign: textModel.textAlign.value,
+      style: GoogleFonts.getFont(
+      textModel.fontFamily.value.isEmpty ? 'Roboto' : textModel.fontFamily.value,
+      fontSize: textModel.fontSize.value.toDouble(),
+      color: textModel.textColor.value.withOpacity(textModel.opacity.value),
+      fontWeight: textModel.isBold.value ? FontWeight.bold : FontWeight.normal,
+      fontStyle: textModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
+      decoration: textModel.isUnderline.value
+      ? TextDecoration.underline
+          : (textModel.isStrikethrough.value ? TextDecoration.lineThrough : null),
+      shadows: [
+      Shadow(
+      blurRadius: textModel.shadowBlur.value,
+      color: textModel.shadowColor.value,
+      offset: Offset(
+      textModel.shadowOffsetX.value,
+      textModel.shadowOffsetY.value,
+      ),
+      ),
+      ],
+      ),
+      ));
     }
 
     // Helper function to get widget position using GlobalKey
@@ -196,14 +197,17 @@ class TextEditorControllerWidget extends GetxController {
     }
 
     if (selectedText.value != null) {
+      selectedText.value!.text.value = newText;
       // Editing an existing text widget
       final textModel = selectedText.value!;
+
       if (newText.isEmpty) {
         textModel.text.value = '';
         print('Cleared text for selected item');
       } else {
         textModel.text.value = newText;
-        final widgetKey = GlobalKey();
+        final widgetKey = textModel.widgetKey ?? GlobalKey(); // Reuse or create new key
+        textModel.widgetKey = widgetKey; // Store GlobalKey in model
         final widget = createTextWidget(textModel, widgetKey);
 
         if (controller.controller.selectedWidget != null) {
@@ -214,6 +218,8 @@ class TextEditorControllerWidget extends GetxController {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final position = getWidgetPosition(widgetKey) ?? Offset(textModel.left.value, textModel.top.value);
             print('Edited widget position: $position');
+            textModel.left.value = position.dx; // Update model position
+            textModel.top.value = position.dy;
 
             // Update undoStack
             final editedWidget = controller.controller.widgets.last;
@@ -236,17 +242,33 @@ class TextEditorControllerWidget extends GetxController {
     } else if (newText.isNotEmpty) {
       // Adding a new text widget
       final newModel = EditableTextModel(
-        text: newText,
-        left: controller.canvasWidth.value / 2, // Center x
-        top: controller.canvasHeight.value / 2, // Center y
-        fontSize: 15,
-        textColor: Colors.white,
+          text: newText,
+          top: 0.0,
+          left: 0.0,
+          fontSize: 16,
+          fontFamily: 'Roboto',
+          textColor: Colors.black,
+          backgroundColor: Colors.transparent,
+          opacity: 1.0,
+          isBold: false,
+          isItalic: false,
+          isUnderline: false,
+          isStrikethrough: false,
+          shadowBlur: 0.0,
+          shadowColor: Colors.black,
+          shadowOffsetX: 0.0,
+          shadowOffsetY: 0.0,
+          rotation: 0.0,
+          isFlippedHorizontally: false,
+          textAlign: TextAlign.left,
+          widgetKey: GlobalKey(),
       );
-     text.add(newModel);
+      text.add(newModel);
       selectedText.value = newModel;
       updateTextSize(newModel);
 
       final widgetKey = GlobalKey();
+      newModel.widgetKey = widgetKey; // Store GlobalKey in model
       final widget = createTextWidget(newModel, widgetKey);
 
       // Set position to center
@@ -260,6 +282,8 @@ class TextEditorControllerWidget extends GetxController {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final runtimePosition = getWidgetPosition(widgetKey) ?? position;
         print('Added widget position: $runtimePosition');
+        newModel.left.value = runtimePosition.dx; // Update model position
+        newModel.top.value = runtimePosition.dy;
 
         // Update undoStack
         final newWidget = controller.controller.widgets.last;

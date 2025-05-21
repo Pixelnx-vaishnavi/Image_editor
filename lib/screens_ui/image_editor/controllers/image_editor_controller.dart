@@ -74,6 +74,9 @@ class ImageEditorController extends GetxController {
   final RxBool isFlipping = false.obs;
   Rxn<img.Image> decodedImage = Rxn<img.Image>();
   var contrast = 0.0.obs;
+  var xvalue = 0.0.obs;
+  var yvalue = 0.0.obs;
+
   var brightness = 0.0.obs;
   var opacity = 0.0.obs;
 var filePath =''.obs;
@@ -105,7 +108,7 @@ var filePath =''.obs;
 
   // Rx<Offset> offset = Offset.zero.obs;
 
-
+   Rx<TextEditingController> textController = TextEditingController().obs;
   final offset = Offset.zero.obs;
   final RxList<WidgetWithPosition> undoStack = <WidgetWithPosition>[].obs;
   final RxList<WidgetWithPosition> redoStack = <WidgetWithPosition>[].obs;
@@ -114,6 +117,8 @@ var filePath =''.obs;
   var canvasWidth = 300.0.obs;
   var canvasHeight = 300.0.obs;
   int _redoIndex = 0;
+  final Map<Key, dynamic> widgetModels = {};
+
 
   final Map<String, List<Filter>> filterCategories = {
     "Natural": [
@@ -352,32 +357,50 @@ var filePath =''.obs;
     print('Saved image state, imageUndoStack length: ${imageUndoStack.length}');
   }
 
-  void addWidget(Widget sticker, Offset position,path) {
+  void addWidget(Widget sticker, Offset position, var path) {
     try {
       final alignment = Alignment(
         (position.dx / canvasWidth.value) * 2 - 1,
         (position.dy / canvasHeight.value) * 2 - 1,
       );
-     stickerController.stickers.add(StickerModel(
-       path: path,
-       top: position.dx.obs,
-       left:position.dy.obs,
-       scale: 1.0.obs,
-       rotation: 0.0.obs,
-       isFlipped: false.obs,
-     )
-     );
-      controller.add(sticker, position: alignment);
+      final stickerModel = StickerModel(
+        path: path,
+        top: RxDouble(position.dy),
+        left: RxDouble(position.dx),
+        scale: RxDouble(1.0),
+        rotation: RxDouble(0.0),
+        isFlipped: RxBool(false),
+      );
+      final widgetKey = GlobalKey();
+
+      // Wrap the sticker widget with a Container and assign the GlobalKey
+      final wrappedSticker = Container(
+        key: widgetKey,
+        child: sticker,
+      );
+
+      // Add the widget to the controller
+      controller.add(wrappedSticker, position: alignment);
+
+      // Store the StickerModel in _widgetModels
+      stickerController.stickers.add(stickerModel);
+      widgetModels[widgetKey] = stickerModel;
+
       final addedWidget = controller.widgets.last;
+      if (addedWidget.key != widgetKey) {
+        debugPrint('Warning: Added widget key differs, forcing GlobalKey');
+        // Update the key if necessary (this may require custom logic in LindiController)
+      }
 
       undoStack.add(WidgetWithPosition(
         widget: addedWidget,
         position: position,
-        globalKey: GlobalKey(),
+        globalKey: widgetKey,
       ));
 
       redoStack.clear();
       print('Added widget at $position, undoStack length: ${undoStack.length}');
+      print('StickerModel added to _widgetModels, key: $widgetKey');
       controller.notifyListeners();
     } catch (e, stackTrace) {
       print('Error adding widget: $e');
