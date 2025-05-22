@@ -27,7 +27,7 @@ class EditableTextModel {
   RxDouble rotation;
   RxBool isFlippedHorizontally;
   RxBool isFlippedVertically;
-  GlobalKey? widgetKey; // New property to store GlobalKey
+  GlobalKey widgetKey; // New property to store GlobalKey
 
   EditableTextModel({
     required String text,
@@ -50,7 +50,7 @@ class EditableTextModel {
     double rotation = 0.0,
     bool isFlippedHorizontally = false,
     bool isFlippedVertically = false,
-    this.widgetKey,
+    required this.widgetKey,
   })  : text = text.obs,
         top = top.obs,
         left = left.obs,
@@ -75,7 +75,7 @@ class EditableTextModel {
 
 class TextEditorControllerWidget extends GetxController {
   RxList<EditableTextModel> text = <EditableTextModel>[].obs;
-  Rx<EditableTextModel?> selectedText = Rx<EditableTextModel?>(null);
+  var selectedText = Rxn<EditableTextModel>();
   final ImageEditorController _controller = Get.put(ImageEditorController());
 
   Timer? _debounce;
@@ -138,7 +138,7 @@ class TextEditorControllerWidget extends GetxController {
     // Helper function to create a text widget with a GlobalKey
     Widget createTextWidget(EditableTextModel textModel, GlobalKey key) {
       return Container(
-          key: key,
+          key:key,
           padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
       color: textModel.backgroundColor.value,

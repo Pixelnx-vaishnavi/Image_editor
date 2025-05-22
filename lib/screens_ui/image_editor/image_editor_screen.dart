@@ -42,19 +42,23 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   final CollageController collageController = Get.put(CollageController());
   final TextEditorControllerWidget textEditorControllerWidget = Get.put(TextEditorControllerWidget());
   final TemplateController collageTemplateController = Get.put(TemplateController());
-  final GlobalKey _imageKey = GlobalKey();
+
   late GlobalKey _repaintKey;
-  // Map to store widget keys and their associated models
+  DateTime? _interactionStartTime;
+  Offset? _lastPosition;
+  static const _tapDurationThreshold = Duration(milliseconds: 300);
+  static const _tapDistanceThreshold = 5.0; // Pixels
 
   @override
   void initState() {
     super.initState();
     _repaintKey = GlobalKey();
+
     // Initialize LindiController
     _controller.controller = LindiController(
       borderColor: Colors.blue,
       shouldRotate: true,
-      showBorders: true,
+      // showBorders: false, // Borders off by default
       icons: [
         LindiStickerIcon(
           icon: Icons.rotate_90_degrees_ccw,
@@ -67,6 +71,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           alignment: Alignment.topCenter,
           onTap: () {
             _controller.controller.clearAllBorders();
+            debugPrint('Cleared all borders');
           },
         ),
         LindiStickerIcon(
@@ -83,6 +88,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
               }
               _controller.widgetModels.remove(selectedWidget.key);
               selectedWidget.delete();
+              debugPrint('Deleted widget: key=${selectedWidget.key}');
             }
           },
         ),
@@ -91,6 +97,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           alignment: Alignment.bottomLeft,
           onTap: () {
             _controller.controller.selectedWidget?.flip();
+            debugPrint('Flipped selected widget');
           },
         ),
         LindiStickerIcon(
@@ -101,82 +108,144 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       ],
     );
 
-    // Track position changes during dragging
+    // Initialize canvas size
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('=============enter========');
+      final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
+      if (canvasBox != null) {
+        final size = canvasBox.size;
+        _controller.canvasWidth.value = size.width;
+        _controller.canvasHeight.value = size.height;
+        _controller.lastValidCanvasSize = size;
+        debugPrint('Initialized canvas size: $size');
+      } else {
+        debugPrint('Canvas RenderBox not available, using fallback size');
+        _controller.lastValidCanvasSize = Size(360, 705); // Moto g34 5G
+      }
+    });
+
+    // Set up position change listener
     _controller.controller.onPositionChange((index) {
       if (index >= 0 && index < _controller.controller.widgets.length) {
         _controller.indexvalueOnChange.value = index;
-        print('index value=====${_controller.indexvalueOnChange.value}');
+        debugPrint('index value=====$index');
+
         final DraggableWidget widget = _controller.controller.widgets[index];
         GlobalKey? widgetKey;
 
+        // Log all widget keys to detect duplicates
+        final keyCounts = <Key, int>{};
+        for (var w in _controller.controller.widgets) {
+          keyCounts[w.key!] = (keyCounts[w.key] ?? 0) + 1;
+        }
+        keyCounts.forEach((key, count) {
+          if (count > 1) {
+            debugPrint('Warning: Duplicate key detected: $key, count: $count');
+          }
+        });
+
         if (widget.key is GlobalKey) {
           widgetKey = widget.key as GlobalKey;
-          debugPrint('Widget $index (key: $widgetKey) moved.');
-        } else {
+          debugPrint('Widget $index (key: $widgetKey) interaction detected.');
+        }
+        else {
           debugPrint('Warning: Widget $index has unsupported key type: ${widget.key.runtimeType}');
-          // Continue with limited functionality
-        }
-
-        print('===============widgetModels===========${widgetKey != null ? _controller.widgetModels[widgetKey] : "No GlobalKey"}');
-
-        // Check if the widget is a text widget or sticker (only if GlobalKey exists)
-        if (widgetKey != null) {
-          final model = _controller.widgetModels[widgetKey];
-          if (model is EditableTextModel) {
-            textEditorControllerWidget.selectText(model);
-            _controller.TextEditOptions.value = true;
-            debugPrint('Opened TextEditControls for text: ${model.text.value}');
-          } else if (model is StickerModel) {
-            stickerController.selectSticker(model);
-            debugPrint('Selected sticker: ${model.path}');
+          // Attempt to recover GlobalKey from widgetModels
+          final model = _controller.widgetModels.values.firstWhere(
+                (m) =>
+            (m is StickerModel && stickerController.stickers.contains(m)) ||
+                (m is EditableTextModel && textEditorControllerWidget.text.contains(m)),
+            orElse: () => null,
+          );
+          if (model != null && model.widgetKey is GlobalKey) {
+            widgetKey = model.widgetKey as GlobalKey;
+            debugPrint('Recovered key for widget $index: $widgetKey');
           } else {
-            debugPrint('No model found for widget $index (key: $widgetKey)');
+            debugPrint('Failed to recover key for widget $index, skipping');
+            return;
           }
         }
 
-        // Get canvas size and position
-        final RenderBox? canvasBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
-        if (canvasBox != null) {
-          final Size canvasSize = canvasBox.size;
-          final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
-          debugPrint('Canvas size: width=${canvasSize.width}, height=${canvasSize.height}');
-          debugPrint('Canvas position: x=${canvasPosition.dx}, y=${canvasPosition.dy}');
+        final model = _controller.widgetModels[widgetKey];
+        if (model == null) {
+          debugPrint('No model found for widget $index (key: $widgetKey)');
+          return;
+        }
 
-          // Get widget position
-          if (widgetKey != null) {
-            final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
-            if (widgetBox != null) {
-              final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
-              final double x = widgetPosition.dx - canvasPosition.dx;
-              final double y = widgetPosition.dy - canvasPosition.dy;
-              debugPrint('Widget $index position: x=$x, y=$y');
+        // Show border for the tapped widget
+        _controller.controller.clearAllBorders(); // Clear existing borders
+        _controller.controller.showBorders = true; // Select the tapped widget to show border
+        debugPrint('Showing border for widget $index (key: $widgetKey)');
 
-              // Update corresponding model if it exists
-              if (widgetKey != null) {
-                final model = _controller.widgetModels[widgetKey];
-                if (model is StickerModel) {
-                  model.left.value = x;
-                  model.top.value = y;
-                  debugPrint('Updated Sticker $index: top=${model.top.value}, left=${model.left.value}');
-                } else if (model is EditableTextModel) {
-                  model.left.value = x;
-                  model.top.value = y;
-                  debugPrint('Updated Text ${index - stickerController.stickers.length}: top=${model.top.value}, left=${model.left.value}');
-                }
-              }
-            } else {
-              debugPrint('Failed to get widget RenderBox for key: $widgetKey');
-            }
-          }
-        } else {
+        final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
+        if (canvasBox == null) {
           debugPrint('Failed to get canvas RenderBox');
+          return;
         }
+        final Size canvasSize = canvasBox.size;
+        if (canvasSize.width == 0 || canvasSize.height == 0) {
+          debugPrint('Invalid canvas size: $canvasSize, using last valid size: ${_controller.lastValidCanvasSize}');
+          if (_controller.lastValidCanvasSize == null) return;
+        } else {
+          _controller.lastValidCanvasSize = canvasSize;
+        }
+        final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
+
+        final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+        if (widgetBox == null) {
+          debugPrint('Failed to get widget RenderBox for key: $widgetKey');
+          return;
+        }
+        final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
+        final double x = widgetPosition.dx - canvasPosition.dx;
+        final double y = widgetPosition.dy - canvasPosition.dy;
+        debugPrint('Widget $index position: x=$x, y=$y');
+
+        if (_interactionStartTime == null) {
+          _interactionStartTime = DateTime.now();
+          _lastPosition = Offset(x, y);
+          debugPrint('Interaction started at: $_interactionStartTime, position: $_lastPosition');
+        }
+
+        if (model is StickerModel) {
+          model.left.value = x;
+          model.top.value = y;
+          stickerController.selectSticker(model);
+          debugPrint('Updated Sticker $index: top=${model.top.value}, left=${model.left.value}');
+        } else if (model is EditableTextModel) {
+          model.left.value = x; // Non-reactive double
+          model.top.value = y; // Non-reactive double
+          // Do NOT select text or fill text controller
+          debugPrint('Updated Text ${index - stickerController.stickers.length}: top=${model.top}, left=${model.left}, text=${model.text.value}');
+
+          final duration = DateTime.now().difference(_interactionStartTime!);
+          final distance = (_lastPosition! - Offset(x, y)).distance;
+          debugPrint('Interaction duration: $duration, distance: $distance');
+
+          // Do NOT open TextUIWithTabsScreen or fill text field on tap
+          if (duration < _tapDurationThreshold && distance < _tapDistanceThreshold) {
+            debugPrint('Detected tap on text widget: text=${model.text.value}, border shown, no text selection');
+          } else {
+            debugPrint('Detected drag on text widget: position updated, no text selection');
+          }
+        }
+
+        _lastPosition = Offset(x, y);
+
+        Future.delayed(_tapDurationThreshold, () {
+          if (_interactionStartTime != null &&
+              DateTime.now().difference(_interactionStartTime!) >= _tapDurationThreshold) {
+            debugPrint('Interaction ended, resetting tap detection');
+            _interactionStartTime = null;
+            _lastPosition = null;
+          }
+        });
       } else {
         debugPrint('Invalid index: $index');
       }
     });
 
-    // Reset controllers
+    // Clear state
     stickerController.stickers.clear();
     textEditorControllerWidget.text.clear();
     _controller.widgetModels.clear();
@@ -185,23 +254,28 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   @override
   void dispose() {
     _controller.controller.widgets.clear();
+    _controller.widgetModels.clear();
     stickerController.stickers.clear();
     textEditorControllerWidget.text.clear();
-    _controller.widgetModels.clear();
+    _controller.controller.clearAllBorders();
+    debugPrint('Disposed ImageEditorScreen, cleared all widgets and models');
     super.dispose();
   }
 
   Future<Uint8List?> captureView() async {
     try {
-      print('Stickers: ${stickerController.stickers.length}, Text: ${textEditorControllerWidget.text.length}');
-      print('LindiController widgets: ${_controller.controller.widgets.length}');
+      debugPrint('Stickers: ${stickerController.stickers.length}, Text: ${textEditorControllerWidget.text.length}');
+      debugPrint('LindiController widgets: ${_controller.controller.widgets.length}');
 
-      stickerController.selectedSticker.value = null;
-      textEditorControllerWidget.clearSelection();
+      if (!_controller.TextEditOptions.value) {
+        stickerController.selectedSticker.value = null;
+        textEditorControllerWidget.clearSelection();
+      }
 
       await Future.delayed(Duration(milliseconds: 200));
 
-      final RenderRepaintBoundary? boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      final RenderRepaintBoundary? boundary =
+      _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) {
         Get.snackbar("Error", "Failed to find render boundary");
         return null;
@@ -236,18 +310,15 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     }
   }
 
-
-
   Future<void> saveTemplate() async {
     try {
-      // Save the captured image
       final Uint8List? capturedImage = await captureView();
       if (capturedImage != null) {
         final directory = await getApplicationDocumentsDirectory();
         final filePath = path.join(directory.path, 'image_${DateTime.now().millisecondsSinceEpoch}.png');
         final file = File(filePath);
         await file.writeAsBytes(capturedImage);
-        _controller.filePath.value = filePath; // Assign plain string to RxString
+        _controller.filePath.value = filePath;
         Get.snackbar("Success", "Image saved successfully");
       } else {
         Get.snackbar("Error", "Failed to capture image");
@@ -266,8 +337,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         return;
       }
 
-      // Get canvas size and position
-      final RenderBox? canvasBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
+      final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
       if (canvasBox == null) {
         debugPrint('Failed to get canvas RenderBox');
         Get.snackbar("Error", "Failed to get canvas information");
@@ -278,7 +348,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       debugPrint('Canvas size: width=${canvasSize.width}, height=${canvasSize.height}');
       debugPrint('Canvas position: x=${canvasPosition.dx}, y=${canvasPosition.dy}');
 
-      // Prepare sticker data
       final List<Map<String, dynamic>> stickerDataList = [];
       debugPrint('Total widgets: ${_controller.controller.widgets.length}');
       debugPrint('Total stickers in controller: ${stickerController.stickers.length}');
@@ -299,8 +368,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             model.left.value = xPosition;
             model.top.value = yPosition;
             debugPrint('Sticker position: key=$widgetKey, x=$xPosition, y=$yPosition');
-            _controller.xvalue.value = xPosition; // Keep for other purposes
-            _controller.yvalue.value = yPosition; // Keep for other purposes
+            _controller.xvalue.value = xPosition;
+            _controller.yvalue.value = yPosition;
           } else {
             debugPrint('Warning: RenderBox for key $widgetKey is null, using model values');
           }
@@ -318,7 +387,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         }
       });
 
-      // Prepare text data
       final List<Map<String, dynamic>> textDataList = [];
       debugPrint('Total text models: ${textEditorControllerWidget.text.length}');
 
@@ -337,16 +405,15 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             textModel.left.value = xPosition;
             textModel.top.value = yPosition;
             debugPrint('Text $index position: key=${textModel.widgetKey}, x=$xPosition, y=$yPosition');
-            _controller.xvalue.value = xPosition; // Assign for text
-            _controller.yvalue.value = yPosition; // Assign for text
+            _controller.xvalue.value = xPosition;
+            _controller.yvalue.value = yPosition;
           } else {
             debugPrint('Warning: RenderBox for text $index, key=${textModel.widgetKey} is null, using model values');
           }
         } else {
           debugPrint('Warning: No GlobalKey found for text $index, using model values');
-          // Fallback to logged position if model values are zero
           if (xPosition == 0.0 && yPosition == 0.0) {
-            xPosition = 170.5; // From log: Edited widget position: Offset(170.5, 264.4)
+            xPosition = 170.5;
             yPosition = 264.4;
             textModel.left.value = xPosition;
             textModel.top.value = yPosition;
@@ -360,15 +427,15 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           'left': xPosition,
           'fontSize': textModel.fontSize.value,
           'fontFamily': textModel.fontFamily.value,
-          'textColor': textModel.textColor.value.toString(), // Convert Color to string
-          'backgroundColor': textModel.backgroundColor.value.toString(), // Convert Color to string
+          'textColor': textModel.textColor.value.value.toRadixString(16).padLeft(8, '0'),
+          'backgroundColor': textModel.backgroundColor.value.value.toRadixString(16).padLeft(8, '0'),
           'opacity': textModel.opacity.value,
           'isBold': textModel.isBold.value,
           'isItalic': textModel.isItalic.value,
           'isUnderline': textModel.isUnderline.value,
           'isStrikethrough': textModel.isStrikethrough.value,
           'shadowBlur': textModel.shadowBlur.value,
-          'shadowColor': textModel.shadowColor.value.toString(), // Convert Color to string
+          'shadowColor': textModel.shadowColor.value.value.toRadixString(16).padLeft(8, '0'),
           'shadowOffsetX': textModel.shadowOffsetX.value,
           'shadowOffsetY': textModel.shadowOffsetY.value,
           'rotation': textModel.rotation.value,
@@ -378,7 +445,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       });
 
       final editingState = {
-        'imagePath': imageFile.path.toString(), // Ensure plain string
+        'imagePath': imageFile.path.toString(),
+        'canvasSize': {'width': canvasSize.width, 'height': canvasSize.height},
         'stickers': stickerDataList,
         'text': textDataList,
         'filters': {
@@ -405,118 +473,132 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     }
   }
 
+  TextAlign _parseTextAlign(dynamic value) {
+    if (value is String) {
+      switch (value) {
+        case 'TextAlign.left':
+          return TextAlign.left;
+        case 'TextAlign.center':
+          return TextAlign.center;
+        case 'TextAlign.right':
+          return TextAlign.right;
+        default:
+          return TextAlign.left;
+      }
+    } else if (value is TextAlign) {
+      return value;
+    }
+    return TextAlign.left;
+  }
+
+  int _parseColor(dynamic value, int defaultValue) {
+    if (value is String) {
+      final cleanedValue = value.replaceAll('0x', '');
+      return int.tryParse(cleanedValue, radix: 16) ?? defaultValue;
+    } else if (value is int) {
+      return value;
+    }
+    return defaultValue;
+  }
 
   void _loadSavedState(Map<String, dynamic> state) {
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      // Restore image
-      final String? imagePath = state['imagePath'];
-      if (imagePath != null && imagePath.isNotEmpty && File(imagePath).existsSync()) {
-        final File imageFile = File(imagePath);
-        _controller.setInitialImage(imageFile);
-        _controller.decodeEditedImage();
-        filterController.setInitialImage(imageFile);
-      } else {
-        Get.snackbar("Error", "Image file not found");
-        return;
-      }
+    final String imagePath = state['imagePath'] ?? '';
+    final List<Map<String, dynamic>> stickers = List<Map<String, dynamic>>.from(state['stickers'] ?? []);
+    final List<Map<String, dynamic>> texts = List<Map<String, dynamic>>.from(state['text'] ?? []);
+    final Map<String, dynamic> filters = Map<String, dynamic>.from(state['filters'] ?? {});
+    final Map<String, dynamic> transformations = Map<String, dynamic>.from(state['transformations'] ?? {});
 
-      // Clear existing widgets
-      stickerController.stickers.clear();
+    _controller.imagePath.value = imagePath;
+    _controller.brightness.value = filters['brightness']?.toDouble() ?? 0.0;
+    _controller.contrast.value = filters['contrast']?.toDouble() ?? 0.0;
+    _controller.scale.value = transformations['scale']?.toDouble() ?? 1.0;
+    _controller.offset.value = Offset(
+      transformations['offset']?['dx']?.toDouble() ?? 0.0,
+      transformations['offset']?['dy']?.toDouble() ?? 0.0,
+    );
+
+    _controller.lastValidCanvasSize = Size(
+      state['canvasSize']?['width']?.toDouble() ?? _controller.canvasWidth.value,
+      state['canvasSize']?['height']?.toDouble() ?? _controller.canvasHeight.value,
+    );
+    if (_controller.lastValidCanvasSize!.width == 0 || _controller.lastValidCanvasSize!.height == 0) {
+      debugPrint('Warning: Using fallback canvas size (360x705)');
+      _controller.lastValidCanvasSize = Size(360, 705);
+    }
+
+    final shapeSelectorController = Get.put(ShapeSelectorController(lindiController: _controller.controller, shapeCategories: _controller.shapeCategories));
+    final textController = Get.put(TextEditorControllerWidget());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Clear existing widgets and models to prevent duplicates
       _controller.controller.widgets.clear();
-      textEditorControllerWidget.text.clear();
       _controller.widgetModels.clear();
+      stickerController.stickers.clear();
+      textController.text.clear();
+      debugPrint('Cleared all widgets and models before loading state');
 
-      // Restore stickers
-      for (var stickerData in state['stickers'] ?? []) {
-        final sticker = StickerModel(
-          path: stickerData['path'] ?? '',
-          top: RxDouble(stickerData['top']?.toDouble() ?? 0.0),
-          left: RxDouble(stickerData['left']?.toDouble() ?? 0.0),
-          scale: RxDouble(stickerData['scale']?.toDouble() ?? 1.0),
-          rotation: RxDouble(stickerData['rotation']?.toDouble() ?? 0.0),
-          isFlipped: RxBool(stickerData['isFlipped'] ?? false),
-        );
-        final GlobalKey widgetKey = GlobalKey();
-        debugPrint('Restoring sticker: path=${stickerData['path']}, top=${stickerData['top']}, left=${stickerData['left']}');
-
-        Widget widget = Container(
-          key: widgetKey,
-          height: 60,
-          width: 60,
-          child: (stickerData['path'].toString().contains('svg'))
-              ? SvgPicture.asset(stickerData['path'])
-              : Image.file(File(stickerData['path'])),
+      for (var sticker in stickers) {
+        final stickerModel = StickerModel(
+          path: sticker['path']?.toString() ?? '',
+          top: (sticker['top']?.toDouble() ?? 0.0).obs,
+          left: (sticker['left']?.toDouble() ?? 0.0).obs,
+          scale: (sticker['scale']?.toDouble() ?? 1.0).obs,
+          rotation: (sticker['rotation']?.toDouble() ?? 0.0).obs,
+          isFlipped: sticker['isFlipped'] ?? false,
+          widgetKey: GlobalKey(debugLabel: 'Sticker_${sticker['path']}_${DateTime.now().millisecondsSinceEpoch}'),
         );
 
-        // Use the stored top and left values for positioning
-        final alignment = Alignment(
-          (stickerData['left'] / _controller.canvasWidth.value) * 2 - 1,
-          (stickerData['top'] / _controller.canvasHeight.value) * 2 - 1,
+        final stickerWidget = SvgPicture.asset(
+          stickerModel.path,
+          width: 100 * stickerModel.scale.value,
+          height: 100 * stickerModel.scale.value,
         );
 
-        _controller.controller.add(widget, position: alignment);
-        stickerController.stickers.add(sticker);
-        _controller.widgetModels[widgetKey] = sticker;
-      }
-
-      // Helper function to parse Color from string (e.g., "Color(0xffffffff)")
-      Color parseColor(String? colorString, Color defaultColor) {
-        if (colorString == null || colorString.isEmpty) return defaultColor;
-        try {
-          // Extract hex value from "Color(0x...)"
-          final hexMatch = RegExp(r'0x[0-9a-fA-F]{8}').firstMatch(colorString);
-          if (hexMatch != null) {
-            final hexValue = int.parse(hexMatch.group(0)!.substring(2), radix: 16);
-            return Color(hexValue);
-          }
-          return defaultColor;
-        } catch (e) {
-          debugPrint('Error parsing color $colorString: $e');
-          return defaultColor;
-        }
-      }
-
-      // Restore text
-      for (var textData in state['text'] ?? []) {
-        final fontSize = textData['fontSize'] is String
-            ? int.tryParse(textData['fontSize']) ?? 16
-            : (textData['fontSize'] as num?)?.toInt() ?? 16;
-
-        final textModel = EditableTextModel(
-          text: textData['text'] ?? '',
-          top: textData['top']?.toDouble() ?? 0.0,
-          left: textData['left']?.toDouble() ?? 0.0,
-          fontSize: fontSize,
-          fontFamily: textData['fontFamily'] ?? 'Roboto',
-          textColor: parseColor(textData['textColor'], Colors.black),
-          backgroundColor: parseColor(textData['backgroundColor'], Colors.transparent),
-          opacity: textData['opacity']?.toDouble() ?? 1.0,
-          isBold: textData['isBold'] ?? false,
-          isItalic: textData['isItalic'] ?? false,
-          isUnderline: textData['isUnderline'] ?? false,
-          isStrikethrough: textData['isStrikethrough'] ?? false,
-          shadowBlur: textData['shadowBlur']?.toDouble() ?? 0.0,
-          shadowColor: parseColor(textData['shadowColor'], Colors.black),
-          shadowOffsetX: textData['shadowOffsetX']?.toDouble() ?? 0.0,
-          shadowOffsetY: textData['shadowOffsetY']?.toDouble() ?? 0.0,
-          rotation: textData['rotation']?.toDouble() ?? 0.0,
-          isFlippedHorizontally: textData['isFlippedHorizontally'] ?? false,
-          textAlign: TextAlign.values.firstWhere(
-                (e) => e.toString() == textData['textAlign'],
-            orElse: () => TextAlign.left,
+        final widget = Container(key: stickerModel.widgetKey, child: stickerWidget);
+        _controller.controller.add(
+          KeyedSubtree(key: stickerModel.widgetKey, child: widget),
+          position: Alignment(
+            (stickerModel.left.value / _controller.lastValidCanvasSize!.width) * 2 - 1,
+            (stickerModel.top.value / _controller.lastValidCanvasSize!.height) * 2 - 1,
           ),
-          widgetKey: GlobalKey(), // Assign new GlobalKey
         );
 
-        final widgetKey = textModel.widgetKey!;
-        debugPrint('Restoring text: text=${textData['text']}, top=${textData['top']}, left=${textData['left']}');
+        stickerController.stickers.add(stickerModel);
+        _controller.widgetModels[stickerModel.widgetKey!] = stickerModel;
+        debugPrint('Restoring sticker: path=${stickerModel.path}, key=${stickerModel.widgetKey}');
+      }
 
-        Widget widget = Container(
-          key: widgetKey,
+      for (var text in texts) {
+        final fontSize = int.tryParse(text['fontSize']?.toString() ?? '16') ?? 16;
+        final textModel = EditableTextModel(
+          text: (text['text']?.toString() ?? ''), // Reactive text
+          top: text['top']?.toDouble() ?? 0.0, // Non-reactive double
+          left: text['left']?.toDouble() ?? 0.0, // Non-reactive double
+          fontSize: fontSize, // Non-reactive int
+          fontFamily: (text['fontFamily']?.toString() ?? 'Roboto'), // Reactive fontFamily
+          textColor: Color(_parseColor(text['textColor'], 0xFF000000)), // Non-reactive Color
+          backgroundColor: Color(_parseColor(text['backgroundColor'], 0x00000000)), // Non-reactive Color
+          opacity: text['opacity']?.toDouble() ?? 1.0, // Non-reactive double
+          isBold: text['isBold'] ?? false, // Non-reactive bool
+          isItalic: text['isItalic'] ?? false, // Non-reactive bool
+          isUnderline: text['isUnderline'] ?? false, // Non-reactive bool
+          isStrikethrough: text['isStrikethrough'] ?? false, // Non-reactive bool
+          shadowBlur: text['shadowBlur']?.toDouble() ?? 0.0, // Non-reactive double
+          shadowColor: Color(_parseColor(text['shadowColor'], 0xFF000000)), // Non-reactive Color
+          shadowOffsetX: text['shadowOffsetX']?.toDouble() ?? 0.0, // Non-reactive double
+          shadowOffsetY: text['shadowOffsetY']?.toDouble() ?? 0.0, // Non-reactive double
+          rotation: text['rotation']?.toDouble() ?? 0.0, // Non-reactive double
+          isFlippedHorizontally: text['isFlippedHorizontally'] ?? false, // Non-reactive bool
+          textAlign: _parseTextAlign(text['textAlign']),
+          widgetKey: GlobalKey(debugLabel: 'Text_${text['text']}_${DateTime.now().millisecondsSinceEpoch}'),
+        );
+
+        final textWidget = Container(
+          key: textModel.widgetKey,
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: textModel.backgroundColor.value,
-            borderRadius: const BorderRadius.all(Radius.circular(20)),
+          decoration: const BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
           child: Transform(
             transform: Matrix4.identity()
@@ -547,27 +629,21 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           ),
         );
 
-        final alignment = Alignment(
-          (textModel.left / _controller.canvasWidth.value) * 2 - 1,
-          (textModel.top / _controller.canvasHeight.value) * 2 - 1,
+        _controller.controller.add(
+          KeyedSubtree(key: textModel.widgetKey, child: textWidget),
+          position: Alignment(
+            (textModel.left / _controller.lastValidCanvasSize!.width) * 2 - 1,
+            (textModel.top / _controller.lastValidCanvasSize!.height) * 2 - 1,
+          ),
         );
 
-        _controller.controller.add(widget, position: alignment);
-        _controller.textController.value.text =  textModel.text.value;
-        textEditorControllerWidget.text.add(textModel);
-        _controller.widgetModels[widgetKey] = textModel;
+        textController.text.add(textModel);
+        _controller.widgetModels[textModel.widgetKey!] = textModel;
+        debugPrint('Restoring text: text=${textModel.text.value}, key=${textModel.widgetKey}');
       }
 
-      // Restore filters
-      _controller.brightness.value = state['filters']?['brightness']?.toDouble() ?? 0.0;
-      _controller.contrast.value = state['filters']?['contrast']?.toDouble() ?? 1.0;
-
-      // Restore transformations
-      _controller.scale.value = state['transformations']?['scale']?.toDouble() ?? 1.0;
-      _controller.offset.value = Offset(
-        state['transformations']?['offset']?['dx']?.toDouble() ?? 0.0,
-        state['transformations']?['offset']?['dy']?.toDouble() ?? 0.0,
-      );
+      debugPrint('Loaded state with ${stickers.length} stickers and ${texts.length} texts');
+      debugPrint('Widget keys after loading state: ${_controller.widgetModels.keys.map((k) => k.toString()).toList()}');
     });
   }
 
@@ -587,8 +663,11 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       fileImage = File(savedState['imagePath'] ?? '');
     }
 
+    // Defer _loadSavedState
     if (savedState != null) {
-      _loadSavedState(savedState);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadSavedState(savedState!);
+      });
     } else {
       _controller.setInitialImage(fileImage ?? File(''));
       _controller.decodeEditedImage();
@@ -670,7 +749,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                           }
                         } catch (e) {
                           Get.snackbar("Error", "Failed to share image: $e");
-                          print("Error sharing image: $e");
+                          debugPrint("Error sharing image: $e");
                         }
                       },
                       child: Image.asset(
@@ -687,19 +766,20 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         body: LayoutBuilder(
           builder: (context, constraints) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              final RenderBox? renderBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
+              final RenderBox? renderBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
               if (renderBox != null) {
                 final position = renderBox.localToGlobal(Offset.zero);
                 final size = renderBox.size;
                 _controller.canvasWidth.value = size.width;
                 _controller.canvasHeight.value = size.height;
-                print('Image bounds: position=($position), size=($size)');
+                _controller.lastValidCanvasSize = size;
+                debugPrint('Image bounds: position=($position), size=($size)');
               }
             });
             return Obx(() {
               final Uint8List? editedMemoryImage = _controller.editedImageBytes.value;
               final File? editedFileImage = _controller.editedImage.value;
-              print('Rebuilding ImageEditorScreen UI, text count: ${textEditorControllerWidget.text.length}');
+              debugPrint('Rebuilding ImageEditorScreen UI, text count: ${textEditorControllerWidget.text.length}');
               return Stack(
                 children: [
                   Container(
@@ -728,53 +808,61 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                                       child: AnimatedContainer(
                                         duration: Duration(milliseconds: 200),
                                         curve: Curves.easeInOut,
-                                        transform: Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
+                                        transform:
+                                        Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
                                           ..scale(isAnyEditOpen ? 0.94 : 1.0),
                                         child: Padding(
                                           padding: EdgeInsets.symmetric(horizontal: 10),
                                           child: Stack(
                                             alignment: Alignment.center,
                                             children: [
-                                            Container(
-                                            key: _imageKey,
-                                            child: ColorFiltered(
-                                              colorFilter: ColorFilter.matrix(
-                                                _controller.calculateColorMatrix(),
+                                              GestureDetector(
+                                                onTap:(){
+                                                  _controller.controller.clearAllBorders();
+                                                },
+                                                child: Container(
+                                                  key: _controller.imageKey,
+                                                  child: ColorFiltered(
+                                                    colorFilter: ColorFilter.matrix(
+                                                      _controller.calculateColorMatrix(),
+                                                    ),
+                                                    child: editedMemoryImage != null
+                                                        ? Image.memory(
+                                                      editedMemoryImage,
+                                                      fit: BoxFit.contain,
+                                                    )
+                                                        : (editedFileImage != null && editedFileImage.path.isNotEmpty
+                                                        ? Image.file(
+                                                      editedFileImage,
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder: (context, error, stackTrace) => Text(
+                                                        "Error loading image",
+                                                        style: TextStyle(color: Colors.white),
+                                                      ),
+                                                    )
+                                                        : (memoryImage != null
+                                                        ? Image.memory(
+                                                      memoryImage,
+                                                      fit: BoxFit.contain,
+                                                    )
+                                                        : (fileImage != null && fileImage.path.isNotEmpty
+                                                        ? Image.file(
+                                                      fileImage,
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder:
+                                                          (context, error, stackTrace) => Text(
+                                                        "Error loading image",
+                                                        style: TextStyle(color: Colors.white),
+                                                      ),
+                                                    )
+                                                        : Text(
+                                                      "No image loaded",
+                                                      style: TextStyle(color: Colors.white),
+                                                    )))),
+                                                  ),
+                                                ),
                                               ),
-                                              child: editedMemoryImage != null
-                                                  ? Image.memory(
-                                                editedMemoryImage,
-                                                fit: BoxFit.contain,
-                                              )
-                                                  : (editedFileImage != null && editedFileImage.path.isNotEmpty
-                                                  ? Image.file(
-                                                editedFileImage,
-                                                fit: BoxFit.contain,
-                                                errorBuilder: (context, error, stackTrace) => Text(
-                                                  "Error loading image",
-                                                  style: TextStyle(color: Colors.white),
-                                                ),
-                                              )
-                                                  : (memoryImage != null
-                                                  ? Image.memory(
-                                                memoryImage,
-                                                fit: BoxFit.contain,
-                                              )
-                                                  : (fileImage != null && fileImage.path.isNotEmpty
-                                                  ? Image.file(
-                                                fileImage,
-                                                fit: BoxFit.contain,
-                                                errorBuilder: (context, error, stackTrace) => Text(
-                                                  "Error loading image",
-                                                  style: TextStyle(color: Colors.white),
-                                                ),
-                                              )
-                                                  : Text(
-                                                "No image loaded",
-                                                style: TextStyle(color: Colors.white),
-                                              )))),
-                                            ),
-                                            )],
+                                            ],
                                           ),
                                         ),
                                       ),
@@ -803,7 +891,11 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                             if (_controller.showImageLayer.value) _controller.buildImageLayerSheet(),
                             if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
                             if (_controller.TextEditOptions.value)
-                              _controller.TextEditControls(constraints, _imageKey),
+                              Flexible(
+                                child: SingleChildScrollView(
+                                  child: _controller.TextEditControls(constraints, _controller.imageKey),
+                                ),
+                              ),
                             if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
                             if (collageController.showCollageOption.value)
                               collageTemplateController.openTemplatePickerBottomSheet(),
@@ -839,7 +931,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                                   child: AnimatedContainer(
                                     duration: Duration(milliseconds: 200),
                                     curve: Curves.easeInOut,
-                                    transform: Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
+                                    transform:
+                                    Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
                                       ..scale(isAnyEditOpen ? 0.94 : 1.0),
                                     child: Padding(
                                       padding: EdgeInsets.symmetric(horizontal: 10),
@@ -851,55 +944,62 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                                               _controller.baseScale.value = _controller.scale.value;
                                             },
                                             onScaleUpdate: (details) {
-                                              final newScale = (_controller.baseScale.value * details.scale).clamp(1.0, 5.0);
+                                              final newScale =
+                                              (_controller.baseScale.value * details.scale).clamp(1.0, 5.0);
                                               _controller.scale.value = newScale;
                                             },
                                             child: Obx(() {
                                               return Transform.translate(
-                                                  offset: _controller.offset.value,
-                                                  child: Transform.scale(
+                                                offset: _controller.offset.value,
+                                                child: Transform.scale(
                                                   scale: _controller.scale.value,
                                                   child: Container(
-                                                  key: _imageKey,
-                                                  child: ColorFiltered(
-                                                  colorFilter: ColorFilter.matrix(
-                                                  _controller.calculateColorMatrix(),
-                                              ),
-                                              child: editedMemoryImage != null
-                                              ? Image.memory(
-                                              editedMemoryImage,
-                                              fit: BoxFit.contain,
-                                              )
-                                                  : (editedFileImage != null && editedFileImage.path.isNotEmpty
-                                              ? Image.file(
-                                              editedFileImage,
-                                              fit: BoxFit.contain,
-                                              errorBuilder: (context, error, stackTrace) => Text(
-                                              "Error loading image",
-                                              style: TextStyle(color: Colors.white),
-                                              ),
-                                              )
-                                                  : (memoryImage != null
-                                              ? Image.memory(
-                                              memoryImage,
-                                              fit: BoxFit.contain,
-                                              )
-                                                  : (fileImage != null && fileImage.path.isNotEmpty
-                                              ? Image.file(
-                                              fileImage,
-                                              fit: BoxFit.contain,
-                                              errorBuilder: (context, error, stackTrace) => Text(
-                                              "Error loading image",
-                                              style: TextStyle(color: Colors.white),
-                                              ),
-                                              )
-                                                  : Text(
-                                              "No image loaded",
-                                              style: TextStyle(color: Colors.white),
-                                              )))),
-                                              ),
-                                              ),
-                                              ));
+                                                    key: _controller.imageKey,
+                                                    child: ColorFiltered(
+                                                      colorFilter: ColorFilter.matrix(
+                                                        _controller.calculateColorMatrix(),
+                                                      ),
+                                                      child: editedMemoryImage != null
+                                                          ? Image.memory(
+                                                        editedMemoryImage,
+                                                        fit: BoxFit.contain,
+                                                      )
+                                                          : (editedFileImage != null &&
+                                                          editedFileImage.path.isNotEmpty
+                                                          ? Image.file(
+                                                        editedFileImage,
+                                                        fit: BoxFit.contain,
+                                                        errorBuilder: (context, error, stackTrace) =>
+                                                            Text(
+                                                              "Error loading image",
+                                                              style: TextStyle(color: Colors.white),
+                                                            ),
+                                                      )
+                                                          : (memoryImage != null
+                                                          ? Image.memory(
+                                                        memoryImage,
+                                                        fit: BoxFit.contain,
+                                                      )
+                                                          : (fileImage != null &&
+                                                          fileImage.path.isNotEmpty
+                                                          ? Image.file(
+                                                        fileImage,
+                                                        fit: BoxFit.contain,
+                                                        errorBuilder:
+                                                            (context, error, stackTrace) =>
+                                                            Text(
+                                                              "Error loading image",
+                                                              style: TextStyle(color: Colors.white),
+                                                            ),
+                                                      )
+                                                          : Text(
+                                                        "No image loaded",
+                                                        style: TextStyle(color: Colors.white),
+                                                      )))),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
                                             }),
                                           ),
                                         ],
@@ -931,7 +1031,11 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                         if (_controller.showImageLayer.value) _controller.buildImageLayerSheet(),
                         if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
                         if (_controller.TextEditOptions.value)
-                          _controller.TextEditControls(constraints, _imageKey),
+                          Flexible(
+                            child: SingleChildScrollView(
+                              child: _controller.TextEditControls(constraints, _controller.imageKey),
+                            ),
+                          ),
                         if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
                         if (collageController.showCollageOption.value)
                           collageTemplateController.openTemplatePickerBottomSheet(),
@@ -1038,7 +1142,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
               collageController.showCollageOption.value = true;
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Pres  ets', 'assets/presets.png', () {
+            _controller.buildToolButton('Presets', 'assets/presets.png', () {
               _controller.showPresetsEditOptions.value = true;
             }),
           ],

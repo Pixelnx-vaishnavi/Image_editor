@@ -49,9 +49,9 @@ class ShapeSelectorSheet extends StatelessWidget {
               child: TabBarView(
                 children: shapeCategories.values.map((imagePaths) {
                   return GridView.builder(
-                    padding: const EdgeInsets.all(12),
+                    padding:  EdgeInsets.all(12),
                     itemCount: imagePaths.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:  SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -66,10 +66,9 @@ class ShapeSelectorSheet extends StatelessWidget {
                           final newWidget = Container(
                             height: 60,
                             width: 60,
-                            padding: const EdgeInsets.all(12),
+                            padding:  EdgeInsets.all(12),
                             child: SvgPicture.asset(path),
                           );
-
                           final tapPosition = details.globalPosition;
                           final stickerWidgetBox = LindiStickerWidget.globalKey.currentContext?.findRenderObject() as RenderBox?;
                           Alignment initialPosition = Alignment.center;

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -8,78 +10,148 @@ import 'package:image_editor/Const/color_const.dart';
 import 'package:image_editor/screens_ui/Text/Text_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:image_editor/undo_redo_add/undo_redo_controller.dart';
 
 class TextUIWithTabsScreen extends StatelessWidget {
   final BoxConstraints constraints;
   final GlobalKey imageKey;
+  final bool isAddingNewText; // Flag to indicate new text creation
 
   TextUIWithTabsScreen({
     super.key,
     required this.constraints,
     required this.imageKey,
+    this.isAddingNewText = false,
   }) {
-    print('TextUIWithTabsScreen initialized with constraints: ${constraints.maxWidth}x${constraints.maxHeight}');
+    print('TextUIWithTabsScreen initialized with constraints: ${constraints.maxWidth}x${constraints.maxHeight}, isAddingNewText: $isAddingNewText');
   }
 
   final ImageEditorController _controller = Get.find<ImageEditorController>();
   final TextEditorControllerWidget TextController = Get.find<TextEditorControllerWidget>();
 
   final TextEditingController _fontSizeController = TextEditingController();
-
   final FocusNode _textFocusNode = FocusNode();
   final FocusNode _textFontsizeFocusNode = FocusNode();
   Timer? _debounceTimer;
   final RxBool _isSelectingFont = false.obs;
 
   final List<String> availableFonts = [
-    'Roboto',
-    'Open Sans',
-    'Lato',
-    'Montserrat',
-    'Poppins',
-    'Raleway',
-    'Arial',
-    'Courier New',
-    'Georgia',
-    'Times New Roman',
-    'Verdana',
-    'Tahoma',
-    'Trebuchet MS',
-    'Comic Sans MS',
-    'Ubuntu',
-    'Source Sans Pro',
-    'Noto Sans',
-    'Playfair Display',
-    'Merriweather',
-    'Droid Sans',
-    'PT Sans',
-    'Lora',
-    'Oswald',
-    'Quicksand',
-    'Fira Sans',
-    'Rubik',
-    'Inter',
-    'Bree Serif',
-    'Sora',
-    'Work Sans',
-    'Zilla Slab',
-    'Nunito',
-    'Alegreya',
+    'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'Raleway', 'Arial',
+    'Courier New', 'Georgia', 'Times New Roman', 'Verdana', 'Tahoma', 'Trebuchet MS',
+    'Comic Sans MS', 'Ubuntu', 'Source Sans Pro', 'Noto Sans', 'Playfair Display',
+    'Merriweather', 'Droid Sans', 'PT Sans', 'Lora', 'Oswald', 'Quicksand',
+    'Fira Sans', 'Rubik', 'Inter', 'Bree Serif', 'Sora', 'Work Sans', 'Zilla Slab',
+    'Nunito', 'Alegreya',
   ];
 
   void _debouncedUpdateText(String value) {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
     _debounceTimer = Timer(Duration(milliseconds: 300), () {
-      TextController.updateText(value);
-      print('Debounced text update: $value');
+      if (TextController.selectedText.value != null && !isAddingNewText) {
+        TextController.updateText(value);
+        print('Debounced text update: $value');
+      } else {
+        _createNewTextModel(value);
+      }
+    });
+  }
+
+  void _createNewTextModel(String text) {
+    if (text.isEmpty) return;
+    final canvasSize = _controller.lastValidCanvasSize ?? Size(constraints.maxWidth, constraints.maxHeight);
+    final newTextModel = EditableTextModel(
+      text: text, // Reactive text
+      top: canvasSize.height * 0.5, // Non-reactive double
+      left: canvasSize.width * 0.5, // Non-reactive double
+      fontSize: 16, // Non-reactive int
+      fontFamily: 'Roboto', // Reactive fontFamily
+      textColor: Colors.black, // Non-reactive Color
+      backgroundColor: Colors.transparent, // Non-reactive Color
+      opacity: 1.0, // Non-reactive double
+      isBold: false, // Non-reactive bool
+      isItalic: false, // Non-reactive bool
+      isUnderline: false, // Non-reactive bool
+      isStrikethrough: false, // Non-reactive bool
+      shadowBlur: 0.0, // Non-reactive double
+      shadowColor: Colors.black, // Non-reactive Color
+      shadowOffsetX: 0.0, // Non-reactive double
+      shadowOffsetY: 0.0, // Non-reactive double
+      rotation: 0.0, // Non-reactive double
+      isFlippedHorizontally: false, // Non-reactive bool
+      textAlign: TextAlign.left,
+      widgetKey: GlobalKey(debugLabel: 'NewText_${text}_${DateTime.now().millisecondsSinceEpoch}'),
+    );
+
+    final widget = Container(
+      key: newTextModel.widgetKey,
+      padding: const EdgeInsets.all(12),
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.all(Radius.circular(20)),
+      ),
+      child: Transform(
+        transform: Matrix4.identity()
+          ..rotateZ(newTextModel.rotation.value)
+          ..scale(newTextModel.isFlippedHorizontally.value ? -1.0 : 1.0, 1.0),
+        alignment: Alignment.center,
+        child: Text(
+          newTextModel.text.value,
+          style: GoogleFonts.getFont(
+            newTextModel.fontFamily.value,
+            fontSize: newTextModel.fontSize.toDouble(),
+            color: newTextModel.textColor.value.withOpacity(newTextModel.opacity.value),
+            fontWeight: newTextModel.isBold.value ? FontWeight.bold : FontWeight.normal,
+            fontStyle: newTextModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
+            decoration: newTextModel.isUnderline.value
+                ? TextDecoration.underline
+                : (newTextModel.isStrikethrough.value ? TextDecoration.lineThrough : null),
+            shadows: [
+              Shadow(
+                blurRadius: newTextModel.shadowBlur.value,
+                color: newTextModel.shadowColor.value,
+                offset: Offset(newTextModel.shadowOffsetX.value, newTextModel.shadowOffsetY.value),
+              ),
+            ],
+          ),
+          textAlign: newTextModel.textAlign.value,
+        ),
+      ),
+    );
+
+    // Clear existing selection to prevent conflicts
+    TextController.clearSelection();
+    _controller.controller.clearAllBorders();
+
+    final shapeSelectorController = Get.put(ShapeSelectorController(lindiController: _controller.controller, shapeCategories: _controller.shapeCategories));
+    shapeSelectorController.addWidget(
+      widget,
+      Offset(newTextModel.left.value, newTextModel.top.value),
+      newTextModel,
+    );
+
+    TextController.text.add(newTextModel);
+    _controller.widgetModels[newTextModel.widgetKey!] = newTextModel;
+    TextController.selectText(newTextModel);
+    debugPrint('Created new text model: $text at position: top=${newTextModel.top}, left=${newTextModel.left}, key=${newTextModel.widgetKey}');
+
+    // Defer RenderBox access
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final renderBox = newTextModel.widgetKey!.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        debugPrint('RenderBox for new text: size=${renderBox.size}, position=${renderBox.localToGlobal(Offset.zero)}');
+      } else {
+        debugPrint('RenderBox still null for key: ${newTextModel.widgetKey}');
+      }
     });
   }
 
   void _debouncedUpdateFontSize(int value) {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
     _debounceTimer = Timer(Duration(milliseconds: 300), () {
-      TextController.updateFontSize(value);
-      print('Debounced font size update: $value');
+      if (TextController.selectedText.value != null) {
+        TextController.updateFontSize(value);
+        print('Debounced font size update: $value');
+      }
     });
   }
 
@@ -182,16 +254,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     print('TextUIWithTabsScreen build called, current route: ${Get.currentRoute}');
-    if (TextController.selectedText.value != null) {
-      _controller.textController.value.text = TextController.selectedText.value!.text.value;
-      _fontSizeController.text = TextController.selectedText.value!.fontSize.value.toString();
-      print('Initialized TextField with: ${_controller.textController.value.text}, fontSize: ${_fontSizeController.text}');
-    } else {
-      _controller.textController.value.text = '';
-      _fontSizeController.text = '16';
-      print('No selected text, initialized TextField with empty text');
-    }
-
+    print('Selected text model: ${TextController.selectedText.value?.text.value ?? 'null'}');
     return GestureDetector(
       onTap: _unfocus,
       child: Scaffold(
@@ -200,45 +263,59 @@ class TextUIWithTabsScreen extends StatelessWidget {
         body: Stack(
           children: [
             SafeArea(
-              child: SingleChildScrollView( // Added to prevent overflow
+              child: SingleChildScrollView(
                 child: Padding(
                   padding: EdgeInsets.all(10.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Obx(() => TextFormField(
-                        undoController: _controller.undoController.value,
-                        focusNode: _textFocusNode,
-                        onTap: () {
-
+                      Obx(() {
+                        final selectedText = TextController.selectedText.value;
+                        if (selectedText != null && _controller.textController.value.text != selectedText.text.value) {
+                          _controller.textController.value.text = selectedText.text.value;
+                          _fontSizeController.text = selectedText.fontSize.value.toString();
+                          print('Synced TextField with: ${selectedText.text.value}, fontSize: ${selectedText.fontSize.value}');
+                        } else if (selectedText == null) {
+                          _controller.textController.value.text = '';
+                          _fontSizeController.text = '16';
+                          print('No selected text, initialized TextField with empty text');
+                        }
+                        return TextFormField(
+                          undoController: _controller.undoController.value,
+                          focusNode: _textFocusNode,
+                          onTap: () {
                             _controller.isSelectingText.value = true;
-
-
-                        },
-                        onFieldSubmitted: (value) {
-                          _unfocus();
-                        },
-                        onChanged: (value) {
-                          print('TextField changed: $value');
-                          _debouncedUpdateText(value);
-                        },
-                        controller: _controller.textController.value,
-                        style: GoogleFonts.getFont(
-                          TextController.selectedText.value?.fontFamily.value ?? 'Roboto',
-                          color: Colors.white,
-                        ),
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.black54,
-                          hintText: 'Enter text here...',
-                          hintStyle: TextStyle(color: Colors.white70),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            borderSide: BorderSide.none,
+                            if (!isAddingNewText && TextController.selectedText.value == null && TextController.text.isNotEmpty) {
+                              TextController.selectText(TextController.text.first);
+                              print('Auto-selected first text model: ${TextController.text.first.text.value}');
+                            }
+                            print('TextFormField tapped, isSelectingText: ${_controller.isSelectingText.value}');
+                          },
+                          onFieldSubmitted: (value) {
+                            _unfocus();
+                          },
+                          onChanged: (value) {
+                            print('TextField changed: $value');
+                            _debouncedUpdateText(value);
+                          },
+                          controller: _controller.textController.value,
+                          style: GoogleFonts.getFont(
+                            TextController.selectedText.value?.fontFamily.value ?? 'Roboto',
+                            color: Colors.white,
                           ),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                      )),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.black54,
+                            hintText: 'Enter text here...',
+                            hintStyle: TextStyle(color: Colors.white70),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(10)),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                        );
+                      }),
                       SizedBox(height: 5),
                       Obx(() => Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -319,7 +396,6 @@ class TextUIWithTabsScreen extends StatelessWidget {
                             ),
                             child: Text('Shadow'),
                           ),
-
                         ],
                       )),
                       SizedBox(height: 5),
@@ -338,12 +414,12 @@ class TextUIWithTabsScreen extends StatelessWidget {
                               _debounceTimer?.cancel();
                               _unfocus();
                               if (TextController.selectedText.value != null) {
-                                TextController.updateText(''); // Clear selected text
+                                TextController.updateText('');
                                 TextController.clearSelection();
                               }
                               _controller.TextEditOptions.value = false;
                               SystemChrome.setEnabledSystemUIMode(
-                                SystemUiMode.edgeToEdge, // Restore status bar
+                                SystemUiMode.edgeToEdge,
                                 overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
                               );
                             },
@@ -373,7 +449,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                               _controller.isSelectingText.value = false;
                               _controller.TextEditOptions.value = false;
                               SystemChrome.setEnabledSystemUIMode(
-                                SystemUiMode.edgeToEdge, // Restore status bar
+                                SystemUiMode.edgeToEdge,
                                 overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
                               );
                             },
@@ -612,7 +688,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                   child: Obx(() => ElevatedButton(
                     onPressed: () {
                       _unfocus();
-                      _openFontPicker(context); // Use dialog instead of navigation
+                      _openFontPicker(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey[800],
@@ -860,74 +936,6 @@ class TextUIWithTabsScreen extends StatelessWidget {
                     print('Shadow color set to $color');
                   },
                   'Shadow Color',
-                )),
-              ],
-            ),
-          ],
-        );
-      case 'Transform':
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSlider(
-              "Rotation",
-              TextController.selectedText.value?.rotation.value ?? 0.0,
-              -3.14, // -180 degrees
-              3.14, // 180 degrees
-                  (v) {
-                _unfocus();
-                TextController.updateRotation(v);
-                print('Rotation changed: $v radians');
-              },
-            ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Text(
-                  'Flip',
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-                SizedBox(width: 16),
-                Obx(() => IconButton(
-                  icon: Icon(
-                    Icons.flip,
-                    color: TextController.selectedText.value?.isFlippedHorizontally.value ?? false
-                        ? Colors.purpleAccent
-                        : Colors.white,
-                  ),
-                  onPressed: () {
-                    _unfocus();
-                    TextController.toggleFlipHorizontally();
-                    print('Toggled horizontal flip');
-                  },
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.grey[800],
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(5)),
-                    ),
-                    padding: EdgeInsets.all(8),
-                  ),
-                )),
-                SizedBox(width: 8),
-                Obx(() => IconButton(
-                  icon: Icon(
-                    Icons.flip,
-                    color: TextController.selectedText.value?.isFlippedVertically.value ?? false
-                        ? Colors.purpleAccent
-                        : Colors.white,
-                  ),
-                  onPressed: () {
-                    _unfocus();
-                    TextController.toggleFlipVertically();
-                    print('Toggled vertical flip');
-                  },
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.grey[800],
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(5)),
-                    ),
-                    padding: EdgeInsets.all(8),
-                  ),
                 )),
               ],
             ),

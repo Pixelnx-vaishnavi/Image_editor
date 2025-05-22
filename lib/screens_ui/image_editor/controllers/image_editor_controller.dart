@@ -73,6 +73,9 @@ class ImageEditorController extends GetxController {
   final Rx<Uint8List?> flippedBytes = Rx<Uint8List?>(null);
   final RxBool isFlipping = false.obs;
   Rxn<img.Image> decodedImage = Rxn<img.Image>();
+  RxString imagePath = ''.obs;
+  Size? lastValidCanvasSize;
+
   var contrast = 0.0.obs;
   var xvalue = 0.0.obs;
   var yvalue = 0.0.obs;
@@ -91,6 +94,7 @@ var filePath =''.obs;
   final ValueNotifier<String> selectedCategory = ValueNotifier<String>("Natural");
   final Rxn<Uint8List> thumbnailBytes = Rxn<Uint8List>();
   final StickerController stickerController = Get.put(StickerController());
+
   RxBool isBrushSelected = true.obs;
   final RxString selectedTab = 'Font'.obs;
   final indexlayer = ValueNotifier<int>(0);
@@ -118,8 +122,7 @@ var filePath =''.obs;
   var canvasHeight = 300.0.obs;
   int _redoIndex = 0;
   final Map<Key, dynamic> widgetModels = {};
-
-
+  final GlobalKey imageKey = GlobalKey();
   final Map<String, List<Filter>> filterCategories = {
     "Natural": [
       NoFilter(),
@@ -332,6 +335,18 @@ var filePath =''.obs;
         canvasWidth.value = stickerWidgetBox.size.width;
         canvasHeight.value = stickerWidgetBox.size.height;
       }
+      final RenderBox? canvasBox = imageKey.currentContext?.findRenderObject() as RenderBox?;
+      if (canvasBox == null) {
+        debugPrint('Failed to get canvas RenderBox');
+        return;
+      }
+      final Size canvasSize = canvasBox.size;
+      if (canvasSize.width == 0 || canvasSize.height == 0) {
+        debugPrint('Invalid canvas size: $canvasSize, using last valid size: $lastValidCanvasSize');
+        if (lastValidCanvasSize == null) return;
+      } else {
+        lastValidCanvasSize = canvasSize;
+      }
     });
   }
 
@@ -365,17 +380,18 @@ var filePath =''.obs;
       );
       final stickerModel = StickerModel(
         path: path,
-        top: RxDouble(position.dy),
-        left: RxDouble(position.dx),
-        scale: RxDouble(1.0),
-        rotation: RxDouble(0.0),
-        isFlipped: RxBool(false),
+        top: position.dy.obs,
+        left: position.dx.obs,
+        scale: 1.0.obs,
+        rotation: 0.0.obs,
+        isFlipped: false.obs,
+        widgetKey: GlobalKey(),
       );
       final widgetKey = GlobalKey();
 
       // Wrap the sticker widget with a Container and assign the GlobalKey
       final wrappedSticker = Container(
-        key: widgetKey,
+        key: GlobalKey(),
         child: sticker,
       );
 
@@ -1412,7 +1428,8 @@ var filePath =''.obs;
           topRight: Radius.circular(20),
         ),
       ),
-      child: TextUIWithTabsScreen(constraints: constraints, imageKey: imagekey),
+      child: TextUIWithTabsScreen(constraints: constraints, imageKey: imagekey,isAddingNewText:  Get.find<TextEditorControllerWidget>().selectedText.value == null,
+      ),
     );
   }
 
