@@ -13,10 +13,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image_editor/screens_ui/Collage/collage_controller.dart';
 import 'package:image_editor/screens_ui/Text/Text_controller.dart';
+import 'package:image_editor/screens_ui/dashboard/dashboard_screen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_filter.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stciker_model.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
+import 'package:image_editor/screens_ui/image_editor/textScreens.dart';
 import 'package:image_editor/screens_ui/save_file/save_image_screen.dart';
 import 'package:image_editor/screens_ui/save_file/saved_image_model.dart';
 import 'package:image_editor/undo_redo_add/sticker_screen.dart';
@@ -29,6 +31,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 class ImageEditorScreen extends StatefulWidget {
   @override
@@ -47,18 +50,21 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   DateTime? _interactionStartTime;
   Offset? _lastPosition;
   static const _tapDurationThreshold = Duration(milliseconds: 300);
-  static const _tapDistanceThreshold = 5.0; // Pixels
+  static const _tapDistanceThreshold = 5.0;
 
   @override
   void initState() {
     super.initState();
     _repaintKey = GlobalKey();
 
+    // Initialize widgetList in controller
+    _controller.widgetList.value = [];
+
     // Initialize LindiController
     _controller.controller = LindiController(
       borderColor: Colors.blue,
       shouldRotate: true,
-      // showBorders: false, // Borders off by default
+      showBorders: true,
       icons: [
         LindiStickerIcon(
           icon: Icons.rotate_90_degrees_ccw,
@@ -71,7 +77,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           alignment: Alignment.topCenter,
           onTap: () {
             _controller.controller.clearAllBorders();
-            debugPrint('Cleared all borders');
           },
         ),
         LindiStickerIcon(
@@ -83,12 +88,14 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
               final model = _controller.widgetModels[selectedWidget.key];
               if (model is StickerModel) {
                 stickerController.stickers.remove(model);
+                _controller.widgetList.removeWhere((item) => item['model'] == model);
               } else if (model is EditableTextModel) {
                 textEditorControllerWidget.text.remove(model);
+                _controller.widgetList.removeWhere((item) => item['model'] == model);
               }
               _controller.widgetModels.remove(selectedWidget.key);
               selectedWidget.delete();
-              debugPrint('Deleted widget: key=${selectedWidget.key}');
+              _controller.controller.notifyListeners();
             }
           },
         ),
@@ -97,7 +104,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           alignment: Alignment.bottomLeft,
           onTap: () {
             _controller.controller.selectedWidget?.flip();
-            debugPrint('Flipped selected widget');
           },
         ),
         LindiStickerIcon(
@@ -110,163 +116,149 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
     // Initialize canvas size
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      print('=============enter========');
-      final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
-      if (canvasBox != null) {
-        final size = canvasBox.size;
-        _controller.canvasWidth.value = size.width;
-        _controller.canvasHeight.value = size.height;
-        _controller.lastValidCanvasSize = size;
-        debugPrint('Initialized canvas size: $size');
-      } else {
-        debugPrint('Canvas RenderBox not available, using fallback size');
-        _controller.lastValidCanvasSize = Size(360, 705); // Moto g34 5G
-      }
+      _updateCanvasSize();
     });
 
     // Set up position change listener
     _controller.controller.onPositionChange((index) {
-      if (index >= 0 && index < _controller.controller.widgets.length) {
-        _controller.indexvalueOnChange.value = index;
-        debugPrint('index value=====$index');
+      print('${index}');
+      _controller.controller.clearAllBorders();
 
-        final DraggableWidget widget = _controller.controller.widgets[index];
-        GlobalKey? widgetKey;
-
-        // Log all widget keys to detect duplicates
-        final keyCounts = <Key, int>{};
-        for (var w in _controller.controller.widgets) {
-          keyCounts[w.key!] = (keyCounts[w.key] ?? 0) + 1;
-        }
-        keyCounts.forEach((key, count) {
-          if (count > 1) {
-            debugPrint('Warning: Duplicate key detected: $key, count: $count');
-          }
-        });
-
-        if (widget.key is GlobalKey) {
-          widgetKey = widget.key as GlobalKey;
-          debugPrint('Widget $index (key: $widgetKey) interaction detected.');
-        }
-        else {
-          debugPrint('Warning: Widget $index has unsupported key type: ${widget.key.runtimeType}');
-          // Attempt to recover GlobalKey from widgetModels
-          final model = _controller.widgetModels.values.firstWhere(
-                (m) =>
-            (m is StickerModel && stickerController.stickers.contains(m)) ||
-                (m is EditableTextModel && textEditorControllerWidget.text.contains(m)),
-            orElse: () => null,
-          );
-          if (model != null && model.widgetKey is GlobalKey) {
-            widgetKey = model.widgetKey as GlobalKey;
-            debugPrint('Recovered key for widget $index: $widgetKey');
-          } else {
-            debugPrint('Failed to recover key for widget $index, skipping');
-            return;
-          }
-        }
-
-        final model = _controller.widgetModels[widgetKey];
-        if (model == null) {
-          debugPrint('No model found for widget $index (key: $widgetKey)');
-          return;
-        }
-
-        // Show border for the tapped widget
-        _controller.controller.clearAllBorders(); // Clear existing borders
-        _controller.controller.showBorders = true; // Select the tapped widget to show border
-        debugPrint('Showing border for widget $index (key: $widgetKey)');
-
-        final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
-        if (canvasBox == null) {
-          debugPrint('Failed to get canvas RenderBox');
-          return;
-        }
-        final Size canvasSize = canvasBox.size;
-        if (canvasSize.width == 0 || canvasSize.height == 0) {
-          debugPrint('Invalid canvas size: $canvasSize, using last valid size: ${_controller.lastValidCanvasSize}');
-          if (_controller.lastValidCanvasSize == null) return;
-        } else {
-          _controller.lastValidCanvasSize = canvasSize;
-        }
-        final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
-
-        final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
-        if (widgetBox == null) {
-          debugPrint('Failed to get widget RenderBox for key: $widgetKey');
-          return;
-        }
-        final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
-        final double x = widgetPosition.dx - canvasPosition.dx;
-        final double y = widgetPosition.dy - canvasPosition.dy;
-        debugPrint('Widget $index position: x=$x, y=$y');
-
-        if (_interactionStartTime == null) {
-          _interactionStartTime = DateTime.now();
-          _lastPosition = Offset(x, y);
-          debugPrint('Interaction started at: $_interactionStartTime, position: $_lastPosition');
-        }
-
-        if (model is StickerModel) {
-          model.left.value = x;
-          model.top.value = y;
-          stickerController.selectSticker(model);
-          debugPrint('Updated Sticker $index: top=${model.top.value}, left=${model.left.value}');
-        } else if (model is EditableTextModel) {
-          model.left.value = x; // Non-reactive double
-          model.top.value = y; // Non-reactive double
-          // Do NOT select text or fill text controller
-          debugPrint('Updated Text ${index - stickerController.stickers.length}: top=${model.top}, left=${model.left}, text=${model.text.value}');
-
-          final duration = DateTime.now().difference(_interactionStartTime!);
-          final distance = (_lastPosition! - Offset(x, y)).distance;
-          debugPrint('Interaction duration: $duration, distance: $distance');
-
-          // Do NOT open TextUIWithTabsScreen or fill text field on tap
-          if (duration < _tapDurationThreshold && distance < _tapDistanceThreshold) {
-            debugPrint('Detected tap on text widget: text=${model.text.value}, border shown, no text selection');
-          } else {
-            debugPrint('Detected drag on text widget: position updated, no text selection');
-          }
-        }
-
-        _lastPosition = Offset(x, y);
-
-        Future.delayed(_tapDurationThreshold, () {
-          if (_interactionStartTime != null &&
-              DateTime.now().difference(_interactionStartTime!) >= _tapDurationThreshold) {
-            debugPrint('Interaction ended, resetting tap detection');
-            _interactionStartTime = null;
-            _lastPosition = null;
-          }
-        });
-      } else {
-        debugPrint('Invalid index: $index');
+      // _controller.controller.selectedWidget!.showBorder(true);
+      if (index < 0 || index >= _controller.controller.widgets.length) {
+        print('Invalid widget index: $index');
+        return;
       }
+      if (index >= _controller.widgetList.length) {
+        print('Widget index $index exceeds widgetList length: ${_controller.widgetList.length}');
+        return;
+      }
+
+      final DraggableWidget widget = _controller.controller.widgets[index];
+      final Map<String, dynamic> widgetItem = _controller.widgetList[index];
+      final GlobalKey widgetKey = widget.centerKey;
+      final model = widgetItem['model'];
+
+      if (model == null) {
+        print('No model found for widget at index $index');
+        return;
+      }
+
+      final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
+      if (canvasBox == null) {
+        print('Canvas RenderBox is null');
+        return;
+      }
+      final Size canvasSize = canvasBox.size;
+      if (canvasSize.width <= 0 || canvasSize.height <= 0) {
+        print('Invalid canvas size: $canvasSize');
+        return;
+      }
+      _controller.lastValidCanvasSize = canvasSize;
+      final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
+
+      final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+      if (widgetBox == null) {
+        print('Widget RenderBox is null for key: $widgetKey');
+        return;
+      }
+      final Size widgetSize = widgetBox.size;
+      // if (widgetSize.width <= 0 || widgetSize.height <= 0) {
+      //   print('Invalid widget size: $widgetSize');
+      //   return;
+      // }
+      final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
+      final double x = widgetPosition.dx - canvasPosition.dx;
+      final double y = widgetPosition.dy - canvasPosition.dy;
+
+      if (_interactionStartTime == null) {
+        _interactionStartTime = DateTime.now();
+        _lastPosition = Offset(x, y);
+      }
+
+      model.left.value = x;
+      model.top.value = y;
+
+      if (model is StickerModel) {
+        // Clear text when sticker is selected
+        stickerController.selectSticker(model);
+        textEditorControllerWidget.clearSelection();
+        _controller.textController.value.text = '';
+        _controller.isSelectingText.value = false;
+        _controller.TextEditOptions.value = false;
+        print('Sticker selected: ${model.path}, text cleared');
+      } else if (model is EditableTextModel) {
+        // Send text to TextEditorControllerWidget
+        textEditorControllerWidget.selectText(model);
+        stickerController.selectedSticker.value = null;
+        _controller.textController.value.text = model.text.value;
+        _controller.isSelectingText.value = true;
+        print('Text selected: ${model.text.value} at position ($x, $y)');
+
+        final duration = DateTime.now().difference(_interactionStartTime!);
+        final distance = (_lastPosition! - Offset(x, y)).distance;
+
+        if (duration < _tapDurationThreshold && distance < _tapDistanceThreshold) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Get.to(() => TextUIWithTabsScreen(
+            //   constraints: BoxConstraints(maxWidth: canvasSize.width, maxHeight: canvasSize.height),
+            //   imageKey: _controller.imageKey,
+            //   isAddingNewText: false,
+            //   selectedTextModel: model,
+            // ));
+            print('Navigating to TextUIWithTabsScreen with text: ${model.text.value}');
+          });
+        }
+      }
+
+      _lastPosition = Offset(x, y);
+      _controller.textController.value.notifyListeners();
+
+      Future.delayed(_tapDurationThreshold, () {
+        if (_interactionStartTime != null &&
+            DateTime.now().difference(_interactionStartTime!) >= _tapDurationThreshold) {
+          _interactionStartTime = null;
+          _lastPosition = null;
+        }
+      });
     });
 
     // Clear state
     stickerController.stickers.clear();
     textEditorControllerWidget.text.clear();
     _controller.widgetModels.clear();
+    _controller.widgetList.clear();
+  }
+
+  void _updateCanvasSize() {
+    final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
+    if (canvasBox != null) {
+      final size = canvasBox.size;
+      _controller.canvasWidth.value = size.width;
+      _controller.canvasHeight.value = size.height;
+      if (size.width > 0 && size.height > 0) {
+        _controller.lastValidCanvasSize = size;
+      } else {
+        _controller.lastValidCanvasSize = Size(360, 705);
+      }
+    } else {
+      _controller.lastValidCanvasSize = Size(360, 705);
+    }
   }
 
   @override
   void dispose() {
     _controller.controller.widgets.clear();
     _controller.widgetModels.clear();
+    _controller.widgetList.clear();
     stickerController.stickers.clear();
     textEditorControllerWidget.text.clear();
     _controller.controller.clearAllBorders();
-    debugPrint('Disposed ImageEditorScreen, cleared all widgets and models');
     super.dispose();
   }
 
   Future<Uint8List?> captureView() async {
     try {
-      debugPrint('Stickers: ${stickerController.stickers.length}, Text: ${textEditorControllerWidget.text.length}');
-      debugPrint('LindiController widgets: ${_controller.controller.widgets.length}');
-
       if (!_controller.TextEditOptions.value) {
         stickerController.selectedSticker.value = null;
         textEditorControllerWidget.clearSelection();
@@ -312,6 +304,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
   Future<void> saveTemplate() async {
     try {
+      _controller.controller.clearAllBorders();
+
       final Uint8List? capturedImage = await captureView();
       if (capturedImage != null) {
         final directory = await getApplicationDocumentsDirectory();
@@ -326,7 +320,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       }
     } catch (e) {
       Get.snackbar("Error", "Failed to save image: $e");
-      debugPrint("Error saving image: $e");
       return;
     }
 
@@ -338,40 +331,44 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       }
 
       final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
-      if (canvasBox == null) {
-        debugPrint('Failed to get canvas RenderBox');
+      if (canvasBox == null || !canvasBox.hasSize) {
         Get.snackbar("Error", "Failed to get canvas information");
         return;
       }
       final Size canvasSize = canvasBox.size;
       final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
-      debugPrint('Canvas size: width=${canvasSize.width}, height=${canvasSize.height}');
-      debugPrint('Canvas position: x=${canvasPosition.dx}, y=${canvasPosition.dy}');
 
       final List<Map<String, dynamic>> stickerDataList = [];
-      debugPrint('Total widgets: ${_controller.controller.widgets.length}');
-      debugPrint('Total stickers in controller: ${stickerController.stickers.length}');
-      debugPrint('Widget models: ${_controller.widgetModels.length}');
+      final List<Map<String, dynamic>> textDataList = [];
 
-      _controller.widgetModels.forEach((widgetKey, model) {
-        debugPrint('Processing model, key: $widgetKey, model: ${model.runtimeType}');
+      print('==============widgetList===============${_controller.widgetList}');
+      print('widgetList keys: ${_controller.widgetList.map((item) => item['key']?.runtimeType).toList()}');
 
-        if (model is StickerModel && widgetKey is GlobalKey) {
-          final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+      // Delay RenderBox access
+      await WidgetsBinding.instance.endOfFrame;
+
+      for (var item in _controller.widgetList) {
+        final model = item['model'];
+        final GlobalKey? widgetKey = item['key'] as GlobalKey? ?? model.widgetKey;
+
+        if (widgetKey == null) {
+          print('Skipping item with null widgetKey: $item');
+          continue;
+        }
+
+        if (model is StickerModel) {
           double xPosition = model.left.value;
           double yPosition = model.top.value;
 
-          if (widgetBox != null) {
+          final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+          if (widgetBox != null && widgetBox.hasSize) {
             final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
             xPosition = widgetPosition.dx - canvasPosition.dx;
             yPosition = widgetPosition.dy - canvasPosition.dy;
             model.left.value = xPosition;
             model.top.value = yPosition;
-            debugPrint('Sticker position: key=$widgetKey, x=$xPosition, y=$yPosition');
-            _controller.xvalue.value = xPosition;
-            _controller.yvalue.value = yPosition;
           } else {
-            debugPrint('Warning: RenderBox for key $widgetKey is null, using model values');
+            print('RenderBox null for sticker key: $widgetKey');
           }
 
           stickerDataList.add({
@@ -382,67 +379,44 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             'rotation': model.rotation.value,
             'isFlipped': model.isFlipped.value,
           });
-        } else {
-          debugPrint('Skipping model, key: $widgetKey, type: ${model?.runtimeType ?? "null"}, isStickerModel: ${model is StickerModel}');
-        }
-      });
+        } else if (model is EditableTextModel) {
+          double xPosition = model.left.value;
+          double yPosition = model.top.value;
 
-      final List<Map<String, dynamic>> textDataList = [];
-      debugPrint('Total text models: ${textEditorControllerWidget.text.length}');
-
-      textEditorControllerWidget.text.asMap().forEach((index, textModel) {
-        debugPrint('Processing text model $index, type: ${textModel.runtimeType}');
-
-        double xPosition = textModel.left.value;
-        double yPosition = textModel.top.value;
-
-        if (textModel.widgetKey != null) {
-          final RenderBox? textBox = textModel.widgetKey!.currentContext?.findRenderObject() as RenderBox?;
-          if (textBox != null) {
-            final Offset textPosition = textBox.localToGlobal(Offset.zero);
-            xPosition = textPosition.dx - canvasPosition.dx;
-            yPosition = textPosition.dy - canvasPosition.dy;
-            textModel.left.value = xPosition;
-            textModel.top.value = yPosition;
-            debugPrint('Text $index position: key=${textModel.widgetKey}, x=$xPosition, y=$yPosition');
-            _controller.xvalue.value = xPosition;
-            _controller.yvalue.value = yPosition;
+          final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+          if (widgetBox != null && widgetBox.hasSize) {
+            final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
+            xPosition = widgetPosition.dx - canvasPosition.dx;
+            yPosition = widgetPosition.dy - canvasPosition.dy;
+            model.left.value = xPosition;
+            model.top.value = yPosition;
           } else {
-            debugPrint('Warning: RenderBox for text $index, key=${textModel.widgetKey} is null, using model values');
+            print('RenderBox null for text key: $widgetKey');
           }
-        } else {
-          debugPrint('Warning: No GlobalKey found for text $index, using model values');
-          if (xPosition == 0.0 && yPosition == 0.0) {
-            xPosition = 170.5;
-            yPosition = 264.4;
-            textModel.left.value = xPosition;
-            textModel.top.value = yPosition;
-            debugPrint('Using fallback position: x=$xPosition, y=$yPosition');
-          }
-        }
 
-        textDataList.add({
-          'text': textModel.text.value,
-          'top': yPosition,
-          'left': xPosition,
-          'fontSize': textModel.fontSize.value,
-          'fontFamily': textModel.fontFamily.value,
-          'textColor': textModel.textColor.value.value.toRadixString(16).padLeft(8, '0'),
-          'backgroundColor': textModel.backgroundColor.value.value.toRadixString(16).padLeft(8, '0'),
-          'opacity': textModel.opacity.value,
-          'isBold': textModel.isBold.value,
-          'isItalic': textModel.isItalic.value,
-          'isUnderline': textModel.isUnderline.value,
-          'isStrikethrough': textModel.isStrikethrough.value,
-          'shadowBlur': textModel.shadowBlur.value,
-          'shadowColor': textModel.shadowColor.value.value.toRadixString(16).padLeft(8, '0'),
-          'shadowOffsetX': textModel.shadowOffsetX.value,
-          'shadowOffsetY': textModel.shadowOffsetY.value,
-          'rotation': textModel.rotation.value,
-          'isFlippedHorizontally': textModel.isFlippedHorizontally.value,
-          'textAlign': textModel.textAlign.value.toString(),
-        });
-      });
+          textDataList.add({
+            'text': model.text.value,
+            'top': yPosition,
+            'left': xPosition,
+            'fontSize': model.fontSize.value,
+            'fontFamily': model.fontFamily.value,
+            'textColor': model.textColor.value.value.toRadixString(16).padLeft(8, '0'),
+            'backgroundColor': model.backgroundColor.value.value,
+            'opacity': model.opacity.value,
+            'isBold': model.isBold.value,
+            'isItalic': model.isItalic.value,
+            'isUnderline': model.isUnderline.value,
+            'isStrikethrough': model.isStrikethrough.value,
+            'shadowBlur': model.shadowBlur.value,
+            'shadowColor': model.shadowColor.value.value.toRadixString(16).padLeft(8, '0'),
+            'shadowOffsetX': model.shadowOffsetX.value,
+            'shadowOffsetY': model.shadowOffsetY.value,
+            'rotation': model.rotation.value,
+            'isFlippedHorizontally': model.isFlippedHorizontally.value,
+            'textAlign': model.textAlign.value.toString(),
+          });
+        }
+      }
 
       final editingState = {
         'imagePath': imageFile.path.toString(),
@@ -462,14 +436,16 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         },
       };
 
-      debugPrint('Editing state: $editingState');
+      print('============editingState=============$editingState');
+      _controller.controller.clearAllBorders();
+
       final dbHelper = DatabaseHelper.instance;
       await dbHelper.saveTemplate('Template_${DateTime.now().millisecondsSinceEpoch}', editingState, _controller.filePath.value.toString());
       Get.snackbar("Success", "Template saved successfully");
-      Get.off(() => SavedImagesScreen());
+      Get.off(() => DashboardScreen());
     } catch (e) {
+      print("Failed to save template: $e");
       Get.snackbar("Error", "Failed to save template: $e");
-      debugPrint("Error saving template: $e");
     }
   }
 
@@ -501,7 +477,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     return defaultValue;
   }
 
-  void _loadSavedState(Map<String, dynamic> state) {
+  void _loadSavedState(Map<String, dynamic> state, {Offset? checkPosition}) {
     final String imagePath = state['imagePath'] ?? '';
     final List<Map<String, dynamic>> stickers = List<Map<String, dynamic>>.from(state['stickers'] ?? []);
     final List<Map<String, dynamic>> texts = List<Map<String, dynamic>>.from(state['text'] ?? []);
@@ -518,132 +494,165 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     );
 
     _controller.lastValidCanvasSize = Size(
-      state['canvasSize']?['width']?.toDouble() ?? _controller.canvasWidth.value,
-      state['canvasSize']?['height']?.toDouble() ?? _controller.canvasHeight.value,
+      state['canvasSize']?['width']?.toDouble() ?? 360,
+      state['canvasSize']?['height']?.toDouble() ?? 705,
     );
-    if (_controller.lastValidCanvasSize!.width == 0 || _controller.lastValidCanvasSize!.height == 0) {
-      debugPrint('Warning: Using fallback canvas size (360x705)');
-      _controller.lastValidCanvasSize = Size(360, 705);
-    }
-
-    final shapeSelectorController = Get.put(ShapeSelectorController(lindiController: _controller.controller, shapeCategories: _controller.shapeCategories));
-    final textController = Get.put(TextEditorControllerWidget());
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Clear existing widgets and models to prevent duplicates
       _controller.controller.widgets.clear();
       _controller.widgetModels.clear();
+      _controller.widgetList.clear();
       stickerController.stickers.clear();
-      textController.text.clear();
-      debugPrint('Cleared all widgets and models before loading state');
+      textEditorControllerWidget.text.clear();
+      _controller.controller.clearAllBorders();
 
+      final uuid = Uuid();
       for (var sticker in stickers) {
+        final stickerPath = sticker['path']?.toString() ?? '';
+        final stickerKey = GlobalKey(debugLabel: 'Sticker_${stickerPath}_${uuid.v4()}');
         final stickerModel = StickerModel(
-          path: sticker['path']?.toString() ?? '',
-          top: (sticker['top']?.toDouble() ?? 0.0).obs,
-          left: (sticker['left']?.toDouble() ?? 0.0).obs,
-          scale: (sticker['scale']?.toDouble() ?? 1.0).obs,
-          rotation: (sticker['rotation']?.toDouble() ?? 0.0).obs,
-          isFlipped: sticker['isFlipped'] ?? false,
-          widgetKey: GlobalKey(debugLabel: 'Sticker_${sticker['path']}_${DateTime.now().millisecondsSinceEpoch}'),
+          path: stickerPath,
+          top: (sticker['top']?.toDouble() ?? 0.0),
+          left: (sticker['left']?.toDouble() ?? 0.0),
+          scale: (sticker['scale']?.toDouble() ?? 1.0),
+          rotation: (sticker['rotation']?.toDouble() ?? 0.0),
+          isFlipped: RxBool(sticker['isFlipped'] ?? false),
+          widgetKey: stickerKey,
         );
 
-        final stickerWidget = SvgPicture.asset(
-          stickerModel.path,
-          width: 100 * stickerModel.scale.value,
-          height: 100 * stickerModel.scale.value,
-        );
+        final stickerWidget = DraggableWidget(
+          key: stickerKey,
+          icons: _controller.controller.icons,
+          position: Alignment.topLeft,
+          borderColor: _controller.controller.borderColor,
+          borderWidth: 2.0,
+          showBorders: _controller.controller.showBorders,
+          shouldMove: true,
+          shouldRotate: _controller.controller.shouldRotate,
+          shouldScale: true,
+          minScale: 0.5,
+          maxScale: 2.0,
+          insidePadding: 8.0,
+          onBorder: (_) {},
+          onDelete: (_) {},
+          onLayer: (_) {},
+          child: Container(
 
-        final widget = Container(key: stickerModel.widgetKey, child: stickerWidget);
-        _controller.controller.add(
-          KeyedSubtree(key: stickerModel.widgetKey, child: widget),
-          position: Alignment(
-            (stickerModel.left.value / _controller.lastValidCanvasSize!.width) * 2 - 1,
-            (stickerModel.top.value / _controller.lastValidCanvasSize!.height) * 2 - 1,
-          ),
-        );
-
-        stickerController.stickers.add(stickerModel);
-        _controller.widgetModels[stickerModel.widgetKey!] = stickerModel;
-        debugPrint('Restoring sticker: path=${stickerModel.path}, key=${stickerModel.widgetKey}');
-      }
-
-      for (var text in texts) {
-        final fontSize = int.tryParse(text['fontSize']?.toString() ?? '16') ?? 16;
-        final textModel = EditableTextModel(
-          text: (text['text']?.toString() ?? ''), // Reactive text
-          top: text['top']?.toDouble() ?? 0.0, // Non-reactive double
-          left: text['left']?.toDouble() ?? 0.0, // Non-reactive double
-          fontSize: fontSize, // Non-reactive int
-          fontFamily: (text['fontFamily']?.toString() ?? 'Roboto'), // Reactive fontFamily
-          textColor: Color(_parseColor(text['textColor'], 0xFF000000)), // Non-reactive Color
-          backgroundColor: Color(_parseColor(text['backgroundColor'], 0x00000000)), // Non-reactive Color
-          opacity: text['opacity']?.toDouble() ?? 1.0, // Non-reactive double
-          isBold: text['isBold'] ?? false, // Non-reactive bool
-          isItalic: text['isItalic'] ?? false, // Non-reactive bool
-          isUnderline: text['isUnderline'] ?? false, // Non-reactive bool
-          isStrikethrough: text['isStrikethrough'] ?? false, // Non-reactive bool
-          shadowBlur: text['shadowBlur']?.toDouble() ?? 0.0, // Non-reactive double
-          shadowColor: Color(_parseColor(text['shadowColor'], 0xFF000000)), // Non-reactive Color
-          shadowOffsetX: text['shadowOffsetX']?.toDouble() ?? 0.0, // Non-reactive double
-          shadowOffsetY: text['shadowOffsetY']?.toDouble() ?? 0.0, // Non-reactive double
-          rotation: text['rotation']?.toDouble() ?? 0.0, // Non-reactive double
-          isFlippedHorizontally: text['isFlippedHorizontally'] ?? false, // Non-reactive bool
-          textAlign: _parseTextAlign(text['textAlign']),
-          widgetKey: GlobalKey(debugLabel: 'Text_${text['text']}_${DateTime.now().millisecondsSinceEpoch}'),
-        );
-
-        final textWidget = Container(
-          key: textModel.widgetKey,
-          padding: const EdgeInsets.all(12),
-          decoration: const BoxDecoration(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.all(Radius.circular(20)),
-          ),
-          child: Transform(
-            transform: Matrix4.identity()
-              ..rotateZ(textModel.rotation.value)
-              ..scale(textModel.isFlippedHorizontally.value ? -1.0 : 1.0, 1.0),
-            alignment: Alignment.center,
-            child: Text(
-              textModel.text.value,
-              style: GoogleFonts.getFont(
-                textModel.fontFamily.value,
-                fontSize: textModel.fontSize.toDouble(),
-                color: textModel.textColor.value.withOpacity(textModel.opacity.value),
-                fontWeight: textModel.isBold.value ? FontWeight.bold : FontWeight.normal,
-                fontStyle: textModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
-                decoration: textModel.isUnderline.value
-                    ? TextDecoration.underline
-                    : (textModel.isStrikethrough.value ? TextDecoration.lineThrough : null),
-                shadows: [
-                  Shadow(
-                    blurRadius: textModel.shadowBlur.value,
-                    color: textModel.shadowColor.value,
-                    offset: Offset(textModel.shadowOffsetX.value, textModel.shadowOffsetY.value),
-                  ),
-                ],
-              ),
-              textAlign: textModel.textAlign.value,
+            child: SvgPicture.asset(
+              stickerModel.path,
+              width: 60,
+              height: 60,
             ),
           ),
         );
 
-        _controller.controller.add(
-          KeyedSubtree(key: textModel.widgetKey, child: textWidget),
-          position: Alignment(
-            (textModel.left / _controller.lastValidCanvasSize!.width) * 2 - 1,
-            (textModel.top / _controller.lastValidCanvasSize!.height) * 2 - 1,
+        Widget stickerWidgetContainer = Container(
+          width: 60,
+          height: 60,
+          child: SvgPicture.asset(
+            stickerModel.path,
+            width: 60,
+            height: 60,
           ),
         );
 
-        textController.text.add(textModel);
-        _controller.widgetModels[textModel.widgetKey!] = textModel;
-        debugPrint('Restoring text: text=${textModel.text.value}, key=${textModel.widgetKey}');
+        _controller.controller.add(stickerWidgetContainer);
+        stickerController.stickers.add(stickerModel);
+        _controller.widgetModels[stickerKey] = stickerModel;
+        _controller.widgetList.add({
+          'widget': stickerWidget,
+          'model': stickerModel,
+          'key': stickerKey, // Ensure key is stored
+        });
       }
 
-      debugPrint('Loaded state with ${stickers.length} stickers and ${texts.length} texts');
-      debugPrint('Widget keys after loading state: ${_controller.widgetModels.keys.map((k) => k.toString()).toList()}');
+      // Load text models and select one for prefilling
+      EditableTextModel? selectedTextModel;
+      for (var text in texts) {
+        final textContent = text['text']?.toString() ?? '';
+        final textKey = GlobalKey(debugLabel: 'Text_${textContent.replaceAll(' ', '_')}_${uuid.v4()}');
+        final fontSize = int.tryParse(text['fontSize']?.toString() ?? '16') ?? 16;
+        final textModel = EditableTextModel(
+          text: textContent,
+          top: text['top']?.toDouble() ?? 0.0,
+          left: text['left']?.toDouble() ?? 0.0,
+          fontSize: fontSize,
+          fontFamily: (text['fontFamily']?.toString() ?? 'Roboto'),
+          textColor: Color(_parseColor(text['textColor'], 0xFF000000)),
+          backgroundColor: Color(_parseColor(text['backgroundColor'], 0x00000000)),
+          opacity: text['opacity']?.toDouble() ?? 1.0,
+          isBold: text['isBold'] ?? false,
+          isItalic: text['isItalic'] ?? false,
+          isUnderline: text['isUnderline'] ?? false,
+          isStrikethrough: text['isStrikethrough'] ?? false,
+          shadowBlur: text['shadowBlur']?.toDouble() ?? 0.0,
+          shadowColor: Color(_parseColor(text['shadowColor'], 0xFF000000)),
+          shadowOffsetX: text['shadowOffsetX']?.toDouble() ?? 0.0,
+          shadowOffsetY: text['shadowOffsetY']?.toDouble() ?? 0.0,
+          rotation: text['rotation']?.toDouble() ?? 0.0,
+          isFlippedHorizontally: text['isFlippedHorizontally'] ?? false,
+          textAlign: _parseTextAlign(text['textAlign']),
+          widgetKey: textKey,
+        );
+
+        final textWidget = Container(
+          key: textKey,
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+          child: Text(
+            textContent,
+            style: GoogleFonts.getFont(
+              textModel.fontFamily.value,
+              fontSize: textModel.fontSize.value.toDouble(),
+              color: textModel.textColor.value,
+              fontWeight: textModel.isBold.value ? FontWeight.bold : FontWeight.normal,
+              fontStyle: textModel.isItalic.value ? FontStyle.italic : FontStyle.normal,
+              decoration: textModel.isUnderline.value
+                  ? TextDecoration.underline
+                  : (textModel.isStrikethrough.value ? TextDecoration.lineThrough : null),
+            ),
+            textAlign: textModel.textAlign.value,
+          ),
+        );
+
+        _controller.controller.add(textWidget);
+        textEditorControllerWidget.text.add(textModel);
+        _controller.widgetModels[textKey] = textModel;
+        _controller.widgetList.add({
+          'widget': textWidget,
+          'model': textModel,
+          'key': textKey, // Ensure key is stored
+        });
+
+        // Select text model based on position or default to first
+        if (checkPosition != null) {
+          final textRect = Rect.fromLTWH(
+            textModel.left.value,
+            textModel.top.value,
+            100, // Approximate width (adjust based on text size or RenderBox)
+            50,  // Approximate height
+          );
+          if (textRect.contains(checkPosition)) {
+            selectedTextModel = textModel;
+          }
+        } else if (selectedTextModel == null) {
+          selectedTextModel = textModel; // Default to first text model
+        }
+      }
+
+      // Prefill TextEditorControllerWidget with selected text
+      if (selectedTextModel != null) {
+        textEditorControllerWidget.selectText(selectedTextModel);
+        print('Selected text for prefilling: ${selectedTextModel.text.value} at position (${selectedTextModel.left.value}, ${selectedTextModel.top.value})');
+      } else {
+        textEditorControllerWidget.clearSelection();
+        print('No text model selected for prefilling');
+      }
+
+      _controller.controller.notifyListeners();
     });
   }
 
@@ -663,7 +672,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       fileImage = File(savedState['imagePath'] ?? '');
     }
 
-    // Defer _loadSavedState
     if (savedState != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadSavedState(savedState!);
@@ -688,7 +696,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           ),
           actions: [
             Padding(
-              padding: EdgeInsets.only(right: 20),
+              padding: EdgeInsets.only(right: 0),
               child: Row(
                 children: [
                   IconButton(
@@ -722,10 +730,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                     height: 20,
                     child: GestureDetector(
                       onTap: saveTemplate,
-                      child: Image.asset(
-                        'assets/template.png',
-                        errorBuilder: (context, error, stackTrace) => Icon(Icons.save, color: Colors.white),
-                      ),
+                      child: Icon(Icons.save, color: Colors.white),
                     ),
                   ),
                   SizedBox(width: 25),
@@ -749,7 +754,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                           }
                         } catch (e) {
                           Get.snackbar("Error", "Failed to share image: $e");
-                          debugPrint("Error sharing image: $e");
                         }
                       },
                       child: Image.asset(
@@ -766,152 +770,16 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         body: LayoutBuilder(
           builder: (context, constraints) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              final RenderBox? renderBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
-              if (renderBox != null) {
-                final position = renderBox.localToGlobal(Offset.zero);
-                final size = renderBox.size;
-                _controller.canvasWidth.value = size.width;
-                _controller.canvasHeight.value = size.height;
-                _controller.lastValidCanvasSize = size;
-                debugPrint('Image bounds: position=($position), size=($size)');
-              }
+              _updateCanvasSize();
             });
             return Obx(() {
               final Uint8List? editedMemoryImage = _controller.editedImageBytes.value;
               final File? editedFileImage = _controller.editedImage.value;
-              debugPrint('Rebuilding ImageEditorScreen UI, text count: ${textEditorControllerWidget.text.length}');
               return Stack(
                 children: [
                   Container(
                     height: constraints.maxHeight,
-                    child: (_controller.isSelectingText.value == true)
-                        ? SingleChildScrollView(
-                      child: Container(
-                        height: constraints.maxHeight,
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: Obx(() {
-                                bool isAnyEditOpen = _controller.showEditOptions.value ||
-                                    _controller.showFilterEditOptions.value ||
-                                    _controller.showStickerEditOptions.value ||
-                                    _controller.showtuneOptions.value;
-                                return ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxWidth: constraints.maxWidth,
-                                    maxHeight: constraints.maxHeight,
-                                  ),
-                                  child: RepaintBoundary(
-                                    key: _repaintKey,
-                                    child: LindiStickerWidget(
-                                      controller: _controller.controller,
-                                      child: AnimatedContainer(
-                                        duration: Duration(milliseconds: 200),
-                                        curve: Curves.easeInOut,
-                                        transform:
-                                        Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
-                                          ..scale(isAnyEditOpen ? 0.94 : 1.0),
-                                        child: Padding(
-                                          padding: EdgeInsets.symmetric(horizontal: 10),
-                                          child: Stack(
-                                            alignment: Alignment.center,
-                                            children: [
-                                              GestureDetector(
-                                                onTap:(){
-                                                  _controller.controller.clearAllBorders();
-                                                },
-                                                child: Container(
-                                                  key: _controller.imageKey,
-                                                  child: ColorFiltered(
-                                                    colorFilter: ColorFilter.matrix(
-                                                      _controller.calculateColorMatrix(),
-                                                    ),
-                                                    child: editedMemoryImage != null
-                                                        ? Image.memory(
-                                                      editedMemoryImage,
-                                                      fit: BoxFit.contain,
-                                                    )
-                                                        : (editedFileImage != null && editedFileImage.path.isNotEmpty
-                                                        ? Image.file(
-                                                      editedFileImage,
-                                                      fit: BoxFit.contain,
-                                                      errorBuilder: (context, error, stackTrace) => Text(
-                                                        "Error loading image",
-                                                        style: TextStyle(color: Colors.white),
-                                                      ),
-                                                    )
-                                                        : (memoryImage != null
-                                                        ? Image.memory(
-                                                      memoryImage,
-                                                      fit: BoxFit.contain,
-                                                    )
-                                                        : (fileImage != null && fileImage.path.isNotEmpty
-                                                        ? Image.file(
-                                                      fileImage,
-                                                      fit: BoxFit.contain,
-                                                      errorBuilder:
-                                                          (context, error, stackTrace) => Text(
-                                                        "Error loading image",
-                                                        style: TextStyle(color: Colors.white),
-                                                      ),
-                                                    )
-                                                        : Text(
-                                                      "No image loaded",
-                                                      style: TextStyle(color: Colors.white),
-                                                    )))),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ),
-                            const SizedBox(height: 15),
-                            if (!_controller.showEditOptions.value &&
-                                !_controller.showFilterEditOptions.value &&
-                                !_controller.showStickerEditOptions.value &&
-                                !_controller.showtuneOptions.value &&
-                                !_controller.TextEditOptions.value &&
-                                !_controller.CameraEditSticker.value &&
-                                !collageController.showCollageOption.value &&
-                                !_controller.showPresetsEditOptions.value &&
-                                !_controller.showImageLayer.value)
-                              _buildToolBar(context),
-                            if (_controller.showEditOptions.value) _controller.buildEditControls(),
-                            if (_controller.showStickerEditOptions.value)
-                              ShapeSelectorSheet(
-                                controller: _controller.controller,
-                                shapeCategories: _controller.shapeCategories,
-                              ),
-                            if (_controller.showImageLayer.value) _controller.buildImageLayerSheet(),
-                            if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
-                            if (_controller.TextEditOptions.value)
-                              Flexible(
-                                child: SingleChildScrollView(
-                                  child: _controller.TextEditControls(constraints, _controller.imageKey),
-                                ),
-                              ),
-                            if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
-                            if (collageController.showCollageOption.value)
-                              collageTemplateController.openTemplatePickerBottomSheet(),
-                            if (_controller.showFilterEditOptions.value)
-                              _controller.buildFilterControlsSheet(onClose: () {
-                                _controller.showFilterEditOptions.value = false;
-                              }),
-                            if (_controller.showPresetsEditOptions.value)
-                              _controller.showFilterControlsBottomSheet(context, () {
-                                _controller.showFilterEditOptions.value = false;
-                              }),
-                          ],
-                        ),
-                      ),
-                    )
-                        : Column(
+                    child: Column(
                       children: [
                         Expanded(
                           child: Obx(() {
@@ -931,8 +799,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                                   child: AnimatedContainer(
                                     duration: Duration(milliseconds: 200),
                                     curve: Curves.easeInOut,
-                                    transform:
-                                    Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
+                                    transform: Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
                                       ..scale(isAnyEditOpen ? 0.94 : 1.0),
                                     child: Padding(
                                       padding: EdgeInsets.symmetric(horizontal: 10),
@@ -947,6 +814,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                                               final newScale =
                                               (_controller.baseScale.value * details.scale).clamp(1.0, 5.0);
                                               _controller.scale.value = newScale;
+                                            },
+                                            onTap: () {
+                                              _controller.controller.clearAllBorders();
+                                              _controller.textController.value.text = '';
+                                              _controller.isSelectingText.value = false;
+                                              textEditorControllerWidget.clearSelection();
+                                              _controller.TextEditOptions.value = false;
                                             },
                                             child: Obx(() {
                                               return Transform.translate(
@@ -964,33 +838,29 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                                                         editedMemoryImage,
                                                         fit: BoxFit.contain,
                                                       )
-                                                          : (editedFileImage != null &&
-                                                          editedFileImage.path.isNotEmpty
+                                                          : (editedFileImage != null && editedFileImage.path.isNotEmpty
                                                           ? Image.file(
                                                         editedFileImage,
                                                         fit: BoxFit.contain,
-                                                        errorBuilder: (context, error, stackTrace) =>
-                                                            Text(
-                                                              "Error loading image",
-                                                              style: TextStyle(color: Colors.white),
-                                                            ),
+                                                        errorBuilder: (context, error, stackTrace) => Text(
+                                                          "Error loading image",
+                                                          style: TextStyle(color: Colors.white),
+                                                        ),
                                                       )
                                                           : (memoryImage != null
                                                           ? Image.memory(
                                                         memoryImage,
                                                         fit: BoxFit.contain,
                                                       )
-                                                          : (fileImage != null &&
-                                                          fileImage.path.isNotEmpty
+                                                          : (fileImage != null && fileImage.path.isNotEmpty
                                                           ? Image.file(
                                                         fileImage,
                                                         fit: BoxFit.contain,
                                                         errorBuilder:
-                                                            (context, error, stackTrace) =>
-                                                            Text(
-                                                              "Error loading image",
-                                                              style: TextStyle(color: Colors.white),
-                                                            ),
+                                                            (context, error, stackTrace) => Text(
+                                                          "Error loading image",
+                                                          style: TextStyle(color: Colors.white),
+                                                        ),
                                                       )
                                                           : Text(
                                                         "No image loaded",
@@ -1067,29 +937,6 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             });
           },
         ),
-      ),
-    );
-  }
-
-  Widget _cornerControl({
-    required IconData icon,
-    required Color color,
-    void Function()? onTap,
-    void Function(DragUpdateDetails)? onPanUpdate,
-    double scale = 1.0,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      onPanUpdate: onPanUpdate,
-      behavior: HitTestBehavior.translucent,
-      child: Container(
-        width: 24 * scale,
-        height: 24 * scale,
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.9),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, size: 16 * scale, color: Colors.white),
       ),
     );
   }

@@ -130,10 +130,7 @@ class TextEditorControllerWidget extends GetxController {
     print('updateText called with: $newText');
 
     // Limit the number of text items
-    if (text.length >= 20) {
-      Get.snackbar('Limit Reached', 'Cannot add more than 20 text items');
-      return;
-    }
+
 
     // Helper function to create a text widget with a GlobalKey
     Widget createTextWidget(EditableTextModel textModel, GlobalKey key) {
@@ -188,7 +185,7 @@ class TextEditorControllerWidget extends GetxController {
     Offset alignmentToOffset(Alignment alignment) {
       if (controller.canvasWidth.value == 0 || controller.canvasHeight.value == 0) {
         print('Warning: Invalid canvas size, using default position');
-        return const Offset(150, 200); // Center of a 300x400 canvas
+        return const Offset(150, 200);
       }
       return Offset(
         ((alignment.x + 1) / 2) * controller.canvasWidth.value,
@@ -213,6 +210,11 @@ class TextEditorControllerWidget extends GetxController {
         if (controller.controller.selectedWidget != null) {
           // Edit the widget
           controller.controller.selectedWidget!.edit(widget);
+          _controller.editWidget(
+            widget,
+            Offset( textModel.left.value, textModel.top.value),
+            model: textModel
+          );
 
           // Get the position using GlobalKey (after rendering)
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -277,6 +279,8 @@ class TextEditorControllerWidget extends GetxController {
 
       // Add the widget at the center
       controller.controller.add(widget, position: alignment);
+
+
 
       // Get the position (use calculated position as fallback)
       WidgetsBinding.instance.addPostFrameCallback((_) {

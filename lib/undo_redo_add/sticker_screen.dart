@@ -2,20 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
+import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stciker_model.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
 import 'package:image_editor/undo_redo_add/undo_redo_controller.dart';
 import 'package:lindi_sticker_widget/draggable_widget.dart';
 import 'package:lindi_sticker_widget/lindi_controller.dart';
 import 'package:lindi_sticker_widget/lindi_sticker_widget.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-
+import 'dart:math';
 
 class ShapeSelectorSheet extends StatelessWidget {
   final LindiController controller;
   final Map<String, List<String>> shapeCategories;
-  final ImageEditorController _controller = Get.put(ImageEditorController());
-
+  final ImageEditorController _controller = Get.find<ImageEditorController>();
 
   ShapeSelectorSheet({
     super.key,
@@ -25,7 +23,6 @@ class ShapeSelectorSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // final controller = Get.find<ShapeSelectorController>();
     final controller = Get.put(ShapeSelectorController(
       lindiController: this.controller,
       shapeCategories: shapeCategories,
@@ -49,9 +46,9 @@ class ShapeSelectorSheet extends StatelessWidget {
               child: TabBarView(
                 children: shapeCategories.values.map((imagePaths) {
                   return GridView.builder(
-                    padding:  EdgeInsets.all(12),
+                    padding: EdgeInsets.all(12),
                     itemCount: imagePaths.length,
-                    gridDelegate:  SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -63,27 +60,58 @@ class ShapeSelectorSheet extends StatelessWidget {
                         onTapDown: (details) {
                           _controller.selectedimagelayer.add(path);
                           print('Selected: ${_controller.selectedimagelayer.length}');
+
+                          // Create a new StickerModel
+                          final uniqueId = 'Sticker_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}';
+                          final newSticker = StickerModel(
+                            path: path,
+                            top: details.globalPosition.dy,
+                            left: details.globalPosition.dx,
+                            isFlipped: false.obs,
+                            widgetKey: GlobalKey(debugLabel: 'Sticker_$uniqueId'),
+                          );
+
+                          // Create the widget
                           final newWidget = Container(
                             height: 60,
                             width: 60,
-                            padding:  EdgeInsets.all(12),
+                            padding: EdgeInsets.all(12),
                             child: SvgPicture.asset(path),
                           );
+
                           final tapPosition = details.globalPosition;
                           final stickerWidgetBox = LindiStickerWidget.globalKey.currentContext?.findRenderObject() as RenderBox?;
                           Alignment initialPosition = Alignment.center;
-                          if (stickerWidgetBox != null) {
+                          if (stickerWidgetBox != null && stickerWidgetBox.hasSize) {
                             final stickerSize = stickerWidgetBox.size;
                             final stickerOffset = stickerWidgetBox.localToGlobal(Offset.zero);
                             final alignmentX = ((tapPosition.dx - stickerOffset.dx) / stickerSize.width) * 2 - 1;
                             final alignmentY = ((tapPosition.dy - stickerOffset.dy) / stickerSize.height) * 2 - 1;
                             initialPosition = Alignment(alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
                           } else {
-                            print('Warning: LindiStickerWidget.globalKey is null, using default position');
+                            print('Warning: LindiStickerWidget.globalKey is null or has no size, using default position');
                           }
                           print('Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
-                          _controller.addWidget(newWidget, tapPosition,path);
 
+                          // Delay addWidget until canvas is ready
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (_controller.canvasWidth.value > 0 && _controller.canvasHeight.value > 0) {
+                              _controller.addWidget(
+                                newWidget,
+                                tapPosition,
+                                model: newSticker,
+                              );
+                            } else {
+                              print('Canvas size not ready, retrying after 100ms');
+                              Future.delayed(Duration(milliseconds: 100), () {
+                                _controller.addWidget(
+                                  newWidget,
+                                  tapPosition,
+                                  model: newSticker,
+                                );
+                              });
+                            }
+                          });
                         },
                         child: Column(
                           children: [
@@ -144,8 +172,6 @@ class ShapeSelectorSheet extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-
-                      // const SizedBox(width: 10),
                       GestureDetector(
                         onTap: controller.clearAll,
                         child: SizedBox(
@@ -158,7 +184,7 @@ class ShapeSelectorSheet extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: 24,
                         ),
                       ),
                       GestureDetector(
@@ -170,7 +196,6 @@ class ShapeSelectorSheet extends StatelessWidget {
                       ),
                     ],
                   ),
-
                 ],
               ),
             ),

@@ -1,12 +1,19 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image_editor/screens_ui/dashboard/dashboard_controller.dart';
+import 'package:image_editor/screens_ui/image_editor/image_editor_screen.dart';
+import 'package:image_editor/screens_ui/save_file/saved_image_model.dart';
 
 class DashboardScreen extends StatelessWidget {
+
    DashboardScreen({super.key});
   final BottomSheetController _bottomSheetController = Get.put(BottomSheetController());
+   final DatabaseHelper dbHelper = DatabaseHelper.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -102,43 +109,102 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ),
                SizedBox(height: 16),
-              Expanded(
-                child: GridView.builder(
-                  itemCount: 8,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 3 / 4,
-                  ),
-                  itemBuilder: (context, index) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.asset(
-                              'assets/templates_image.png',
-                              width: double.infinity,
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: dbHelper.getTemplates(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.white)));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    print('no Templates');
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 90),
+                      child: Center(
+                          child: Text('No templates found', style: TextStyle(color: Colors.black,fontSize: 18,fontWeight: FontWeight.bold))
+                      ),
+                    );
+                  }
+
+                  final templates = snapshot.data!;
+
+                  return Expanded(
+                    child: GridView.builder(
+                      padding: EdgeInsets.all(0),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 1.0, // Square tiles for images
+                      ),
+                      itemCount: templates.length,
+                      itemBuilder: (context, index) {
+                        final template = templates[index];
+                        final templateState = jsonDecode(template['state']) as Map<String, dynamic>;
+                    
+                        return GestureDetector(
+                          onTap: () {
+                            print('=====state=======${templateState}');
+                            Get.to(() => ImageEditorScreen(), arguments: templateState); // Pass full template state
+                          },
+                          child: Card(
+                            color: Colors.grey[900],
+                            clipBehavior: Clip.antiAlias, // Prevent image overflow
+                            child: Image.file(
+                              File(template['filePath'] as String? ?? ''),
                               fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Icon(
+                                Icons.broken_image,
+                                color: Colors.white,
+                                size: 50,
+                              ),
                             ),
                           ),
-                        ),
-                         SizedBox(height: 8),
-                         Text(
-                          'Template Name',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontFamily: 'Outfit',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
+              // Expanded(
+              //   child: GridView.builder(
+              //     itemCount: 8,
+              //     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              //       crossAxisCount: 2,
+              //       crossAxisSpacing: 12,
+              //       mainAxisSpacing: 12,
+              //       childAspectRatio: 3 / 4,
+              //     ),
+              //     itemBuilder: (context, index) {
+              //       return Column(
+              //         crossAxisAlignment: CrossAxisAlignment.center,
+              //         children: [
+              //           Expanded(
+              //             child: ClipRRect(
+              //               borderRadius: BorderRadius.circular(8),
+              //               child: Image.asset(
+              //                 'assets/templates_image.png',
+              //                 width: double.infinity,
+              //                 fit: BoxFit.cover,
+              //               ),
+              //             ),
+              //           ),
+              //            SizedBox(height: 8),
+              //            Text(
+              //             'Template Name',
+              //             style: TextStyle(
+              //               fontSize: 16,
+              //               fontFamily: 'Outfit',
+              //               fontWeight: FontWeight.w500,
+              //             ),
+              //           ),
+              //         ],
+              //       );
+              //     },
+              //   ),
+              // ),
 
             ],
           ),

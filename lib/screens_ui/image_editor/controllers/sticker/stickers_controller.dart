@@ -8,8 +8,8 @@ import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stciker
 
 class StickerController extends GetxController {
   RxList<StickerModel> stickers = <StickerModel>[].obs;
-  Rx<StickerModel?> selectedSticker = Rx<StickerModel?>(null);
-  Rx<GlobalKey> imagekey = GlobalKey().obs;
+  var selectedSticker = Rxn<StickerModel>(); // Single StickerModel or null
+   Rx<GlobalKey> imagekey = GlobalKey().obs;
   RxBool selectedStickerTapped = false.obs;
 
 

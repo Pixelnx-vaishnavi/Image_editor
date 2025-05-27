@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
@@ -24,6 +25,7 @@ import 'package:image_editor/screens_ui/save_file/saved_image_model.dart';
 import 'package:image_editor/test.dart';
 import 'package:image_editor/undo_redo_add/sticker_screen.dart';
 import 'package:image_editor/undo_redo_add/undo_redo_controller.dart';
+import 'package:lindi_sticker_widget/draggable_widget.dart';
 import 'package:lindi_sticker_widget/lindi_controller.dart';
 import 'package:lindi_sticker_widget/lindi_sticker_widget.dart';
 import 'package:path_provider/path_provider.dart';
@@ -56,7 +58,8 @@ class ImageEditorController extends GetxController {
   Rx<File> LogoStcikerImage = File('').obs;
   final RxBool isSelectingText = false.obs;
   Rx<UndoHistoryController> undoController = UndoHistoryController().obs;
-
+  var widgetList =
+      <Map<String, dynamic>>[].obs; // Add this to store widget and model pairs
   Rx<Uint8List?> editedImageBytes = Rx<Uint8List?>(null);
   Rx<Uint8List?> flippedImageBytes = Rx<Uint8List?>(null);
   RxBool showEditOptions = false.obs;
@@ -82,7 +85,7 @@ class ImageEditorController extends GetxController {
 
   var brightness = 0.0.obs;
   var opacity = 0.0.obs;
-var filePath =''.obs;
+  var filePath = ''.obs;
   String? fileName;
   List<Filter> filters = presetFiltersList;
   final picker = ImagePicker();
@@ -91,7 +94,8 @@ var filePath =''.obs;
   final selectedIndex = RxInt(-1);
   final originalImageBytes = Rxn<Uint8List>();
   final selectedFilter = Rxn<Filter>();
-  final ValueNotifier<String> selectedCategory = ValueNotifier<String>("Natural");
+  final ValueNotifier<String> selectedCategory =
+      ValueNotifier<String>("Natural");
   final Rxn<Uint8List> thumbnailBytes = Rxn<Uint8List>();
   final StickerController stickerController = Get.put(StickerController());
 
@@ -105,14 +109,15 @@ var filePath =''.obs;
   final ImageProcessor processor = ImageProcessor();
 
   final Map<String, List<ImagePreset>> presetCategories = {
-    for (var category in PresetCategory.allCategories) category.name: category.presets
+    for (var category in PresetCategory.allCategories)
+      category.name: category.presets
   };
   RxDouble scale = 1.0.obs;
   RxDouble baseScale = 1.0.obs;
 
   // Rx<Offset> offset = Offset.zero.obs;
 
-   Rx<TextEditingController> textController = TextEditingController().obs;
+  Rx<TextEditingController> textController = TextEditingController().obs;
   final offset = Offset.zero.obs;
   final RxList<WidgetWithPosition> undoStack = <WidgetWithPosition>[].obs;
   final RxList<WidgetWithPosition> redoStack = <WidgetWithPosition>[].obs;
@@ -335,14 +340,16 @@ var filePath =''.obs;
         canvasWidth.value = stickerWidgetBox.size.width;
         canvasHeight.value = stickerWidgetBox.size.height;
       }
-      final RenderBox? canvasBox = imageKey.currentContext?.findRenderObject() as RenderBox?;
+      final RenderBox? canvasBox =
+          imageKey.currentContext?.findRenderObject() as RenderBox?;
       if (canvasBox == null) {
         debugPrint('Failed to get canvas RenderBox');
         return;
       }
       final Size canvasSize = canvasBox.size;
       if (canvasSize.width == 0 || canvasSize.height == 0) {
-        debugPrint('Invalid canvas size: $canvasSize, using last valid size: $lastValidCanvasSize');
+        debugPrint(
+            'Invalid canvas size: $canvasSize, using last valid size: $lastValidCanvasSize');
         if (lastValidCanvasSize == null) return;
       } else {
         lastValidCanvasSize = canvasSize;
@@ -350,8 +357,7 @@ var filePath =''.obs;
     });
   }
 
-
-   saveImageState({
+  saveImageState({
     Filter? filter,
     ImagePreset? preset,
     double? contrast,
@@ -372,77 +378,191 @@ var filePath =''.obs;
     print('Saved image state, imageUndoStack length: ${imageUndoStack.length}');
   }
 
-  void addWidget(Widget sticker, Offset position, var path) {
+  // In image_editor_controller.dart
+
+  // Add a set to track used GlobalKeys
+  final Set<GlobalKey> usedKeys = {};
+
+  void addWidget(Widget widget, Offset position, {dynamic model}) {
+    try {
+      final alignment = Alignment(
+        (position.dx / (canvasWidth.value > 0 ? canvasWidth.value : lastValidCanvasSize?.width ?? 400.0)) * 2 - 1,
+        (position.dy / (canvasHeight.value > 0 ? canvasHeight.value : lastValidCanvasSize?.height ?? 600.0)) * 2 - 1,
+      );
+
+      GlobalKey widgetKey = model?.widgetKey ?? GlobalKey(debugLabel: 'Widget_${DateTime.now().millisecondsSinceEpoch}');
+      if (usedKeys.contains(widgetKey)) {
+        print('Duplicate key detected: $widgetKey, generating new key');
+        widgetKey = GlobalKey(debugLabel: 'Widget_${DateTime.now().millisecondsSinceEpoch}_${widgetList.length}_${Random().nextInt(1000)}');
+      }
+      usedKeys.add(widgetKey);
+
+      // Update model with new key
+      if (model != null) {
+        model.widgetKey = widgetKey;
+      }
+
+      // Use fallback dimensions if canvas size is invalid
+      final maxWidth = canvasWidth.value > 0 ? canvasWidth.value : lastValidCanvasSize?.width ?? 400.0;
+      final maxHeight = canvasHeight.value > 0 ? canvasHeight.value : lastValidCanvasSize?.height ?? 600.0;
+
+      // Wrap child in ConstrainedBox
+      final constrainedWidget = Container(
+        height: 100,
+        width: 100,// Ensure constraints are valid
+        child: widget,
+      );
+
+      final draggableWidget = DraggableWidget(
+        key: widgetKey,
+        icons: controller.icons,
+        position: Alignment.topLeft,
+        borderColor: controller.borderColor,
+        borderWidth: 2.0,
+        showBorders: controller.showBorders,
+        shouldMove: true,
+        shouldRotate: controller.shouldRotate,
+        shouldScale: true,
+        minScale: 0.5,
+        maxScale: 2.0,
+        insidePadding: 8.0,
+        onBorder: (_) {},
+        onDelete: (_) {
+          widgetList.removeWhere((item) => item['key'] == widgetKey);
+          widgetModels.remove(widgetKey);
+          usedKeys.remove(widgetKey);
+          if (model is StickerModel) {
+            stickerController.stickers.remove(model);
+          } else if (model is EditableTextModel) {
+            Get.put(TextEditorControllerWidget(), permanent: true).text.remove(model);
+          }
+        },
+        onLayer: (_) {},
+        child: constrainedWidget,
+      );
+
+      // Wrap DraggableWidget in SizedBox
+      final sizedDraggableWidget = SizedBox(
+        width: maxWidth,
+        height: maxHeight,
+        child: draggableWidget,
+      );
+
+      if (model is EditableTextModel) {
+        controller.add(sizedDraggableWidget, position: alignment);
+        try {
+          final textController = Get.find<TextEditorControllerWidget>();
+          textController.text.add(model);
+        } catch (e) {
+          print('Error accessing TextEditorControllerWidget: $e');
+          Get.put(TextEditorControllerWidget(), permanent: true).text.add(model);
+        }
+        widgetModels[widgetKey] = model;
+        widgetList.add({
+          'widget': controller.widgets.last,
+          'model': model,
+          'key': widgetKey,
+        });
+        print('Added text to widgetList: ${widgetList.length}');
+      }
+      else if (model is StickerModel) {
+        controller.add(sizedDraggableWidget, position: alignment);
+        stickerController.stickers.add(model);
+        widgetModels[widgetKey] = model;
+        widgetList.add({
+          'widget': controller.widgets.last,
+          'model': model,
+          'key': widgetKey,
+        });
+        print('Added sticker to widgetList: ${widgetList.length}');
+      } else {
+        print('Error: Invalid model type');
+        usedKeys.remove(widgetKey);
+        return;
+      }
+
+      undoStack.add(WidgetWithPosition(
+        widget: controller.widgets.last,
+        position: position,
+        globalKey: widgetKey,
+      ));
+      redoStack.clear();
+      print('Added widget at $position, undoStack length: ${undoStack.length}');
+      controller.notifyListeners();
+    } catch (e, stackTrace) {
+      print('Error adding widget: $e');
+      print(stackTrace);
+      usedKeys.remove(model?.widgetKey);
+    }
+  }
+
+  void editWidget(Widget widget, Offset position, {dynamic model}) {
     try {
       final alignment = Alignment(
         (position.dx / canvasWidth.value) * 2 - 1,
         (position.dy / canvasHeight.value) * 2 - 1,
       );
-      final stickerModel = StickerModel(
-        path: path,
-        top: position.dy.obs,
-        left: position.dx.obs,
-        scale: 1.0.obs,
-        rotation: 0.0.obs,
-        isFlipped: false.obs,
-        widgetKey: GlobalKey(),
-      );
-      final widgetKey = GlobalKey();
 
-      // Wrap the sticker widget with a Container and assign the GlobalKey
-      final wrappedSticker = Container(
-        key: GlobalKey(),
-        child: sticker,
-      );
-
-      // Add the widget to the controller
-      controller.add(wrappedSticker, position: alignment);
-
-      // Store the StickerModel in _widgetModels
-      stickerController.stickers.add(stickerModel);
-      widgetModels[widgetKey] = stickerModel;
-
-      final addedWidget = controller.widgets.last;
-      if (addedWidget.key != widgetKey) {
-        debugPrint('Warning: Added widget key differs, forcing GlobalKey');
-        // Update the key if necessary (this may require custom logic in LindiController)
+      final selectedWidget = controller.selectedWidget;
+      if (selectedWidget == null) {
+        print('No widget selected to edit');
+        return;
       }
 
+      final widgetKey = selectedWidget.key as GlobalKey?;
+      if (widgetKey == null) {
+        print('Error: Selected widget has no key');
+        return;
+      }
+
+      selectedWidget.edit(widget);
+
+      dynamic currentModel = model ?? widgetModels[widgetKey];
+      if (currentModel == null) {
+        print('Error: No model found for widget key $widgetKey');
+        return;
+      }
+
+      // Update position in the model
+      if (currentModel is EditableTextModel) {
+        currentModel.left.value = position.dx;
+        currentModel.top.value = position.dy;
+        print('Updated text widget position: (${position.dx}, ${position.dy})');
+      } else if (currentModel is StickerModel) {
+        currentModel.left.value = position.dx;
+        currentModel.top.value = position.dy;
+        print(
+            'Updated sticker widget position: (${position.dx}, ${position.dy})');
+      } else {
+        print('Error: Unknown model type for widget');
+        return;
+      }
+
+      // Update widgetList
+      final index =
+          widgetList.indexWhere((item) => item['widget'].key == widgetKey);
+      if (index != -1) {
+        widgetList[index] = {
+          'widget': selectedWidget,
+          'model': currentModel,
+        };
+      } else {
+        widgetList.add({
+          'widget': selectedWidget,
+          'model': currentModel,
+        });
+      }
+
+      // Add to undo stack
       undoStack.add(WidgetWithPosition(
-        widget: addedWidget,
+        widget: selectedWidget,
         position: position,
         globalKey: widgetKey,
       ));
 
       redoStack.clear();
-      print('Added widget at $position, undoStack length: ${undoStack.length}');
-      print('StickerModel added to _widgetModels, key: $widgetKey');
-      controller.notifyListeners();
-    } catch (e, stackTrace) {
-      print('Error adding widget: $e');
-      print(stackTrace);
-    }
-  }
-
-  void editWidget(Widget sticker, Offset position) {
-    try {
-      final alignment = Alignment(
-        (position.dx / canvasWidth.value) * 2 - 1,
-        (position.dy / canvasHeight.value) * 2 - 1,
-      );
-
-      controller.selectedWidget!.edit(sticker);
-
-      final addedWidget = controller.widgets.last;
-
-      undoStack.add(WidgetWithPosition(
-        widget: addedWidget,
-        position: position,
-        globalKey: GlobalKey(),
-      ));
-
-      redoStack.clear();
-      print('Edited widget at $position, undoStack length: ${undoStack.length}');
+      print(
+          'Edited widget at $position, widgetList length: ${widgetList.length}');
       controller.notifyListeners();
     } catch (e, stackTrace) {
       print('Error editing widget: $e');
@@ -471,10 +591,10 @@ var filePath =''.obs;
       contrast.value = undoneState.contrast ?? 0.0;
       brightness.value = undoneState.brightness ?? 0.0;
 
-      print('Undid image transformation, imageUndoStack length: ${imageUndoStack.length}');
+      print(
+          'Undid image transformation, imageUndoStack length: ${imageUndoStack.length}');
       update();
-    }
-    else if (undoStack.isNotEmpty) {
+    } else if (undoStack.isNotEmpty) {
       try {
         print('Undo called, undoStack length: ${undoStack.length}');
         final undoneWidgetWithPosition = undoStack.removeLast();
@@ -502,9 +622,11 @@ var filePath =''.obs;
             position: currentPosition,
             globalKey: undoneWidgetWithPosition.globalKey,
           ));
-          print('Deleted and re-added widget at index $index, redoStack length: ${redoStack.length}');
+          print(
+              'Deleted and re-added widget at index $index, redoStack length: ${redoStack.length}');
         } else {
-          print('Warning: Widget with key ${undoneWidget.key} not found in controller.widgets');
+          print(
+              'Warning: Widget with key ${undoneWidget.key} not found in controller.widgets');
         }
 
         controller.notifyListeners();
@@ -512,8 +634,7 @@ var filePath =''.obs;
         print('Error during widget undo: $e');
         print(stackTrace);
       }
-    }
-    else {
+    } else {
       controller!.widgets.last.delete();
       print('Nothing to undo');
     }
@@ -540,7 +661,8 @@ var filePath =''.obs;
       contrast.value = redoState.contrast ?? 0.0;
       brightness.value = redoState.brightness ?? 0.0;
 
-      print('Redid image transformation, imageRedoStack length: ${imageRedoStack.length}');
+      print(
+          'Redid image transformation, imageRedoStack length: ${imageRedoStack.length}');
       update();
     } else if (redoStack.isNotEmpty) {
       try {
@@ -574,19 +696,21 @@ var filePath =''.obs;
     }
   }
 
-  void setInitialImage(File image)  {
+  void setInitialImage(File image) {
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-    editedImage.value = image;
-    editedImageBytes.value = null;
+      editedImage.value = image;
+      editedImageBytes.value = null;
 
-    final bytes = await image.readAsBytes();
-    originalImageBytes.value = bytes;
+      final bytes = await image.readAsBytes();
+      originalImageBytes.value = bytes;
 
-    final img.Image? decoded = img.decodeImage(bytes);
-    if (decoded != null) {
-      final img.Image thumb = img.copyResize(decoded, width: 100);
-      thumbnailBytes.value = Uint8List.fromList(img.encodeJpg(thumb));
-    }; });
+      final img.Image? decoded = img.decodeImage(bytes);
+      if (decoded != null) {
+        final img.Image thumb = img.copyResize(decoded, width: 100);
+        thumbnailBytes.value = Uint8List.fromList(img.encodeJpg(thumb));
+      }
+      ;
+    });
   }
 
   void applyPreset(ImagePreset preset) {
@@ -598,7 +722,8 @@ var filePath =''.obs;
       return;
     }
 
-    final img.Image? image = img.decodeImage(editedImage.value.readAsBytesSync());
+    final img.Image? image =
+        img.decodeImage(editedImage.value.readAsBytesSync());
     if (image == null) {
       Get.snackbar("Error", "Failed to decode image");
       return;
@@ -623,10 +748,26 @@ var filePath =''.obs;
     final b = brightness.value * 255 / 100;
 
     return [
-      c, 0, 0, 0, b,
-      0, c, 0, 0, b,
-      0, 0, c, 0, b,
-      0, 0, 0, 1, 0,
+      c,
+      0,
+      0,
+      0,
+      b,
+      0,
+      c,
+      0,
+      0,
+      b,
+      0,
+      0,
+      c,
+      0,
+      b,
+      0,
+      0,
+      0,
+      1,
+      0,
     ];
   }
 
@@ -656,8 +797,10 @@ var filePath =''.obs;
     final Uint8List pixels = resized.getBytes();
     filter.apply(pixels, resized.width, resized.height);
 
-    final img.Image filteredImage = img.Image.fromBytes(resized.width, resized.height, pixels);
-    final Uint8List resultBytes = Uint8List.fromList(img.encodeJpg(filteredImage));
+    final img.Image filteredImage =
+        img.Image.fromBytes(resized.width, resized.height, pixels);
+    final Uint8List resultBytes =
+        Uint8List.fromList(img.encodeJpg(filteredImage));
 
     editedImageBytes.value = resultBytes;
     selectedFilter.value = filter;
@@ -666,7 +809,8 @@ var filePath =''.obs;
   }
 
   void applyTune(double contrast, double brightness) {
-    saveImageState(contrast: this.contrast.value, brightness: this.brightness.value);
+    saveImageState(
+        contrast: this.contrast.value, brightness: this.brightness.value);
 
     this.contrast.value = contrast;
     this.brightness.value = brightness;
@@ -682,7 +826,8 @@ var filePath =''.obs;
       brightness: brightness / 100,
     );
 
-    final Uint8List resultBytes = Uint8List.fromList(img.encodeJpg(adjusted, quality: 80));
+    final Uint8List resultBytes =
+        Uint8List.fromList(img.encodeJpg(adjusted, quality: 80));
     editedImageBytes.value = resultBytes;
     update();
   }
@@ -690,7 +835,8 @@ var filePath =''.obs;
   Future<void> rotateImage() async {
     saveImageState();
 
-    final Uint8List input = editedImageBytes.value ?? await editedImage.value.readAsBytes();
+    final Uint8List input =
+        editedImageBytes.value ?? await editedImage.value.readAsBytes();
 
     final Uint8List? result = await FlutterImageCompress.compressWithList(
       input,
@@ -709,7 +855,8 @@ var filePath =''.obs;
       isFlipping.value = true;
       saveImageState();
 
-      final Uint8List inputBytes = editedImageBytes.value ?? await editedImage.value.readAsBytes();
+      final Uint8List inputBytes =
+          editedImageBytes.value ?? await editedImage.value.readAsBytes();
       final img.Image? original = img.decodeImage(inputBytes);
       if (original == null) {
         print("Failed to decode image");
@@ -720,11 +867,13 @@ var filePath =''.obs;
       final img.Image resized = img.copyResize(original, width: 1080);
       final img.Image flipped = img.flipHorizontal(resized);
 
-      final Uint8List result = Uint8List.fromList(img.encodeJpg(flipped, quality: 80));
+      final Uint8List result =
+          Uint8List.fromList(img.encodeJpg(flipped, quality: 80));
       flippedBytes.value = result;
 
       final tempDir = await getTemporaryDirectory();
-      final path = '${tempDir.path}/mirrored_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path =
+          '${tempDir.path}/mirrored_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final file = File(path);
       await file.writeAsBytes(result);
 
@@ -764,7 +913,8 @@ var filePath =''.obs;
           context,
           MaterialPageRoute(
             builder: (context) => PhotoFilterSelector(
-              title: Text("Apply Filters", style: TextStyle(color: Colors.white)),
+              title:
+                  Text("Apply Filters", style: TextStyle(color: Colors.white)),
               image: image!,
               filters: filters,
               filename: fileName!,
@@ -774,7 +924,8 @@ var filePath =''.obs;
           ),
         );
 
-        if (filteredResult != null && filteredResult.containsKey('image_filtered')) {
+        if (filteredResult != null &&
+            filteredResult.containsKey('image_filtered')) {
           final File filteredFile = filteredResult['image_filtered'];
           final Uint8List resultBytes = await filteredFile.readAsBytes();
           editedImageBytes.value = resultBytes;
@@ -814,13 +965,16 @@ var filePath =''.obs;
                       final filter = filters[index];
                       var isSelected = selectedFilter.value == filter;
 
-                      final img.Image? thumb = img.decodeImage(thumbnailBytes.value!);
+                      final img.Image? thumb =
+                          img.decodeImage(thumbnailBytes.value!);
                       if (thumb == null) return SizedBox();
 
                       final Uint8List thumbPixels = thumb.getBytes();
                       filter.apply(thumbPixels, thumb.width, thumb.height);
-                      final img.Image filteredThumb = img.Image.fromBytes(thumb.width, thumb.height, thumbPixels);
-                      final Uint8List filteredBytes = Uint8List.fromList(img.encodeJpg(filteredThumb));
+                      final img.Image filteredThumb = img.Image.fromBytes(
+                          thumb.width, thumb.height, thumbPixels);
+                      final Uint8List filteredBytes =
+                          Uint8List.fromList(img.encodeJpg(filteredThumb));
 
                       return GestureDetector(
                         onTap: () {
@@ -831,7 +985,9 @@ var filePath =''.obs;
                           children: [
                             Container(
                               decoration: BoxDecoration(
-                                color: isSelected ? Color(ColorConst.primaryColor) : Color(ColorConst.greycontainer),
+                                color: isSelected
+                                    ? Color(ColorConst.primaryColor)
+                                    : Color(ColorConst.greycontainer),
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
@@ -846,7 +1002,10 @@ var filePath =''.obs;
                             SizedBox(height: 10),
                             Text(
                               filter.name,
-                              style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: ui.FontWeight.bold),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: ui.FontWeight.bold),
                             ),
                           ],
                         ),
@@ -869,23 +1028,30 @@ var filePath =''.obs;
                       itemCount: filterCategories.keys.length,
                       separatorBuilder: (_, __) => SizedBox(width: 12),
                       itemBuilder: (context, index) {
-                        final categoryName =   filterCategories.keys.elementAt(index);
+                        final categoryName =
+                            filterCategories.keys.elementAt(index);
                         return ValueListenableBuilder(
                           valueListenable: selectedCategory,
                           builder: (context, value, _) {
                             final isSelected = value == categoryName;
                             return GestureDetector(
-                              onTap: () => selectedCategory.value = categoryName,
+                              onTap: () =>
+                                  selectedCategory.value = categoryName,
                               child: Container(
-                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? Color(ColorConst.primaryColor) : Color(ColorConst.greycontainer),
+                                  color: isSelected
+                                      ? Color(ColorConst.primaryColor)
+                                      : Color(ColorConst.greycontainer),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
                                   categoryName,
                                   style: TextStyle(
-                                    color: isSelected ? Colors.black : Colors.white,
+                                    color: isSelected
+                                        ? Colors.black
+                                        : Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -962,7 +1128,8 @@ var filePath =''.obs;
                   child: SizedBox(
                     height: 120,
                     child: TabBarView(
-                      children: controller.presetCategories.values.map((presets) {
+                      children:
+                          controller.presetCategories.values.map((presets) {
                         return ListView.separated(
                           scrollDirection: Axis.horizontal,
                           padding: EdgeInsets.symmetric(horizontal: 12),
@@ -972,7 +1139,8 @@ var filePath =''.obs;
                             if (index == 0) {
                               return GestureDetector(
                                 onTap: () {
-                                  controller.editedImageBytes.value = controller.originalImageBytes.value;
+                                  controller.editedImageBytes.value =
+                                      controller.originalImageBytes.value;
                                   controller.selectedPreset.value = null;
                                   controller.update();
                                 },
@@ -982,14 +1150,18 @@ var filePath =''.obs;
                                       height: 90,
                                       width: 150,
                                       decoration: BoxDecoration(
-                                        color: Color(ColorConst.defaultcontainer),
+                                        color:
+                                            Color(ColorConst.defaultcontainer),
                                         borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: Colors.transparent),
+                                        border: Border.all(
+                                            color: Colors.transparent),
                                       ),
                                       child: Center(
                                         child: Text(
                                           "Original",
-                                          style: TextStyle(fontSize: 16, color: Colors.white),
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.white),
                                         ),
                                       ),
                                     ),
@@ -999,7 +1171,8 @@ var filePath =''.obs;
                             }
 
                             final preset = presets[index - 1];
-                            final thumbnailBytes = controller.generatePresetThumbnail(preset);
+                            final thumbnailBytes =
+                                controller.generatePresetThumbnail(preset);
                             return GestureDetector(
                               onTap: () {
                                 controller.applyPreset(preset);
@@ -1013,12 +1186,14 @@ var filePath =''.obs;
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(10),
                                       color: Color(ColorConst.defaultcontainer),
-                                      border: Border.all(color: Colors.transparent),
+                                      border:
+                                          Border.all(color: Colors.transparent),
                                     ),
                                     child: Center(
                                       child: Text(
                                         preset.name,
-                                        style: TextStyle(fontSize: 16, color: Colors.white),
+                                        style: TextStyle(
+                                            fontSize: 16, color: Colors.white),
                                       ),
                                     ),
                                   ),
@@ -1039,7 +1214,8 @@ var filePath =''.obs;
                   tabs: controller.presetCategories.keys.map((category) {
                     return Tab(
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: controller.selectedCategory.value == category
                               ? Color(ColorConst.lightpurple)
@@ -1049,7 +1225,9 @@ var filePath =''.obs;
                         child: Text(
                           category,
                           style: TextStyle(
-                            color: controller.selectedCategory.value == category ? Colors.black : Colors.white,
+                            color: controller.selectedCategory.value == category
+                                ? Colors.black
+                                : Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -1058,7 +1236,8 @@ var filePath =''.obs;
                     );
                   }).toList(),
                   onTap: (index) {
-                    controller.selectedCategory.value = controller.presetCategories.keys.elementAt(index);
+                    controller.selectedCategory.value =
+                        controller.presetCategories.keys.elementAt(index);
                     controller.update();
                   },
                 ),
@@ -1106,7 +1285,8 @@ var filePath =''.obs;
     );
   }
 
-  Widget showFilterControlsBottomSheet(BuildContext context, VoidCallback onClose) {
+  Widget showFilterControlsBottomSheet(
+      BuildContext context, VoidCallback onClose) {
     return Container(
       child: FilterControlsWidget(),
     );
@@ -1115,7 +1295,8 @@ var filePath =''.obs;
   Widget buildShapeSelectorSheet() {
     final selectedTabIndex = ValueNotifier<int>(0);
 
-    return ShapeSelectorSheet(controller: controller, shapeCategories: shapeCategories);
+    return ShapeSelectorSheet(
+        controller: controller, shapeCategories: shapeCategories);
   }
 
   Widget buildImageLayerSheet() {
@@ -1152,7 +1333,7 @@ var filePath =''.obs;
             "Mirror Photo",
             Colors.cyan,
             Icons.flip,
-                () async {
+            () async {
               await mirrorImage();
             },
           ),
@@ -1161,7 +1342,7 @@ var filePath =''.obs;
             "Rotate",
             Colors.deepPurpleAccent,
             Icons.rotate_right,
-                () => rotateImage(),
+            () => rotateImage(),
           ),
           SizedBox(height: 20),
           Row(
@@ -1192,7 +1373,8 @@ var filePath =''.obs;
 
                   if (flippedBytes.value != null) {
                     final tempDir = await getTemporaryDirectory();
-                    final path = '${tempDir.path}/confirmed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                    final path =
+                        '${tempDir.path}/confirmed_${DateTime.now().millisecondsSinceEpoch}.jpg';
                     final file = File(path);
                     await file.writeAsBytes(flippedBytes.value!);
 
@@ -1201,7 +1383,8 @@ var filePath =''.obs;
                     flippedBytes.value = null;
                   }
 
-                  Get.toNamed('/ImageEditorScreen', arguments: editedImage.value);
+                  Get.toNamed('/ImageEditorScreen',
+                      arguments: editedImage.value);
                 },
                 child: SizedBox(
                   height: 30,
@@ -1233,9 +1416,10 @@ var filePath =''.obs;
             "Select Image",
             Colors.cyan,
             Icons.flip,
-                () async {
+            () async {
               final ImagePicker picker = ImagePicker();
-              final XFile? photo = await picker.pickImage(source: ImageSource.gallery);
+              final XFile? photo =
+                  await picker.pickImage(source: ImageSource.gallery);
               if (photo != null) {
                 LogoStcikerImage.value = File(photo.path);
                 print('${LogoStcikerImage.value}');
@@ -1247,33 +1431,50 @@ var filePath =''.obs;
                 );
               }
             },
-                (details) async {
+            (details) async {
               final ImagePicker picker = ImagePicker();
-              final XFile? photo = await picker.pickImage(source: ImageSource.gallery);
+              final XFile? photo =
+                  await picker.pickImage(source: ImageSource.gallery);
               if (photo != null) {
                 LogoStcikerImage.value = File(photo.path);
                 print('${LogoStcikerImage.value}');
                 Widget widget = Container(
-                  height:  100,
+                  height: 100,
                   width: 100,
                   padding: EdgeInsets.all(12),
                   child: Image.file(LogoStcikerImage.value),
                 );
                 selectedimagelayer.add(LogoStcikerImage.value);
                 final tapPosition = details.globalPosition;
-                final stickerWidgetBox = LindiStickerWidget.globalKey.currentContext?.findRenderObject() as RenderBox?;
+                final stickerWidgetBox = LindiStickerWidget
+                    .globalKey.currentContext
+                    ?.findRenderObject() as RenderBox?;
                 Alignment initialPosition = Alignment.center;
                 if (stickerWidgetBox != null) {
                   final stickerSize = stickerWidgetBox.size;
-                  final stickerOffset = stickerWidgetBox.localToGlobal(Offset.zero);
-                  final alignmentX = ((tapPosition.dx - stickerOffset.dx) / stickerSize.width) * 2 - 1;
-                  final alignmentY = ((tapPosition.dy - stickerOffset.dy) / stickerSize.height) * 2 - 1;
-                  initialPosition = Alignment(alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
+                  final stickerOffset =
+                      stickerWidgetBox.localToGlobal(Offset.zero);
+                  final alignmentX = ((tapPosition.dx - stickerOffset.dx) /
+                              stickerSize.width) *
+                          2 -
+                      1;
+                  final alignmentY = ((tapPosition.dy - stickerOffset.dy) /
+                              stickerSize.height) *
+                          2 -
+                      1;
+                  initialPosition = Alignment(
+                      alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
                 } else {
-                  print('Warning: LindiStickerWidget.globalKey is null, using default position');
+                  print(
+                      'Warning: LindiStickerWidget.globalKey is null, using default position');
                 }
-                print('Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
-                addWidget(widget, tapPosition,LogoStcikerImage.value);
+                print(
+                    'Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
+                addWidget(
+                  widget,
+                  tapPosition,
+
+                );
               }
             },
           ),
@@ -1282,9 +1483,10 @@ var filePath =''.obs;
             "Change Image",
             Colors.deepPurpleAccent,
             Icons.rotate_right,
-                () async {
+            () async {
               final ImagePicker picker = ImagePicker();
-              final XFile? photo = await picker.pickImage(source: ImageSource.gallery);
+              final XFile? photo =
+                  await picker.pickImage(source: ImageSource.gallery);
               if (photo != null) {
                 LogoStcikerImage.value = File(photo.path);
                 print('${LogoStcikerImage.value}');
@@ -1296,9 +1498,10 @@ var filePath =''.obs;
                 );
               }
             },
-                (details) async {
+            (details) async {
               final ImagePicker picker = ImagePicker();
-              final XFile? photo = await picker.pickImage(source: ImageSource.gallery);
+              final XFile? photo =
+                  await picker.pickImage(source: ImageSource.gallery);
               if (photo != null) {
                 LogoStcikerImage.value = File(photo.path);
                 print('${LogoStcikerImage.value}');
@@ -1310,18 +1513,30 @@ var filePath =''.obs;
                 );
 
                 final tapPosition = details.globalPosition;
-                final stickerWidgetBox = LindiStickerWidget.globalKey.currentContext?.findRenderObject() as RenderBox?;
+                final stickerWidgetBox = LindiStickerWidget
+                    .globalKey.currentContext
+                    ?.findRenderObject() as RenderBox?;
                 Alignment initialPosition = Alignment.center;
                 if (stickerWidgetBox != null) {
                   final stickerSize = stickerWidgetBox.size;
-                  final stickerOffset = stickerWidgetBox.localToGlobal(Offset.zero);
-                  final alignmentX = ((tapPosition.dx - stickerOffset.dx) / stickerSize.width) * 2 - 1;
-                  final alignmentY = ((tapPosition.dy - stickerOffset.dy) / stickerSize.height) * 2 - 1;
-                  initialPosition = Alignment(alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
+                  final stickerOffset =
+                      stickerWidgetBox.localToGlobal(Offset.zero);
+                  final alignmentX = ((tapPosition.dx - stickerOffset.dx) /
+                              stickerSize.width) *
+                          2 -
+                      1;
+                  final alignmentY = ((tapPosition.dy - stickerOffset.dy) /
+                              stickerSize.height) *
+                          2 -
+                      1;
+                  initialPosition = Alignment(
+                      alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
                 } else {
-                  print('Warning: LindiStickerWidget.globalKey is null, using default position');
+                  print(
+                      'Warning: LindiStickerWidget.globalKey is null, using default position');
                 }
-                print('Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
+                print(
+                    'Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
                 editWidget(widget, tapPosition);
               }
             },
@@ -1380,41 +1595,42 @@ var filePath =''.obs;
 
   Widget TuneEditControls() {
     return Obx(() => AnimatedContainer(
-      duration: Duration(seconds: 1),
-      curve: Curves.easeInOut,
-      height: (isBrushSelected.value == true) ? 300 : 250,
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Color(ColorConst.bottomBarcolor),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(40),
-          topRight: Radius.circular(40),
-        ),
-      ),
-      child: TweenAnimationBuilder<double>(
-        tween: Tween<double>(begin: 50.0, end: 0.0),
-        duration: Duration(milliseconds: 400),
-        curve: Curves.easeOut,
-        builder: (context, value, child) {
-          return Opacity(
-            opacity: (50.0 - value) / 50.0,
-            child: Transform.translate(
-              offset: Offset(0, value),
-              child: child,
+          duration: Duration(seconds: 1),
+          curve: Curves.easeInOut,
+          height: (isBrushSelected.value == true) ? 300 : 250,
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Color(ColorConst.bottomBarcolor),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(40),
+              topRight: Radius.circular(40),
             ),
-          );
-        },
-        child: ListView(
-          children: [
-            TuneControlsPanel(
-              onTuneChanged: (double contrast, double brightness) {
-                contrast = contrast;
-                brightness = brightness;              },
+          ),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 50.0, end: 0.0),
+            duration: Duration(milliseconds: 400),
+            curve: Curves.easeOut,
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: (50.0 - value) / 50.0,
+                child: Transform.translate(
+                  offset: Offset(0, value),
+                  child: child,
+                ),
+              );
+            },
+            child: ListView(
+              children: [
+                TuneControlsPanel(
+                  onTuneChanged: (double contrast, double brightness) {
+                    contrast = contrast;
+                    brightness = brightness;
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    ));
+          ),
+        ));
   }
 
   Widget TextEditControls(constraints, imagekey) {
@@ -1428,7 +1644,11 @@ var filePath =''.obs;
           topRight: Radius.circular(20),
         ),
       ),
-      child: TextUIWithTabsScreen(constraints: constraints, imageKey: imagekey,isAddingNewText:  Get.find<TextEditorControllerWidget>().selectedText.value == null,
+      child: TextUIWithTabsScreen(
+        constraints: constraints,
+        imageKey: imagekey,
+        isAddingNewText:
+            Get.find<TextEditorControllerWidget>().selectedText.value == null,
       ),
     );
   }
@@ -1440,44 +1660,58 @@ var filePath =''.obs;
         children: [
           SizedBox(height: 22, child: Image.asset(imagePath)),
           SizedBox(height: 4),
-          Text(label, style: TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'Outfit')),
+          Text(label,
+              style: TextStyle(
+                  color: Colors.white, fontSize: 12, fontFamily: 'Outfit')),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton(String text, Color color, IconData icon, VoidCallback onTap) {
+  Widget _buildActionButton(
+      String text, Color color, IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+            color: color, borderRadius: BorderRadius.circular(10)),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: Colors.white),
             SizedBox(width: 10),
-            Text(text, style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+            Text(text,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCameraButton(String text, Color color, IconData icon, VoidCallback onTap, Function(TapDownDetails) onTapDown) {
+  Widget _buildCameraButton(String text, Color color, IconData icon,
+      VoidCallback onTap, Function(TapDownDetails) onTapDown) {
     return GestureDetector(
       onTap: onTap,
       onTapDown: onTapDown,
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+            color: color, borderRadius: BorderRadius.circular(10)),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(width: 10),
-            Text(text, style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+            Text(text,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -1516,7 +1750,8 @@ var filePath =''.obs;
 
   Future<Uint8List> capturePng() async {
     try {
-      RenderRepaintBoundary? boundary = globalkey.currentContext!.findRenderObject() as RenderRepaintBoundary?;
+      RenderRepaintBoundary? boundary = globalkey.currentContext!
+          .findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) throw Exception("Boundary is null");
 
       await Future.delayed(Duration(milliseconds: 300));
@@ -1524,7 +1759,8 @@ var filePath =''.obs;
       double pixelRatio = ui.window.devicePixelRatio * 2;
 
       ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
 
       if (byteData == null) throw Exception("Failed to get image bytes");
 
@@ -1532,7 +1768,8 @@ var filePath =''.obs;
           ? await getApplicationDocumentsDirectory()
           : (await getExternalStorageDirectory())!;
 
-      File outputFile = File('${dir.path}/${DateTime.now().microsecondsSinceEpoch}.png');
+      File outputFile =
+          File('${dir.path}/${DateTime.now().microsecondsSinceEpoch}.png');
       await outputFile.writeAsBytes(byteData.buffer.asUint8List());
 
       editedImageBytes.value = outputFile.readAsBytesSync();
@@ -1595,7 +1832,8 @@ class FilterControlsWidget extends StatelessWidget {
                   child: SizedBox(
                     height: 120,
                     child: TabBarView(
-                      children: controller.presetCategories.values.map((presets) {
+                      children:
+                          controller.presetCategories.values.map((presets) {
                         return ListView.separated(
                           scrollDirection: Axis.horizontal,
                           padding: EdgeInsets.symmetric(horizontal: 12),
@@ -1605,7 +1843,8 @@ class FilterControlsWidget extends StatelessWidget {
                             if (index == 0) {
                               return GestureDetector(
                                 onTap: () {
-                                  controller.editedImageBytes.value = controller.originalImageBytes.value;
+                                  controller.editedImageBytes.value =
+                                      controller.originalImageBytes.value;
                                   controller.selectedPreset.value = null;
                                   controller.update();
                                 },
@@ -1615,14 +1854,18 @@ class FilterControlsWidget extends StatelessWidget {
                                       height: 90,
                                       width: 150,
                                       decoration: BoxDecoration(
-                                        color: Color(ColorConst.defaultcontainer),
+                                        color:
+                                            Color(ColorConst.defaultcontainer),
                                         borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: Colors.transparent),
+                                        border: Border.all(
+                                            color: Colors.transparent),
                                       ),
                                       child: Center(
                                         child: Text(
                                           "Original",
-                                          style: TextStyle(fontSize: 16, color: Colors.white),
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.white),
                                         ),
                                       ),
                                     ),
@@ -1632,7 +1875,8 @@ class FilterControlsWidget extends StatelessWidget {
                             }
 
                             final preset = presets[index - 1];
-                            final thumbnailBytes = controller.generatePresetThumbnail(preset);
+                            final thumbnailBytes =
+                                controller.generatePresetThumbnail(preset);
                             return GestureDetector(
                               onTap: () {
                                 controller.applyPreset(preset);
@@ -1646,12 +1890,14 @@ class FilterControlsWidget extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(10),
                                       color: Color(ColorConst.defaultcontainer),
-                                      border: Border.all(color: Colors.transparent),
+                                      border:
+                                          Border.all(color: Colors.transparent),
                                     ),
                                     child: Center(
                                       child: Text(
                                         preset.name,
-                                        style: TextStyle(fontSize: 16, color: Colors.white),
+                                        style: TextStyle(
+                                            fontSize: 16, color: Colors.white),
                                       ),
                                     ),
                                   ),
@@ -1672,7 +1918,8 @@ class FilterControlsWidget extends StatelessWidget {
                   tabs: controller.presetCategories.keys.map((category) {
                     return Tab(
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: controller.selectedCategory.value == category
                               ? Color(ColorConst.lightpurple)
@@ -1682,7 +1929,9 @@ class FilterControlsWidget extends StatelessWidget {
                         child: Text(
                           category,
                           style: TextStyle(
-                            color: controller.selectedCategory.value == category ? Colors.black : Colors.white,
+                            color: controller.selectedCategory.value == category
+                                ? Colors.black
+                                : Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -1691,7 +1940,8 @@ class FilterControlsWidget extends StatelessWidget {
                     );
                   }).toList(),
                   onTap: (index) {
-                    controller.selectedCategory.value = controller.presetCategories.keys.elementAt(index);
+                    controller.selectedCategory.value =
+                        controller.presetCategories.keys.elementAt(index);
                     controller.update();
                   },
                 ),
@@ -1739,6 +1989,3 @@ class FilterControlsWidget extends StatelessWidget {
     );
   }
 }
-
-
-
