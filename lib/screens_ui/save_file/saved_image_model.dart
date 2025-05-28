@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       paths,
-      version: 2, // Incremented version for migration
+      version: 4, // Updated version for schema change
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE images (
@@ -35,14 +35,23 @@ class DatabaseHelper {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             state TEXT,
-            filePath TEXT
+            filePath TEXT,
+            previewFilePath TEXT
           )
         ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
-          // Add filePath column to existing templates table
           await db.execute('ALTER TABLE templates ADD COLUMN filePath TEXT');
+        }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE templates ADD COLUMN filteredFilePath TEXT');
+        }
+        if (oldVersion < 4) {
+          // Rename filteredFilePath to previewFilePath or add new column
+          await db.execute('ALTER TABLE templates ADD COLUMN previewFilePath TEXT');
+          // Optional: Migrate data from filteredFilePath to previewFilePath
+          await db.execute('UPDATE templates SET previewFilePath = filteredFilePath');
         }
       },
     );
@@ -51,34 +60,43 @@ class DatabaseHelper {
   Future<void> saveImage(String filePath) async {
     final db = await database;
     await db.insert('images', {'filePath': filePath});
+    print('Saved image to database: $filePath');
   }
 
-  Future<void> saveTemplate(String name, Map<String, dynamic> state, String filePath) async {
+  Future<void> saveTemplate(String name, Map<String, dynamic> state, String filePath, String previewFilePath) async {
     final db = await database;
+    if (!state.containsKey('imagePath') || !state.containsKey('previewFilePath')) {
+      print('Error: state missing imagePath or previewFilePath: $state');
+      throw Exception('Invalid state: missing imagePath or previewFilePath');
+    }
+    final stateJson = jsonEncode(state);
     await db.insert('templates', {
       'name': name,
-      'state': jsonEncode(state),
+      'state': stateJson,
       'filePath': filePath,
+      'previewFilePath': previewFilePath,
     });
-    print('=========after save template=========$state');
+    print('Saved template to database: name=$name, filePath=$filePath, previewFilePath=$previewFilePath, state=$stateJson');
   }
 
   Future<List<Map<String, dynamic>>> getImages() async {
     final db = await database;
-    return await db.query('images');
+    final images = await db.query('images');
+    return images;
   }
 
   Future<List<Map<String, dynamic>>> getTemplates() async {
     final db = await database;
-    return await db.query('templates');
+    final templates = await db.query('templates');
+    return templates;
   }
 
   Future<String?> getImagePathById(int id) async {
     final db = await database;
     final result = await db.query('images', where: 'id = ?', whereArgs: [id]);
-
     if (result.isNotEmpty) {
-      return result.first['filePath'] as String?;
+      final filePath = result.first['filePath'] as String?;
+      return filePath;
     }
     return null;
   }
@@ -90,13 +108,47 @@ class DatabaseHelper {
       final file = File(filePath);
       if (await file.exists()) {
         await file.delete();
+        print('Deleted image file: $filePath');
       }
     }
     await db.delete('images', where: 'id = ?', whereArgs: [id]);
+    print('Deleted image from database: id=$id');
+  }
+
+  Future<void> deleteTemplate(int id) async {
+    final db = await database;
+    final result = await db.query('templates', where: 'id = ?', whereArgs: [id]);
+    if (result.isNotEmpty) {
+      final template = result.first;
+      final filePath = template['filePath'] as String?;
+      final previewFile  = template['previewFilePath'] as String?;
+
+      final filteredFilePath = template['filteredFilePath'] as String?;
+      if (filePath != null) {
+        final file = File(filePath);
+        if (await file.exists()) {
+          await file.delete();
+          print('Deleted original image file: $filePath');
+        }
+      }
+      if (previewFile != null) {
+        final preview = File(previewFile);
+        if (await preview.exists()) {
+          await preview.delete();
+          print('Deleted preview image file: $previewFile');
+        }
+      }
+    }
+    await db.delete('templates', where: 'id = ?', whereArgs: [id]);
+    print('Deleted template from database: id=$id');
   }
 
   Future<void> close() async {
     final db = await database;
     await db.close();
+    print('Database closed');
+    _database = null;
   }
 }
+
+

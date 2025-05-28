@@ -21,57 +21,66 @@ class SavedImagesScreen extends StatelessWidget {
         ),
       ),
       backgroundColor: Colors.black,
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: dbHelper.getTemplates(), // Fetch only templates
+      body:  FutureBuilder<List<Map<String, dynamic>>>(
+        future: dbHelper.getTemplates(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.white)));
+            print('Error loading templates: ${snapshot.error}');
+            return const Center(child: Text('Error loading templates'));
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text('No templates found', style: TextStyle(color: Colors.white)));
+            print('No templates found');
+            return const Center(child: Text('No templates found'));
           }
-
           final templates = snapshot.data!;
-
-          return GridView.builder(
-            padding: EdgeInsets.all(16),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.0, // Square tiles for images
-            ),
-            itemCount: templates.length,
-            itemBuilder: (context, index) {
-              final template = templates[index];
-              final templateState = jsonDecode(template['state']) as Map<String, dynamic>;
-
-              return GestureDetector(
-                onTap: () {
-                  print('=====state=======${templateState}');
-                  Get.to(() => ImageEditorScreen(), arguments: templateState); // Pass full template state
-                },
-                child: Card(
-                  color: Colors.grey[900],
-                  clipBehavior: Clip.antiAlias, // Prevent image overflow
-                  child: Image.file(
-                    File(template['filePath'] as String? ?? ''),
+          return Expanded(
+            child: ListView.builder(
+              itemCount: templates.length,
+              itemBuilder: (context, index) {
+                final template = templates[index];
+                final Map<String, dynamic> state = jsonDecode(template['state']);
+                final String displayImagePath = template['previewFilePath'];
+                return ListTile(
+                  leading: displayImagePath.isNotEmpty && File(displayImagePath).existsSync()
+                      ? Image.file(
+                    File(displayImagePath),
+                    width: 50,
+                    height: 50,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.broken_image,
-                      color: Colors.white,
-                      size: 50,
-                    ),
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error loading image: $displayImagePath, error: $error');
+                      return const Icon(Icons.broken_image);
+                    },
+                  )
+                      : const Icon(Icons.image_not_supported),
+                  title: Text(template['name']),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () async {
+                      try {
+                        await dbHelper.deleteTemplate(template['id']);
+                        print('Deleted template: ${template['name']}');
+                        (context as Element).markNeedsBuild();
+                      } catch (e) {
+                        print('Error deleting template: $e');
+                        Get.snackbar('Error', 'Failed to delete template: $e');
+                      }
+                    },
                   ),
-                ),
-              );
-            },
+                  onTap: () {
+                    print('Loading template: ${template['name']}');
+                    Get.to(() => ImageEditorScreen(), arguments: state);
+                  },
+                );
+              },
+            ),
           );
         },
       ),
     );
   }
 }
+

@@ -111,7 +111,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
         color: newTextModel.backgroundColor.value,
         borderRadius:  BorderRadius.all(Radius.circular(20)),
       ),
-      constraints:  BoxConstraints(minWidth: 50, minHeight: 20),
+      // constraints:  BoxConstraints(minWidth: 50, minHeight: 20),
       child: Transform(
         transform: Matrix4.identity()
           ..rotateZ(newTextModel.rotation.value)

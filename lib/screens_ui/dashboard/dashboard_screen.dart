@@ -142,18 +142,19 @@ class DashboardScreen extends StatelessWidget {
                       itemCount: templates.length,
                       itemBuilder: (context, index) {
                         final template = templates[index];
-                        final templateState = jsonDecode(template['state']) as Map<String, dynamic>;
-                    
+                        final Map<String, dynamic> state = jsonDecode(template['state']);
+                        final String displayImagePath = template['previewFilePath'];
+
                         return GestureDetector(
                           onTap: () {
-                            print('=====state=======${templateState}');
-                            Get.to(() => ImageEditorScreen(), arguments: templateState); // Pass full template state
+                            print('=====state=======${displayImagePath}');
+                            Get.to(() => ImageEditorScreen(), arguments: state); // Pass full template state
                           },
                           child: Card(
                             color: Colors.grey[900],
                             clipBehavior: Clip.antiAlias, // Prevent image overflow
                             child: Image.file(
-                              File(template['filePath'] as String? ?? ''),
+                              File(displayImagePath as String? ?? ''),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) => Icon(
                                 Icons.broken_image,

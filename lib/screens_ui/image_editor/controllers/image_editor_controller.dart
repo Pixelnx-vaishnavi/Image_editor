@@ -385,11 +385,15 @@ class ImageEditorController extends GetxController {
 
   void addWidget(Widget widget, Offset position, {dynamic model}) {
     try {
+      // Calculate alignment based on canvas size
+      final maxWidth = canvasWidth.value > 0 ? canvasWidth.value : lastValidCanvasSize?.width ?? 400.0;
+      final maxHeight = canvasHeight.value > 0 ? canvasHeight.value : lastValidCanvasSize?.height ?? 600.0;
       final alignment = Alignment(
-        (position.dx / (canvasWidth.value > 0 ? canvasWidth.value : lastValidCanvasSize?.width ?? 400.0)) * 2 - 1,
-        (position.dy / (canvasHeight.value > 0 ? canvasHeight.value : lastValidCanvasSize?.height ?? 600.0)) * 2 - 1,
+        (position.dx / maxWidth) * 2 - 1,
+        (position.dy / maxHeight) * 2 - 1,
       );
 
+      // Generate unique key
       GlobalKey widgetKey = model?.widgetKey ?? GlobalKey(debugLabel: 'Widget_${DateTime.now().millisecondsSinceEpoch}');
       if (usedKeys.contains(widgetKey)) {
         print('Duplicate key detected: $widgetKey, generating new key');
@@ -397,22 +401,30 @@ class ImageEditorController extends GetxController {
       }
       usedKeys.add(widgetKey);
 
+      // Handle image file case (no model provided, widget contains Image.file)
+      if (model == null && widget is Container && widget.child is Image) {
+        final imageWidget = widget.child as Image;
+        if (imageWidget.image is FileImage) {
+          final filePath = (imageWidget.image as FileImage).file.path;
+          model = StickerModel(
+            path: filePath,
+            top: position.dy,
+            left: position.dx,
+            scale: 1.0,
+            rotation: 0.0,
+            isFlipped: RxBool(false),
+            widgetKey: widgetKey,
+          );
+          print('Created StickerModel for image: $filePath at position: (${position.dx}, ${position.dy})');
+        }
+      }
+
       // Update model with new key
       if (model != null) {
         model.widgetKey = widgetKey;
       }
 
-      // Use fallback dimensions if canvas size is invalid
-      final maxWidth = canvasWidth.value > 0 ? canvasWidth.value : lastValidCanvasSize?.width ?? 400.0;
-      final maxHeight = canvasHeight.value > 0 ? canvasHeight.value : lastValidCanvasSize?.height ?? 600.0;
-
-      // Wrap child in ConstrainedBox
-      final constrainedWidget = Container(
-        height: 100,
-        width: 100,// Ensure constraints are valid
-        child: widget,
-      );
-
+      // Create DraggableWidget
       final draggableWidget = DraggableWidget(
         key: widgetKey,
         icons: controller.icons,
@@ -438,16 +450,17 @@ class ImageEditorController extends GetxController {
           }
         },
         onLayer: (_) {},
-        child: constrainedWidget,
+        child: widget, // Use input widget directly, no ConstrainedBox
       );
 
-      // Wrap DraggableWidget in SizedBox
+      // Wrap DraggableWidget in SizedBox to define draggable area
       final sizedDraggableWidget = SizedBox(
         width: maxWidth,
         height: maxHeight,
         child: draggableWidget,
       );
 
+      // Add widget based on model type
       if (model is EditableTextModel) {
         controller.add(sizedDraggableWidget, position: alignment);
         try {
@@ -464,8 +477,7 @@ class ImageEditorController extends GetxController {
           'key': widgetKey,
         });
         print('Added text to widgetList: ${widgetList.length}');
-      }
-      else if (model is StickerModel) {
+      } else if (model is StickerModel) {
         controller.add(sizedDraggableWidget, position: alignment);
         stickerController.stickers.add(model);
         widgetModels[widgetKey] = model;
@@ -476,11 +488,12 @@ class ImageEditorController extends GetxController {
         });
         print('Added sticker to widgetList: ${widgetList.length}');
       } else {
-        print('Error: Invalid model type');
+        print('Error: Invalid model type or no model provided');
         usedKeys.remove(widgetKey);
         return;
       }
 
+      // Update undo stack
       undoStack.add(WidgetWithPosition(
         widget: controller.widgets.last,
         position: position,
@@ -696,11 +709,11 @@ class ImageEditorController extends GetxController {
     }
   }
 
-  void setInitialImage(File image) {
+   setInitialImage(File image) {
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       editedImage.value = image;
       editedImageBytes.value = null;
-
+print('======Called while load state==========');
       final bytes = await image.readAsBytes();
       originalImageBytes.value = bytes;
 
@@ -713,7 +726,7 @@ class ImageEditorController extends GetxController {
     });
   }
 
-  void applyPreset(ImagePreset preset) {
+   applyPreset(ImagePreset preset) {
     saveImageState(preset: selectedPreset.value);
 
     selectedPreset.value = preset;
@@ -778,7 +791,7 @@ class ImageEditorController extends GetxController {
     }
   }
 
-  void applyFullResolutionFilter(Filter filter) {
+   applyFullResolutionFilter(Filter filter) {
     isFlipping.value = true;
     saveImageState(filter: selectedFilter.value);
 
@@ -963,10 +976,9 @@ class ImageEditorController extends GetxController {
                     separatorBuilder: (_, __) => SizedBox(width: 12),
                     itemBuilder: (context, index) {
                       final filter = filters[index];
-                      var isSelected = selectedFilter.value == filter;
+                      final isSelected = selectedFilter.value?.name == filter.name; // Highlight selected filter
 
-                      final img.Image? thumb =
-                          img.decodeImage(thumbnailBytes.value!);
+                      final img.Image? thumb = img.decodeImage(thumbnailBytes.value!);
                       if (thumb == null) return SizedBox();
 
                       final Uint8List thumbPixels = thumb.getBytes();
@@ -974,11 +986,10 @@ class ImageEditorController extends GetxController {
                       final img.Image filteredThumb = img.Image.fromBytes(
                           thumb.width, thumb.height, thumbPixels);
                       final Uint8List filteredBytes =
-                          Uint8List.fromList(img.encodeJpg(filteredThumb));
+                      Uint8List.fromList(img.encodeJpg(filteredThumb));
 
                       return GestureDetector(
                         onTap: () {
-                          isSelected = true;
                           applyFullResolutionFilter(filter);
                         },
                         child: Column(
@@ -988,6 +999,9 @@ class ImageEditorController extends GetxController {
                                 color: isSelected
                                     ? Color(ColorConst.primaryColor)
                                     : Color(ColorConst.greycontainer),
+                                border: isSelected
+                                    ? Border.all(color: Colors.white, width: 2)
+                                    : null,
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
@@ -1003,9 +1017,10 @@ class ImageEditorController extends GetxController {
                             Text(
                               filter.name,
                               style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  fontWeight: ui.FontWeight.bold),
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              ),
                             ),
                           ],
                         ),
@@ -1028,18 +1043,15 @@ class ImageEditorController extends GetxController {
                       itemCount: filterCategories.keys.length,
                       separatorBuilder: (_, __) => SizedBox(width: 12),
                       itemBuilder: (context, index) {
-                        final categoryName =
-                            filterCategories.keys.elementAt(index);
+                        final categoryName = filterCategories.keys.elementAt(index);
                         return ValueListenableBuilder(
                           valueListenable: selectedCategory,
                           builder: (context, value, _) {
                             final isSelected = value == categoryName;
                             return GestureDetector(
-                              onTap: () =>
-                                  selectedCategory.value = categoryName,
+                              onTap: () => selectedCategory.value = categoryName,
                               child: Container(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? Color(ColorConst.primaryColor)
@@ -1049,9 +1061,7 @@ class ImageEditorController extends GetxController {
                                 child: Text(
                                   categoryName,
                                   style: TextStyle(
-                                    color: isSelected
-                                        ? Colors.black
-                                        : Colors.white,
+                                    color: isSelected ? Colors.black : Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
