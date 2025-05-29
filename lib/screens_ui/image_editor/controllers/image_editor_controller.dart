@@ -78,7 +78,7 @@ class ImageEditorController extends GetxController {
   Rxn<img.Image> decodedImage = Rxn<img.Image>();
   RxString imagePath = ''.obs;
   Size? lastValidCanvasSize;
-
+  bool isBottomSheetOpen = false; // Add this flag
   var contrast = 0.0.obs;
   var xvalue = 0.0.obs;
   var yvalue = 0.0.obs;
@@ -1076,6 +1076,9 @@ print('======Called while load state==========');
               ],
             ),
           ),
+          SizedBox(height: 20),
+          Divider(color: Colors.grey.shade600,),
+          SizedBox(height: 20),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 18, vertical: 22),
             child: Row(
@@ -1355,6 +1358,8 @@ print('======Called while load state==========');
             () => rotateImage(),
           ),
           SizedBox(height: 20),
+          Divider(color: Colors.grey.shade600,),
+          SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1552,6 +1557,9 @@ print('======Called while load state==========');
             },
           ),
           SizedBox(height: 20),
+          Divider(color: Colors.grey.shade600,),
+          SizedBox(height: 20),
+
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1643,9 +1651,40 @@ print('======Called while load state==========');
         ));
   }
 
-  Widget TextEditControls(constraints, imagekey) {
+  void showTextEditorBottomSheet(BoxConstraints constraints, GlobalKey imageKey, BuildContext context) {
+
+      Get.bottomSheet(
+        Container(
+          height: 450, // Fixed height for the bottom sheet
+          padding: EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: Color(ColorConst.bottomBarcolor),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: TextUIWithTabsScreen(
+            constraints: constraints,
+            imageKey: imageKey,
+            isAddingNewText:
+                Get.find<TextEditorControllerWidget>().selectedText.value ==
+                    null,
+          ),
+        ),
+        isScrollControlled: false,
+        backgroundColor: Colors.transparent,
+        isDismissible: true,
+        enableDrag: false,
+      ).then((_) {
+        TextEditOptions.value = false;
+      });
+
+  }
+
+  Widget TextEditControls(constraints, imagekey,context) {
     return Container(
-      height: 340,
+      height: MediaQuery.sizeOf(context).height,
       padding: EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: Color(ColorConst.bottomBarcolor),
@@ -1955,6 +1994,9 @@ class FilterControlsWidget extends StatelessWidget {
                     controller.update();
                   },
                 ),
+                SizedBox(height: 20),
+                Divider(color: Colors.grey.shade600,),
+                SizedBox(height: 20),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 18, vertical: 22),
                   child: Row(

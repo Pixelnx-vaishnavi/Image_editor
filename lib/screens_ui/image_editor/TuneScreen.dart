@@ -44,16 +44,16 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
               children: [
                 _toggleButton("All", !_controller.isBrushSelected.value, Icon(Icons.grid_view_outlined, color: Colors.white, size: 15)),
                 SizedBox(width: 8),
-                _toggleButton("Brush", _controller.isBrushSelected.value, Icon(Icons.brush, color: Colors.white, size: 15)),
+                // _toggleButton("Brush", _controller.isBrushSelected.value, Icon(Icons.brush, color: Colors.white, size: 15)),
               ],
             ),
             SizedBox(height: 20),
             // Show sliders based on the selection
-            if (_controller.isBrushSelected.value) ...[
-              _buildSlider("Brush size", brushSize, 0, 100, (v) {
-                setState(() => brushSize = v);
-              }),
-            ],
+            // if (_controller.isBrushSelected.value) ...[
+            //   _buildSlider("Brush size", brushSize, 0, 100, (v) {
+            //     setState(() => brushSize = v);
+            //   }),
+            // ],
             _buildSlider("Contrast", _controller.contrast.value, -100, 100, (v) {
               setState(() {
                 _controller.contrast.value = v;
@@ -66,6 +66,8 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
                 _updateTune();
               });
             }),
+            SizedBox(height: 20),
+            Divider(color: Colors.grey.shade600,),
             SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -90,7 +92,7 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
                 //     _controller.showtuneOptions.value = false;
                 //   });
                 // }),
-                Text("Tune", style: TextStyle(color: Colors.white)),
+                Text("Tune", style: TextStyle(color: Colors.white,fontSize: 15,fontWeight: FontWeight.bold)),
                 GestureDetector(
                   onTap: () async {
     _controller.showtuneOptions.value = false;

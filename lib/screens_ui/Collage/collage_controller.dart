@@ -9,6 +9,7 @@ import 'package:image_collage_widget/image_collage_widget.dart';
 import 'package:image_collage_widget/utils/collage_type.dart';
 import 'package:image_collage_widget/model/images.dart';
 import 'package:image_editor/Const/color_const.dart';
+import 'package:image_editor/Const/routes_const.dart';
 import 'package:image_editor/screens_ui/Collage/collage_controller.dart';
 import 'package:image_editor/screens_ui/Collage/collage_sample.dart';
 import 'package:image_editor/screens_ui/Collage/sample.dart';
@@ -70,7 +71,7 @@ class CollageController extends GetxController {
     return Container(
       height: 550,
       decoration: BoxDecoration(
-        color: Color(ColorConst.bottomBarcolor),
+        color: Colors.grey,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.only(left: 8, right: 8),
@@ -187,6 +188,7 @@ class CollageController extends GetxController {
             selectCollageType(type);
           },
           style: ElevatedButton.styleFrom(
+
             backgroundColor: selectedCollageType.value == type
                 ? Color(ColorConst.lightpurple)
                 : Color(ColorConst.greycontainer),
@@ -203,8 +205,8 @@ class CollageController extends GetxController {
   Future<Uint8List> _capturePng() async {
     try {
       Directory dir;
-      RenderRepaintBoundary? boundary = collageKey.currentContext!
-          .findRenderObject() as RenderRepaintBoundary?;
+
+      RenderRepaintBoundary? boundary = collageKey.currentContext!.findRenderObject() as RenderRepaintBoundary?;
       await Future.delayed(Duration(milliseconds: 1000));
       if (Platform.isIOS) {
         dir = await getApplicationDocumentsDirectory();
@@ -213,20 +215,17 @@ class CollageController extends GetxController {
       }
       var image = await boundary?.toImage();
       var byteData = await image?.toByteData(format: ui.ImageByteFormat.png);
-      selectedfile.value =
-          File('${dir.path}/${DateTime.now().microsecondsSinceEpoch}.png');
+      selectedfile.value = File('${dir.path}/${DateTime.now().microsecondsSinceEpoch}.png');
       await selectedfile.value!.writeAsBytes(byteData!.buffer.asUint8List());
 
-      Get.to(
-        () => CollageSample(selectedCollageType.value, selectedfile.value!),
-        transition: Transition.fade,
-      );
-      // imagecontroller.editedImageBytes.value = selectedfile.value!.readAsBytesSync();
-      // imagecontroller.editedImage.value = selectedfile.value!;
-      // showCollageOption.value = false;
+      imagecontroller.editedImageBytes.value = selectedfile.value!.readAsBytesSync();
+      imagecontroller.editedImage.value = selectedfile.value!;
+      showCollageOption.value = false;
+      Get.toNamed(Consts.ImageEditorScreen, arguments: selectedfile.value);
+
       return byteData.buffer.asUint8List();
     } catch (e) {
-      print("Capture Image Exception Main : $e");
+      print("Capture Image Exception Main: $e");
       throw Exception();
     }
   }
@@ -590,11 +589,11 @@ class TemplateController extends GetxController {
         return Container(
           height: 550,
           decoration: BoxDecoration(
-            color: Color(ColorConst.bottomBarcolor),
+            color: Colors.grey,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           padding: EdgeInsets.symmetric(horizontal: 8),
-          margin: EdgeInsets.only(bottom: 10, top: 10),
+          margin: EdgeInsets.only(bottom: 20, top: 10),
           child: Column(
             children: [
               Expanded(
@@ -727,27 +726,59 @@ class TemplateController extends GetxController {
                           controller.selectTemplate(template);
                         },
                         child: Container(
-                          margin: EdgeInsets.symmetric(horizontal: 8),
-                          width: 120,
+                          margin: EdgeInsets.symmetric(horizontal: 3),
+                          width: 110,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                  controller.selectedTemplate == template
-                                      ? Color(ColorConst.lightpurple)
-                                      : Color(ColorConst.greycontainer),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  controller.selectTemplate(template);
-                                },
-                                child: Text(template.name.value),
-                              ),
+                            Container(
+                            height: 44.0,
+                            decoration: BoxDecoration(
+                              border: Border.all(color:
+                                   controller.selectedTemplate == template
+                                  ? Color(ColorConst.lightpurple)
+                                 : Colors.transparent,),
+                              borderRadius: BorderRadius.circular(10),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Color(ColorConst.skyBlue),
+                                  Color(ColorConst.lightpurple),
+                                ],
+                              )),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                controller.selectTemplate(template);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent),
+                              child: Text(template.name.value,style: TextStyle(fontSize: 10),),
+                            ),
+                          ),
+
+                              // Container(
+                              //   decoration: BoxDecoration(
+                              //       gradient: LinearGradient(
+                              //           colors: [Color.fromARGB(255, 2, 173, 102), Colors.blue])),
+                              //   child: ElevatedButton(
+                              //     style: ElevatedButton.styleFrom(
+                              //       backgroundColor: Colors.transparent,
+                              //       // controller.selectedTemplate == template
+                              //       //     ? Color(ColorConst.lightpurple)
+                              //       //     : Color(ColorConst.greycontainer),
+                              //       // foregroundColor: Colors.white,
+                              //       shape: RoundedRectangleBorder(
+                              //         borderRadius: BorderRadius.circular(8),
+                              //       ),
+                              //     ),
+                              //     onPressed: () {
+                              //       controller.selectTemplate(template);
+                              //     },
+                              //     child: Text(template.name.value),
+                              //   ),
+                              // ),
                             ],
                           ),
                         ),
@@ -858,7 +889,8 @@ class TemplateController extends GetxController {
       selectedfile.value = outputFile;
       imagecontroller.editedImageBytes.value = outputFile.readAsBytesSync();
       imagecontroller.editedImage.value = outputFile;
-      collageController.showCollageOption.value = false;
+      // collageController.showCollageOption.value = false;
+      Get.toNamed(Consts.ImageEditorScreen, arguments: outputFile);
 
       return byteData.buffer.asUint8List();
     } catch (e) {

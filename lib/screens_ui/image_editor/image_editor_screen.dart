@@ -239,6 +239,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
   @override
   void dispose() {
+    _controller.isBottomSheetOpen = false; // Reset the flag
     _controller.controller.widgets.clear();
     _controller.widgetModels.clear();
     _controller.widgetList.clear();
@@ -1046,6 +1047,12 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             return Obx(() {
               final Uint8List? editedMemoryImage = _controller.editedImageBytes.value;
               final File? editedFileImage = _controller.editedImage.value;
+              if (_controller.TextEditOptions.value && !_controller.isBottomSheetOpen) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _controller.isBottomSheetOpen = true;
+                  _controller.showTextEditorBottomSheet(constraints, _controller.imageKey, context);
+                });
+              }
               return Stack(
                 children: [
                   Container(
@@ -1098,45 +1105,47 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                                                 offset: _controller.offset.value,
                                                 child: Transform.scale(
                                                   scale: _controller.scale.value,
-                                                  child: Container(
-                                                    key: _controller.imageKey,
-                                                    child: ColorFiltered(
-                                                      colorFilter: ColorFilter.matrix(
-                                                        _controller.calculateColorMatrix(),
-                                                      ),
-                                                      child: editedMemoryImage != null
-                                                          ? Image.memory(
-                                                        editedMemoryImage,
-                                                        fit: BoxFit.contain,
-                                                      )
-                                                          : (editedFileImage != null && editedFileImage.path.isNotEmpty
-                                                          ? Image.file(
-                                                        editedFileImage,
-                                                        fit: BoxFit.contain,
-                                                        errorBuilder: (context, error, stackTrace) => Text(
-                                                          "Error loading image",
-                                                          style: TextStyle(color: Colors.white),
+                                                  child: Center(
+                                                    child: Container(
+                                                      key: _controller.imageKey,
+                                                      child: ColorFiltered(
+                                                        colorFilter: ColorFilter.matrix(
+                                                          _controller.calculateColorMatrix(),
                                                         ),
-                                                      )
-                                                          : (memoryImage != null
-                                                          ? Image.memory(
-                                                        memoryImage,
-                                                        fit: BoxFit.contain,
-                                                      )
-                                                          : (fileImage != null && fileImage.path.isNotEmpty
-                                                          ? Image.file(
-                                                        fileImage,
-                                                        fit: BoxFit.contain,
-                                                        errorBuilder: (context, error, stackTrace) =>
-                                                            Text(
-                                                              "Error loading image",
-                                                              style: TextStyle(color: Colors.white),
-                                                            ),
-                                                      )
-                                                          : Text(
-                                                        "No image loaded",
-                                                        style: TextStyle(color: Colors.white),
-                                                      )))),
+                                                        child: editedMemoryImage != null
+                                                            ? Image.memory(
+                                                          editedMemoryImage,
+                                                          fit: BoxFit.contain,
+                                                        )
+                                                            : (editedFileImage != null && editedFileImage.path.isNotEmpty
+                                                            ? Image.file(
+                                                          editedFileImage,
+                                                          fit: BoxFit.contain,
+                                                          errorBuilder: (context, error, stackTrace) => Text(
+                                                            "Error loading image",
+                                                            style: TextStyle(color: Colors.white),
+                                                          ),
+                                                        )
+                                                            : (memoryImage != null
+                                                            ? Image.memory(
+                                                          memoryImage,
+                                                          fit: BoxFit.contain,
+                                                        )
+                                                            : (fileImage != null && fileImage.path.isNotEmpty
+                                                            ? Image.file(
+                                                          fileImage,
+                                                          fit: BoxFit.contain,
+                                                          errorBuilder: (context, error, stackTrace) =>
+                                                              Text(
+                                                                "Error loading image",
+                                                                style: TextStyle(color: Colors.white),
+                                                              ),
+                                                        )
+                                                            : Text(
+                                                          "No image loaded",
+                                                          style: TextStyle(color: Colors.white),
+                                                        )))),
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
@@ -1171,15 +1180,11 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                           ),
                         if (_controller.showImageLayer.value) _controller.buildImageLayerSheet(),
                         if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
-                        if (_controller.TextEditOptions.value)
-                          Flexible(
-                            child: SingleChildScrollView(
-                              child: _controller.TextEditControls(constraints, _controller.imageKey),
-                            ),
-                          ),
+                        // if (_controller.TextEditOptions.value)
+                        //   _controller.showTextEditorBottomSheet(constraints, _controller.imageKey,context),
                         if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
-                        if (collageController.showCollageOption.value)
-                          collageTemplateController.openTemplatePickerBottomSheet(),
+                        // if (collageController.showCollageOption.value)
+                        //   collageTemplateController.openTemplatePickerBottomSheet(),
                         if (_controller.showFilterEditOptions.value)
                           _controller.buildFilterControlsSheet(onClose: () {
                             _controller.showFilterEditOptions.value = false;
@@ -1255,10 +1260,10 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             _controller.buildToolButton('Sticker', 'assets/elements.png', () {
               _controller.showStickerEditOptions.value = true;
             }),
-            SizedBox(width: 40),
-            _controller.buildToolButton('Collage', 'assets/collage.png', () {
-              collageController.showCollageOption.value = true;
-            }),
+            // SizedBox(width: 40),
+            // _controller.buildToolButton('Collage', 'assets/collage.png', () {
+            //   collageController.showCollageOption.value = true;
+            // }),
             SizedBox(width: 40),
             _controller.buildToolButton('Presets', 'assets/presets.png', () {
               _controller.showPresetsEditOptions.value = true;

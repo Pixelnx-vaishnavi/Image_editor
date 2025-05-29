@@ -284,15 +284,15 @@ class TextUIWithTabsScreen extends StatelessWidget {
         body: Stack(
           children: [
             SafeArea(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: EdgeInsets.all(10.0),
+              child: Padding(
+                padding: EdgeInsets.only(top: 5,right: 10,left: 10,bottom: 20),
+                child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Obx(() {
                         final selectedText = textController.selectedText.value;
-
+                  
                         if (!isAddingNewText && selectedTextModel != null && selectedText != selectedTextModel) {
                           textController.selectText(selectedTextModel!);
                           _controller.textController.value.text = selectedTextModel!.text.value;
@@ -308,7 +308,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                           print('No selected text, initialized TextField with empty text');
                         }
                         return TextFormField(
-
+                  
                           undoController: _controller.undoController.value,
                           focusNode: _textFocusNode,
                           onTap: () {
@@ -321,96 +321,96 @@ class TextUIWithTabsScreen extends StatelessWidget {
                             }
                             print('TextFormField tapped, isSelectingText: ${_controller.isSelectingText.value}');
                           },
-
+                  
                           onFieldSubmitted: (value) {
-    if (_isSelectingFont.value) {
-    print('OK blocked: Font selection in progress');
-    return;
-    }
-    print('OK pressed, saving text: ${_controller.textController.value.text}');
-    _debounceTimer?.cancel();
-    _unfocus();
-
-    final text = _controller.textController.value.text;
-    if (!isAddingNewText && selectedTextModel != null) {
-    // Update existing text model
-    textController.selectText(selectedTextModel!);
-    textController.updateText(text);
-
-    if (selectedTextModel!.widgetKey == null) {
-    print('Error: widgetKey is null for selectedTextModel');
-    return;
-    }
-
-    final updatedWidget = Container(
-    key: selectedTextModel!.widgetKey,
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-    color: selectedTextModel!.backgroundColor.value,
-    borderRadius: const BorderRadius.all(Radius.circular(20)),
-    ),
-    constraints: const BoxConstraints(minWidth: 50, minHeight: 20),
-    child: Transform(
-    transform: Matrix4.identity()
-    ..rotateZ(selectedTextModel!.rotation.value)
-    ..scale(selectedTextModel!.isFlippedHorizontally.value ? -1.0 : 1.0, 1.0),
-    alignment: Alignment.center,
-    child: Text(
-    value,
-    style: GoogleFonts.getFont(
-    selectedTextModel!.fontFamily.value,
-    fontSize: selectedTextModel!.fontSize.value.toDouble(),
-    color: selectedTextModel!.textColor.value.withOpacity(selectedTextModel!.opacity.value),
-    fontWeight: selectedTextModel!.isBold.value ? FontWeight.bold : FontWeight.normal,
-    fontStyle: selectedTextModel!.isItalic.value ? FontStyle.italic : FontStyle.normal,
-    decoration: selectedTextModel!.isUnderline.value
-    ? TextDecoration.underline
-        : (selectedTextModel!.isStrikethrough.value ? TextDecoration.lineThrough : null),
-    shadows: [
-    Shadow(
-    blurRadius: selectedTextModel!.shadowBlur.value,
-    color: selectedTextModel!.shadowColor.value,
-    offset: Offset(
-    selectedTextModel!.shadowOffsetX.value,
-    selectedTextModel!.shadowOffsetY.value,
-    ),
-    ),
-    ],
-    ),
-    textAlign: selectedTextModel!.textAlign.value,
-    ),
-    ),
-    );
-
-    try {
-    _controller.editWidget(
-    updatedWidget,
-    Offset(selectedTextModel!.left.value, selectedTextModel!.top.value),
-    );
-    print('Updated selectedTextModel: ${selectedTextModel!.text.value}');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-    // Close TextUIWithTabsScreen
-    });
-    }
-    catch (e, stackTrace) {
-    print('Error updating text model: $e');
-    print(stackTrace);
-    }
-    }
-    else if (isAddingNewText && text.isNotEmpty) {
-    _createNewTextModel(value);
-    } else {
-    print('No action: empty text or invalid state');
-    // Get.back();
-    }
-
-    _controller.isSelectingText.value = false;
-    _controller.TextEditOptions.value = false;
-    SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.edgeToEdge,
-    overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
-    );
-
+                    if (_isSelectingFont.value) {
+                    print('OK blocked: Font selection in progress');
+                    return;
+                    }
+                    print('OK pressed, saving text: ${_controller.textController.value.text}');
+                    _debounceTimer?.cancel();
+                    _unfocus();
+                  
+                    final text = _controller.textController.value.text;
+                    if (!isAddingNewText && selectedTextModel != null) {
+                    // Update existing text model
+                    textController.selectText(selectedTextModel!);
+                    textController.updateText(text);
+                  
+                    if (selectedTextModel!.widgetKey == null) {
+                    print('Error: widgetKey is null for selectedTextModel');
+                    return;
+                    }
+                  
+                    final updatedWidget = Container(
+                    key: selectedTextModel!.widgetKey,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                    color: selectedTextModel!.backgroundColor.value,
+                    borderRadius: const BorderRadius.all(Radius.circular(20)),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 50, minHeight: 20),
+                    child: Transform(
+                    transform: Matrix4.identity()
+                    ..rotateZ(selectedTextModel!.rotation.value)
+                    ..scale(selectedTextModel!.isFlippedHorizontally.value ? -1.0 : 1.0, 1.0),
+                    alignment: Alignment.center,
+                    child: Text(
+                    value,
+                    style: GoogleFonts.getFont(
+                    selectedTextModel!.fontFamily.value,
+                    fontSize: selectedTextModel!.fontSize.value.toDouble(),
+                    color: selectedTextModel!.textColor.value.withOpacity(selectedTextModel!.opacity.value),
+                    fontWeight: selectedTextModel!.isBold.value ? FontWeight.bold : FontWeight.normal,
+                    fontStyle: selectedTextModel!.isItalic.value ? FontStyle.italic : FontStyle.normal,
+                    decoration: selectedTextModel!.isUnderline.value
+                    ? TextDecoration.underline
+                        : (selectedTextModel!.isStrikethrough.value ? TextDecoration.lineThrough : null),
+                    shadows: [
+                    Shadow(
+                    blurRadius: selectedTextModel!.shadowBlur.value,
+                    color: selectedTextModel!.shadowColor.value,
+                    offset: Offset(
+                    selectedTextModel!.shadowOffsetX.value,
+                    selectedTextModel!.shadowOffsetY.value,
+                    ),
+                    ),
+                    ],
+                    ),
+                    textAlign: selectedTextModel!.textAlign.value,
+                    ),
+                    ),
+                    );
+                  
+                    try {
+                    _controller.editWidget(
+                    updatedWidget,
+                    Offset(selectedTextModel!.left.value, selectedTextModel!.top.value),
+                    );
+                    print('Updated selectedTextModel: ${selectedTextModel!.text.value}');
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                    // Close TextUIWithTabsScreen
+                    });
+                    }
+                    catch (e, stackTrace) {
+                    print('Error updating text model: $e');
+                    print(stackTrace);
+                    }
+                    }
+                    else if (isAddingNewText && text.isNotEmpty) {
+                    _createNewTextModel(value);
+                    } else {
+                    print('No action: empty text or invalid state');
+                    // Get.back();
+                    }
+                  
+                    _controller.isSelectingText.value = false;
+                    _controller.TextEditOptions.value = false;
+                    SystemChrome.setEnabledSystemUIMode(
+                    SystemUiMode.edgeToEdge,
+                    overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
+                    );
+                  
                             // _unfocus();
                           },
                           onChanged: (value) {
@@ -519,6 +519,8 @@ class TextUIWithTabsScreen extends StatelessWidget {
                       )),
                       SizedBox(height: 5),
                       Obx(() => _buildTabContent(context)),
+                      SizedBox(height: 20),
+                      Divider(color: Colors.grey.shade600,),
                       SizedBox(height: 5),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -538,6 +540,8 @@ class TextUIWithTabsScreen extends StatelessWidget {
                                 }
                                 textController.clearSelection();
                               }
+                              Get.back();
+                              _controller.isBottomSheetOpen = false;
                               _controller.isSelectingText.value = false;
                               _controller.TextEditOptions.value = false;
                               SystemChrome.setEnabledSystemUIMode(
@@ -568,18 +572,18 @@ class TextUIWithTabsScreen extends StatelessWidget {
                               print('OK pressed, saving text: ${_controller.textController.value.text}');
                               _debounceTimer?.cancel();
                               _unfocus();
-
+                  
                               final text = _controller.textController.value.text;
                               if (!isAddingNewText && selectedTextModel != null) {
                                 // Update existing text model
                                 textController.selectText(selectedTextModel!);
                                 textController.updateText(text);
-
+                  
                                 if (selectedTextModel!.widgetKey == null) {
                                   print('Error: widgetKey is null for selectedTextModel');
                                   return;
                                 }
-
+                  
                                 final updatedWidget = Container(
                                   key: selectedTextModel!.widgetKey,
                                   padding: const EdgeInsets.all(12),
@@ -619,7 +623,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                                     ),
                                   ),
                                 );
-
+                  
                                 try {
                                   _controller.editWidget(
                                     updatedWidget,
@@ -641,7 +645,8 @@ class TextUIWithTabsScreen extends StatelessWidget {
                                 print('No action: empty text or invalid state');
                                 // Get.back();
                               }
-
+                              Get.back();
+                              _controller.isBottomSheetOpen = false;
                               _controller.isSelectingText.value = false;
                               _controller.TextEditOptions.value = false;
                               SystemChrome.setEnabledSystemUIMode(
@@ -1038,7 +1043,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 SizedBox(width: 16),
-                Obx(() => GestureDetector(
+                GestureDetector(
                   onTap: () {
                     _openColorPicker(
                       context,
@@ -1051,15 +1056,17 @@ class TextUIWithTabsScreen extends StatelessWidget {
                     );
                   },
                   child: Container(
-                    width: 40,
-                    height: 40,
+                    width: 190,
+                    height: 60,
                     decoration: BoxDecoration(
-                      color: textController.selectedText.value?.textColor.value ?? Colors.black,
+                      color: Color(ColorConst.greycontainer),
+                      // color: textController.selectedText.value?.textColor.value ?? Colors.black,
                       borderRadius: BorderRadius.circular(5),
-                      border: Border.all(color: Colors.white, width: 1),
+
                     ),
+                    child: Center(child: Text('Select Text Color',style: TextStyle(color: Colors.white),)),
                   ),
-                )),
+                ),
               ],
             ),
             SizedBox(height: 16),
@@ -1070,7 +1077,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 SizedBox(width: 16),
-                Obx(() => GestureDetector(
+                 GestureDetector(
                   onTap: () {
                     _openColorPicker(
                       context,
@@ -1080,18 +1087,20 @@ class TextUIWithTabsScreen extends StatelessWidget {
                         print('Background color changed: $color');
                       },
                       'Background Color',
-                    );
+    );
                   },
                   child: Container(
-                    width: 40,
-                    height: 40,
+                    width: 190,
+                    height: 60,
                     decoration: BoxDecoration(
-                      color: textController.selectedText.value?.backgroundColor.value ?? Colors.transparent,
+                      color: Color(ColorConst.greycontainer),
+                      // color: textController.selectedText.value?.backgroundColor.value ?? Colors.transparent,
                       borderRadius: BorderRadius.circular(5),
-                      border: Border.all(color: Colors.white, width: 1),
+                      // border: Border.all(color: Colors.white, width: 1),
                     ),
+                    child: Center(child: Text('Select Background Color',style: TextStyle(color: Colors.white),)),
                   ),
-                )),
+                ),
               ],
             ),
             SizedBox(height: 16),
@@ -1131,7 +1140,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 SizedBox(width: 16),
-                Obx(() => GestureDetector(
+                GestureDetector(
                   onTap: () {
                     _openColorPicker(
                       context,
@@ -1144,18 +1153,21 @@ class TextUIWithTabsScreen extends StatelessWidget {
                     );
                   },
                   child: Container(
-                    width: 40,
-                    height: 40,
+                    width: 190,
+
+                    height: 60,
                     decoration: BoxDecoration(
-                      color: textController.selectedText.value?.shadowColor.value ?? Colors.black,
+                      color: Color(ColorConst.greycontainer),
+                      // color: textController.selectedText.value?.shadowColor.value ?? Colors.black,
                       borderRadius: BorderRadius.circular(5),
-                      border: Border.all(color: Colors.white, width: 1),
+                      // border: Border.all(color: Colors.white, width: 1),
                     ),
+                    child: Center(child: Text('Select Shadow Color',style: TextStyle(color: Colors.white),)),
                   ),
-                )),
+                ),
               ],
             ),
-            SizedBox(height: 16),
+            SizedBox(height: 0),
             Row(
               children: [
                 Text(
@@ -1178,7 +1190,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: 16),
+            SizedBox(height: 0),
             Row(
               children: [
                 Text(
@@ -1201,7 +1213,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: 16),
+            SizedBox(height: 0),
             Row(
               children: [
                 Text(
@@ -1224,7 +1236,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 0),
           ],
         );
       default:

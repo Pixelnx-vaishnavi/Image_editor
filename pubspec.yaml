@@ -65,6 +65,7 @@ dependencies:
   json_annotation: ^4.9.0
   uuid: ^4.5.1
   sqflite: ^2.4.1
+  in_app_update: ^4.2.3
 
 
 
@@ -230,6 +231,32 @@ flutter:
      - assets/image_layer.png
      - assets/widget_image_layer_icon.png
      - assets/image_layer_icon_image.png
+     - assets/whiteboards/whiteboard.png
+     - assets/from_collage.png
+     - assets/whiteboards/Rectangle 1.png
+     - assets/whiteboards/Rectangle 1 (23).png
+     - assets/whiteboards/Rectangle 1 (22).png
+     - assets/whiteboards/Rectangle 1 (21).png
+     - assets/whiteboards/Rectangle 1 (20).png
+     - assets/whiteboards/Rectangle 1 (19).png
+     - assets/whiteboards/Rectangle 1 (18).png
+     - assets/whiteboards/Rectangle 1 (17).png
+     - assets/whiteboards/Rectangle 1 (16).png
+     - assets/whiteboards/Rectangle 1 (15).png
+     - assets/whiteboards/Rectangle 1 (14).png
+     - assets/whiteboards/Rectangle 1 (13).png
+     - assets/whiteboards/Rectangle 1 (12).png
+     - assets/whiteboards/Rectangle 1 (10).png
+     - assets/whiteboards/Rectangle 1 (9).png
+     - assets/whiteboards/Rectangle 1 (8).png
+     - assets/whiteboards/Rectangle 1 (7).png
+     - assets/whiteboards/Rectangle 1 (6).png
+     - assets/whiteboards/Rectangle 1 (5).png
+     - assets/whiteboards/Rectangle 1 (4).png
+     - assets/whiteboards/Rectangle 1 (3).png
+     - assets/whiteboards/Rectangle 1 (2).png
+     - assets/whiteboards/Rectangle 1 (1).png
+     - assets/whiteboards/Rectangle 1.png
 #     - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

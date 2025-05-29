@@ -41,6 +41,35 @@ class ShapeSelectorSheet extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Obx(() => TabBar(
+              onTap: (index) => controller.selectedTabIndex.value = index,
+              isScrollable: true,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+              indicatorColor: Colors.transparent,
+              dividerColor: Colors.transparent,
+              tabs: shapeCategories.keys.map((category) {
+                final index = shapeCategories.keys.toList().indexOf(category);
+                return Tab(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: index == controller.selectedTabIndex.value
+                          ? const Color(0xFF6200EE)
+                          : const Color(0xFF424242),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Text(
+                      category,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: index == controller.selectedTabIndex.value ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            )),
             SizedBox(
               height: 300,
               child: TabBarView(
@@ -133,36 +162,10 @@ class ShapeSelectorSheet extends StatelessWidget {
                 }).toList(),
               ),
             ),
-            Obx(() => TabBar(
-              onTap: (index) => controller.selectedTabIndex.value = index,
-              isScrollable: true,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-              indicatorColor: Colors.transparent,
-              dividerColor: Colors.transparent,
-              tabs: shapeCategories.keys.map((category) {
-                final index = shapeCategories.keys.toList().indexOf(category);
-                return Tab(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: index == controller.selectedTabIndex.value
-                          ? const Color(0xFF6200EE)
-                          : const Color(0xFF424242),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Text(
-                      category,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: index == controller.selectedTabIndex.value ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            )),
-            const SizedBox(height: 20),
+
+            SizedBox(height: 20),
+            Divider(color: Colors.grey.shade600,),
+            SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.only(left: 10, right: 10, bottom: 10),
               child: Wrap(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:image_editor/Const/color_const.dart';
+import 'package:image_editor/app_update_service.dart';
 import 'package:image_editor/screens_ui/dashboard/dashboard_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/image_editor_screen.dart';
 import 'package:image_editor/screens_ui/save_file/saved_image_model.dart';
@@ -89,9 +90,16 @@ class DashboardScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onPressed: () {
-                    _bottomSheetController.showCreateTemplateSheet();
+                  onPressed: () async {
+                    await AppUpdateService.checkForUpdateAndPrompt();
+                    // If dialog is dismissed (user chose "Later"), still proceed to show sheet
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      if (Get.isDialogOpen != true) {
+                        _bottomSheetController.showCreateTemplateSheet();
+                      }
+                    });
                   },
+
                   child:  Center(
                     child: Text(
                       '+ Create New Template',
