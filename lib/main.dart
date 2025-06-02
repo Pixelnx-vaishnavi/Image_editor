@@ -57,7 +57,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      // home: CollagePickerScreen(),
+      // home: MyHomePage(title: 'Crop',),
       home:  SafeArea(bottom:true, child:  SplashScreen()),
       getPages: AppPages.pages,
     );

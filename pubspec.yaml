@@ -66,6 +66,7 @@ dependencies:
   uuid: ^4.5.1
   sqflite: ^2.4.1
   in_app_update: ^4.2.3
+  crop_image: ^1.0.16
 
 
 
@@ -257,6 +258,15 @@ flutter:
      - assets/whiteboards/Rectangle 1 (2).png
      - assets/whiteboards/Rectangle 1 (1).png
      - assets/whiteboards/Rectangle 1.png
+     - assets/cropimages/freeform.png
+     - assets/cropimages/original.png
+     - assets/cropimages/1ratio1.png
+     - assets/cropimages/3ratio4.png
+     - assets/cropimages/4ratio3.png
+     - assets/cropimages/4ratio5.png
+     - assets/cropimages/5ratio4.png
+     - assets/cropimages/9ratio16.png
+     - assets/cropimages/16ratio9.png
 #     - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -28,10 +28,11 @@ class ShapeSelectorSheet extends StatelessWidget {
       shapeCategories: shapeCategories,
     ));
 
-    return DefaultTabController(
+    return
+      DefaultTabController(
       length: shapeCategories.keys.length,
       child: Container(
-        decoration: const BoxDecoration(
+        decoration:  BoxDecoration(
           color: Color(0xFF1E1E1E),
           borderRadius: BorderRadius.only(
             topRight: Radius.circular(20),
@@ -44,18 +45,18 @@ class ShapeSelectorSheet extends StatelessWidget {
             Obx(() => TabBar(
               onTap: (index) => controller.selectedTabIndex.value = index,
               isScrollable: true,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-              indicatorColor: Colors.transparent,
+              labelPadding:  EdgeInsets.symmetric(horizontal: 8),
+              indicatorColor: Color(0xFF1E1E1E),
               dividerColor: Colors.transparent,
               tabs: shapeCategories.keys.map((category) {
                 final index = shapeCategories.keys.toList().indexOf(category);
                 return Tab(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:  EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: index == controller.selectedTabIndex.value
-                          ? const Color(0xFF6200EE)
-                          : const Color(0xFF424242),
+                          ?  Color(0xFF6200EE)
+                          :  Color(0xFF424242),
                       borderRadius: BorderRadius.circular(30),
                     ),
                     child: Text(
@@ -71,7 +72,7 @@ class ShapeSelectorSheet extends StatelessWidget {
               }).toList(),
             )),
             SizedBox(
-              height: 300,
+              height: 250,
               child: TabBarView(
                 children: shapeCategories.values.map((imagePaths) {
                   return GridView.builder(
@@ -87,6 +88,7 @@ class ShapeSelectorSheet extends StatelessWidget {
                       final path = imagePaths[index];
                       return GestureDetector(
                         onTapDown: (details) {
+
                           _controller.selectedimagelayer.add(path);
                           print('Selected: ${_controller.selectedimagelayer.length}');
 
@@ -122,32 +124,20 @@ class ShapeSelectorSheet extends StatelessWidget {
                           }
                           print('Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
 
-                          // Delay addWidget until canvas is ready
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (_controller.canvasWidth.value > 0 && _controller.canvasHeight.value > 0) {
                               _controller.addWidget(
                                 newWidget,
                                 tapPosition,
                                 model: newSticker,
                               );
-                            } else {
-                              print('Canvas size not ready, retrying after 100ms');
-                              Future.delayed(Duration(milliseconds: 100), () {
-                                _controller.addWidget(
-                                  newWidget,
-                                  tapPosition,
-                                  model: newSticker,
-                                );
-                              });
-                            }
-                          });
+                          // Get.back();
                         },
+
                         child: Column(
                           children: [
                             Container(
                               width: 80,
                               height: 80,
-                              padding: const EdgeInsets.all(6),
+                              padding:  EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
                                 color: Colors.grey.shade800,

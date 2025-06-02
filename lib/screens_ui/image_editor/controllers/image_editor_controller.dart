@@ -14,6 +14,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_editor/screens_ui/Text/Text_controller.dart';
+import 'package:image_editor/screens_ui/crop/crop_screen.dart';
 import 'package:image_editor/screens_ui/image_editor/TuneScreen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/crop/crop_screen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stciker_model.dart';
@@ -34,6 +35,8 @@ import 'package:photofilters/photofilters.dart';
 import 'dart:async';
 import 'package:path/path.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 
 class ImageState {
   final Uint8List? imageBytes; // Stores editedImageBytes
@@ -402,7 +405,7 @@ class ImageEditorController extends GetxController {
       usedKeys.add(widgetKey);
 
       // Handle image file case (no model provided, widget contains Image.file)
-      if (model == null && widget is Container && widget.child is Image) {
+      if ( widget is Container && widget.child is Image) {
         final imageWidget = widget.child as Image;
         if (imageWidget.image is FileImage) {
           final filePath = (imageWidget.image as FileImage).file.path;
@@ -454,7 +457,7 @@ class ImageEditorController extends GetxController {
       );
 
       // Wrap DraggableWidget in SizedBox to define draggable area
-      final sizedDraggableWidget = SizedBox(
+      final sizedDraggableWidget = Container(
         width: maxWidth,
         height: maxHeight,
         child: draggableWidget,
@@ -477,7 +480,8 @@ class ImageEditorController extends GetxController {
           'key': widgetKey,
         });
         print('Added text to widgetList: ${widgetList.length}');
-      } else if (model is StickerModel) {
+      }
+      else if (model is StickerModel) {
         controller.add(sizedDraggableWidget, position: alignment);
         stickerController.stickers.add(model);
         widgetModels[widgetKey] = model;
@@ -948,175 +952,15 @@ print('======Called while load state==========');
     }
   }
 
-  Widget buildFilterControlsSheet({required VoidCallback onClose}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Color(ColorConst.bottomBarcolor),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: 10, top: 30, right: 10, bottom: 10),
-            child: ValueListenableBuilder(
-              valueListenable: selectedCategory,
-              builder: (context, category, _) {
-                final filters = filterCategories[category]!;
+   buildFilterControlsSheet({required VoidCallback onClose}) {
+    Get.bottomSheet(
+       FilterControlsSheet(), // Using a separate widget
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    ).then((value) {
+     showFilterEditOptions.value = false;
+    },);
 
-                return SizedBox(
-                  height: 120,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: filters.length,
-                    separatorBuilder: (_, __) => SizedBox(width: 12),
-                    itemBuilder: (context, index) {
-                      final filter = filters[index];
-                      final isSelected = selectedFilter.value?.name == filter.name; // Highlight selected filter
-
-                      final img.Image? thumb = img.decodeImage(thumbnailBytes.value!);
-                      if (thumb == null) return SizedBox();
-
-                      final Uint8List thumbPixels = thumb.getBytes();
-                      filter.apply(thumbPixels, thumb.width, thumb.height);
-                      final img.Image filteredThumb = img.Image.fromBytes(
-                          thumb.width, thumb.height, thumbPixels);
-                      final Uint8List filteredBytes =
-                      Uint8List.fromList(img.encodeJpg(filteredThumb));
-
-                      return GestureDetector(
-                        onTap: () {
-                          applyFullResolutionFilter(filter);
-                        },
-                        child: Column(
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? Color(ColorConst.primaryColor)
-                                    : Color(ColorConst.greycontainer),
-                                border: isSelected
-                                    ? Border.all(color: Colors.white, width: 2)
-                                    : null,
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: Image.memory(
-                                  filteredBytes,
-                                  width: 75,
-                                  height: 75,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 10),
-                            Text(
-                              filter.name,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 40,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: filterCategories.keys.length,
-                      separatorBuilder: (_, __) => SizedBox(width: 12),
-                      itemBuilder: (context, index) {
-                        final categoryName = filterCategories.keys.elementAt(index);
-                        return ValueListenableBuilder(
-                          valueListenable: selectedCategory,
-                          builder: (context, value, _) {
-                            final isSelected = value == categoryName;
-                            return GestureDetector(
-                              onTap: () => selectedCategory.value = categoryName,
-                              child: Container(
-                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? Color(ColorConst.primaryColor)
-                                      : Color(ColorConst.greycontainer),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  categoryName,
-                                  style: TextStyle(
-                                    color: isSelected ? Colors.black : Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 20),
-          Divider(color: Colors.grey.shade600,),
-          SizedBox(height: 20),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 18, vertical: 22),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    editedImageBytes.value = originalImageBytes.value;
-                    selectedFilter.value = NoFilter();
-                    showFilterEditOptions.value = false;
-                  },
-                  child: SizedBox(
-                    height: 30,
-                    child: Image.asset('assets/cross.png'),
-                  ),
-                ),
-                Text(
-                  'Filters',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 20,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: onClose,
-                  child: SizedBox(
-                    height: 30,
-                    child: Image.asset('assets/right.png'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 20),
-        ],
-      ),
-    );
   }
 
   Widget buildPresetsControlsSheet({required VoidCallback onClose}) {
@@ -1156,6 +1000,7 @@ print('======Called while load state==========');
                                       controller.originalImageBytes.value;
                                   controller.selectedPreset.value = null;
                                   controller.update();
+                                  Get.back();
                                 },
                                 child: Column(
                                   children: [
@@ -1189,6 +1034,7 @@ print('======Called while load state==========');
                             return GestureDetector(
                               onTap: () {
                                 controller.applyPreset(preset);
+                                Get.back();
                               },
                               child: Column(
                                 children: [
@@ -1298,11 +1144,18 @@ print('======Called while load state==========');
     );
   }
 
-  Widget showFilterControlsBottomSheet(
+   showFilterControlsBottomSheet(
       BuildContext context, VoidCallback onClose) {
-    return Container(
+
+    Get.bottomSheet( Container(
       child: FilterControlsWidget(),
-    );
+    )
+    ).then((value) {
+      showPresetsEditOptions.value = false;
+     
+    },)
+    ;
+
   }
 
   Widget buildShapeSelectorSheet() {
@@ -1312,9 +1165,13 @@ print('======Called while load state==========');
         controller: controller, shapeCategories: shapeCategories);
   }
 
-  Widget buildImageLayerSheet() {
+   buildImageLayerSheet() {
     final selectedTabIndex = ValueNotifier<int>(0);
-    return Container(
+    Get.bottomSheet(
+        isScrollControlled: false,
+        backgroundColor: Colors.transparent,
+        isDismissible: true,
+        Container(
       height: 300,
       width: double.infinity,
       decoration: BoxDecoration(
@@ -1325,278 +1182,134 @@ print('======Called while load state==========');
         ),
       ),
       child: ImageLayerWidget(),
-    );
+    )
+    ).then((value) {
+      showImageLayer.value = false;
+    },);
   }
 
-  Widget buildEditControls() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Color(ColorConst.bottomBarcolor),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(40),
-          topRight: Radius.circular(40),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(height: 20),
-          _buildActionButton(
-            "Mirror Photo",
-            Colors.cyan,
-            Icons.flip,
-            () async {
-              await mirrorImage();
-            },
+   buildEditControls() {
+    Get.bottomSheet(
+        isScrollControlled: false,
+        backgroundColor: Colors.transparent,
+        isDismissible: true,
+        Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Color(ColorConst.bottomBarcolor),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(40),
+              topRight: Radius.circular(40),
+            ),
           ),
-          SizedBox(height: 10),
-          _buildActionButton(
-            "Rotate",
-            Colors.deepPurpleAccent,
-            Icons.rotate_right,
-            () => rotateImage(),
-          ),
-          SizedBox(height: 20),
-          Divider(color: Colors.grey.shade600,),
-          SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              GestureDetector(
-                onTap: () {
-                  flippedBytes.value = null;
-                  showEditOptions.value = false;
-                  editedImageBytes.value = null;
+              SizedBox(height: 20),
+              _buildActionButton(
+                "Mirror Photo",
+                Colors.cyan,
+                Icons.flip,
+                    () async {
+                  Get.back();
+                  await mirrorImage();
                 },
-                child: SizedBox(
-                  height: 30,
-                  child: Image.asset('assets/cross.png'),
-                ),
               ),
-              Text(
-                'Rotate',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: 20,
-                ),
+              SizedBox(height: 10),
+              _buildActionButton(
+                "Rotate",
+                Colors.deepPurpleAccent,
+                Icons.rotate_right,
+                    () {
+                  Get.back();
+                      rotateImage();
+                    },
               ),
-              GestureDetector(
-                onTap: () async {
-                  showEditOptions.value = false;
+              SizedBox(height: 20),
+              Divider(color: Colors.grey.shade600,),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      flippedBytes.value = null;
+                      showEditOptions.value = false;
+                      editedImageBytes.value = null;
+                    },
+                    child: SizedBox(
+                      height: 30,
+                      child: Image.asset('assets/cross.png'),
+                    ),
+                  ),
+                  Text(
+                    'Rotate',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 20,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () async {
+                      showEditOptions.value = false;
 
-                  if (flippedBytes.value != null) {
-                    final tempDir = await getTemporaryDirectory();
-                    final path =
-                        '${tempDir.path}/confirmed_${DateTime.now().millisecondsSinceEpoch}.jpg';
-                    final file = File(path);
-                    await file.writeAsBytes(flippedBytes.value!);
+                      if (flippedBytes.value != null) {
+                        final tempDir = await getTemporaryDirectory();
+                        final path =
+                            '${tempDir.path}/confirmed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                        final file = File(path);
+                        await file.writeAsBytes(flippedBytes.value!);
 
-                    editedImage.value = file;
-                    editedImageBytes.value = null;
-                    flippedBytes.value = null;
-                  }
+                        editedImage.value = file;
+                        editedImageBytes.value = null;
+                        flippedBytes.value = null;
+                      }
 
-                  Get.toNamed('/ImageEditorScreen',
-                      arguments: editedImage.value);
-                },
-                child: SizedBox(
-                  height: 30,
-                  child: Image.asset('assets/right.png'),
-                ),
+                      Get.toNamed('/ImageEditorScreen',
+                          arguments: editedImage.value);
+                    },
+                    child: SizedBox(
+                      height: 30,
+                      child: Image.asset('assets/right.png'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
-    );
+        )
+    ).then((value) {
+      showEditOptions.value = false;
+    },);
+   
   }
 
-  Widget buildEditCamera() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Color(ColorConst.bottomBarcolor),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(40),
-          topRight: Radius.circular(40),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(height: 20),
-          _buildCameraButton(
-            "Select Image",
-            Colors.cyan,
-            Icons.flip,
-            () async {
-              final ImagePicker picker = ImagePicker();
-              final XFile? photo =
-                  await picker.pickImage(source: ImageSource.gallery);
-              if (photo != null) {
-                LogoStcikerImage.value = File(photo.path);
-                print('${LogoStcikerImage.value}');
-                Widget widget = Container(
-                  height: 100,
-                  width: 100,
-                  padding: EdgeInsets.all(12),
-                  child: Image.file(LogoStcikerImage.value),
-                );
-              }
-            },
-            (details) async {
-              final ImagePicker picker = ImagePicker();
-              final XFile? photo =
-                  await picker.pickImage(source: ImageSource.gallery);
-              if (photo != null) {
-                LogoStcikerImage.value = File(photo.path);
-                print('${LogoStcikerImage.value}');
-                Widget widget = Container(
-                  height: 100,
-                  width: 100,
-                  padding: EdgeInsets.all(12),
-                  child: Image.file(LogoStcikerImage.value),
-                );
-                selectedimagelayer.add(LogoStcikerImage.value);
-                final tapPosition = details.globalPosition;
-                final stickerWidgetBox = LindiStickerWidget
-                    .globalKey.currentContext
-                    ?.findRenderObject() as RenderBox?;
-                Alignment initialPosition = Alignment.center;
-                if (stickerWidgetBox != null) {
-                  final stickerSize = stickerWidgetBox.size;
-                  final stickerOffset =
-                      stickerWidgetBox.localToGlobal(Offset.zero);
-                  final alignmentX = ((tapPosition.dx - stickerOffset.dx) /
-                              stickerSize.width) *
-                          2 -
-                      1;
-                  final alignmentY = ((tapPosition.dy - stickerOffset.dy) /
-                              stickerSize.height) *
-                          2 -
-                      1;
-                  initialPosition = Alignment(
-                      alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
-                } else {
-                  print(
-                      'Warning: LindiStickerWidget.globalKey is null, using default position');
-                }
-                print(
-                    'Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
-                addWidget(
-                  widget,
-                  tapPosition,
-
-                );
-              }
-            },
-          ),
-          SizedBox(height: 10),
-          _buildCameraButton(
-            "Change Image",
-            Colors.deepPurpleAccent,
-            Icons.rotate_right,
-            () async {
-              final ImagePicker picker = ImagePicker();
-              final XFile? photo =
-                  await picker.pickImage(source: ImageSource.gallery);
-              if (photo != null) {
-                LogoStcikerImage.value = File(photo.path);
-                print('${LogoStcikerImage.value}');
-                Widget widget = Container(
-                  height: 100,
-                  width: 100,
-                  padding: EdgeInsets.all(12),
-                  child: Image.file(LogoStcikerImage.value),
-                );
-              }
-            },
-            (details) async {
-              final ImagePicker picker = ImagePicker();
-              final XFile? photo =
-                  await picker.pickImage(source: ImageSource.gallery);
-              if (photo != null) {
-                LogoStcikerImage.value = File(photo.path);
-                print('${LogoStcikerImage.value}');
-                Widget widget = Container(
-                  height: 100,
-                  width: 100,
-                  padding: EdgeInsets.all(12),
-                  child: Image.file(LogoStcikerImage.value),
-                );
-
-                final tapPosition = details.globalPosition;
-                final stickerWidgetBox = LindiStickerWidget
-                    .globalKey.currentContext
-                    ?.findRenderObject() as RenderBox?;
-                Alignment initialPosition = Alignment.center;
-                if (stickerWidgetBox != null) {
-                  final stickerSize = stickerWidgetBox.size;
-                  final stickerOffset =
-                      stickerWidgetBox.localToGlobal(Offset.zero);
-                  final alignmentX = ((tapPosition.dx - stickerOffset.dx) /
-                              stickerSize.width) *
-                          2 -
-                      1;
-                  final alignmentY = ((tapPosition.dy - stickerOffset.dy) /
-                              stickerSize.height) *
-                          2 -
-                      1;
-                  initialPosition = Alignment(
-                      alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
-                } else {
-                  print(
-                      'Warning: LindiStickerWidget.globalKey is null, using default position');
-                }
-                print(
-                    'Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
-                editWidget(widget, tapPosition);
-              }
-            },
-          ),
-          SizedBox(height: 20),
-          Divider(color: Colors.grey.shade600,),
-          SizedBox(height: 20),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  controller.selectedWidget!.delete();
-                  CameraEditSticker.value = false;
-                },
-                child: SizedBox(
-                  height: 30,
-                  child: Image.asset('assets/cross.png'),
-                ),
-              ),
-              Text(
-                'Camera',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: 20,
-                ),
-              ),
-              GestureDetector(
-                onTap: () async {
-                  CameraEditSticker.value = false;
-                  controller.clearAllBorders();
-                },
-                child: SizedBox(
-                  height: 30,
-                  child: Image.asset('assets/right.png'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+   buildEditCamera() {
+    Get.bottomSheet(
+        isScrollControlled: false,
+        backgroundColor: Colors.transparent,
+        isDismissible: true,
+        EditCamera()
+    ).then((value) {
+      CameraEditSticker.value = false;
+    },);
   }
+
+
+  StickerOption() {
+    Get.bottomSheet(
+        isScrollControlled: false,
+        backgroundColor: Colors.transparent,
+        isDismissible: true,
+        ShapeSelectorSheet( controller: controller,
+          shapeCategories: shapeCategories,)
+    ).then((value) {
+      showStickerEditOptions.value = false;
+    },);
+  }
+
+
 
   Future<void> buildCameraStciker() async {
     final ImagePicker picker = ImagePicker();
@@ -1611,45 +1324,50 @@ print('======Called while load state==========');
     }
   }
 
-  Widget TuneEditControls() {
-    return Obx(() => AnimatedContainer(
-          duration: Duration(seconds: 1),
-          curve: Curves.easeInOut,
-          height: (isBrushSelected.value == true) ? 300 : 250,
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Color(ColorConst.bottomBarcolor),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(40),
-              topRight: Radius.circular(40),
-            ),
+   showTuneEditBottomSheet() {
+    Get.bottomSheet(
+      Obx(() => AnimatedContainer(
+        duration: Duration(seconds: 1),
+        curve: Curves.easeInOut,
+        height: (isBrushSelected.value == true) ? 300 : 250,
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Color(ColorConst.bottomBarcolor),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(40),
+            topRight: Radius.circular(40),
           ),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 50.0, end: 0.0),
-            duration: Duration(milliseconds: 400),
-            curve: Curves.easeOut,
-            builder: (context, value, child) {
-              return Opacity(
-                opacity: (50.0 - value) / 50.0,
-                child: Transform.translate(
-                  offset: Offset(0, value),
-                  child: child,
-                ),
-              );
-            },
-            child: ListView(
-              children: [
-                TuneControlsPanel(
-                  onTuneChanged: (double contrast, double brightness) {
-                    contrast = contrast;
-                    brightness = brightness;
-                  },
-                ),
-              ],
-            ),
+        ),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 50.0, end: 0.0),
+          duration: Duration(milliseconds: 400),
+          curve: Curves.easeOut,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: (50.0 - value) / 50.0,
+              child: Transform.translate(
+                offset: Offset(0, value),
+                child: child,
+              ),
+            );
+          },
+          child: ListView(
+            children: [
+              TuneControlsPanel(
+                onTuneChanged: (double contrast, double brightness) {
+                  // Apply changes here
+                },
+              ),
+            ],
           ),
-        ));
+        ),
+      )),
+      isScrollControlled: true, // optional for full height support
+    ).then((value) {
+     showtuneOptions.value = false;
+    },);
   }
+
 
   void showTextEditorBottomSheet(BoxConstraints constraints, GlobalKey imageKey, BuildContext context) {
 
@@ -1678,6 +1396,7 @@ print('======Called while load state==========');
         enableDrag: false,
       ).then((_) {
         TextEditOptions.value = false;
+        isBottomSheetOpen = false;
       });
 
   }
@@ -1742,7 +1461,7 @@ print('======Called while load state==========');
     );
   }
 
-  Widget _buildCameraButton(String text, Color color, IconData icon,
+  Widget buildCameraButton(String text, Color color, IconData icon,
       VoidCallback onTap, Function(TapDownDetails) onTapDown) {
     return GestureDetector(
       onTap: onTap,
@@ -1767,35 +1486,95 @@ print('======Called while load state==========');
     );
   }
 
-  Future<void> pickAndCropImage() async {
+  // Future<void> pickAndCropImage() async {
+  //   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  //
+  //   final croppedFile = await ImageCropper().cropImage(
+  //     sourcePath: editedImage.value.path,
+  //     uiSettings: [
+  //       AndroidUiSettings(
+  //         toolbarTitle: '',
+  //         toolbarColor: Color(ColorConst.purplecolor),
+  //         toolbarWidgetColor: Colors.white,
+  //         statusBarColor: Color(ColorConst.textblackcolor),
+  //         activeControlsWidgetColor: Color(ColorConst.purplecolor),
+  //         cropFrameColor: Colors.white,
+  //         cropGridColor: Colors.grey,
+  //         hideBottomControls: false,
+  //         showCropGrid: true,
+  //         initAspectRatio: CropAspectRatioPreset.original,
+  //         lockAspectRatio: false,
+  //       ),
+  //       IOSUiSettings(
+  //         title: 'Crop Image',
+  //       ),
+  //     ],
+  //   );
+  //   if (croppedFile != null) {
+  //     editedImage.value = File(croppedFile.path);
+  //     final bytes = await File(croppedFile.path).readAsBytes();
+  //     originalImageBytes.value = bytes;
+  //   }
+  // }
+
+  // Method to pick and crop an image
+  Future<void> pickAndCropImage(BuildContext context) async {
+    // Check storage permission for Android
+    final storageStatus = await Permission.storage.request();
+    // if (!storageStatus.isGranted) {
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(content: Text('Storage permission denied')),
+    //   );
+    //   return;
+    // }
+
+    // Ensure immersive mode for cropping
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: editedImage.value.path,
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: '',
-          toolbarColor: Color(ColorConst.purplecolor),
-          toolbarWidgetColor: Colors.white,
-          statusBarColor: Color(ColorConst.textblackcolor),
-          activeControlsWidgetColor: Color(ColorConst.purplecolor),
-          cropFrameColor: Colors.white,
-          cropGridColor: Colors.grey,
-          hideBottomControls: false,
-          showCropGrid: true,
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: false,
+    // Resize image to prevent memory issues on low-end devices
+    if (editedImage.value != null && await editedImage.value!.exists()) {
+      final resizedImage = await _resizeImage(editedImage.value!);
+      // Navigate to crop screen
+      final croppedImage = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CropImageScreen(imageFile: resizedImage),
         ),
-        IOSUiSettings(
-          title: 'Crop Image',
-        ),
-      ],
-    );
+      );
 
-    if (croppedFile != null) {
-      editedImage.value = File(croppedFile.path);
+      // Update variables if cropping was successful
+      if (croppedImage != null && croppedImage is File) {
+        editedImage.value = croppedImage;
+        final bytes = await croppedImage.readAsBytes();
+        originalImageBytes.value = bytes;
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No image selected')),
+      );
+    }
+
+    // Restore system UI
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+
+// Helper method to resize image
+  Future<File> _resizeImage(File imageFile) async {
+    try {
+      final bytes = await imageFile.readAsBytes();
+      final image = img.decodeImage(bytes);
+      if (image == null) return imageFile;
+      final resized = img.copyResize(image, width: 800); // Adjust size for Moto 5G
+      final tempDir = await getTemporaryDirectory();
+      final tempPath = '${tempDir.path}/resized_${DateTime.now().millisecondsSinceEpoch}.png';
+      final resizedFile = File(tempPath)..writeAsBytesSync(img.encodePng(resized));
+      return resizedFile;
+    } catch (e) {
+      print('Error resizing image: $e');
+      return imageFile; // Fallback to original image
     }
   }
+
 
   Future<Uint8List> capturePng() async {
     try {
@@ -1896,6 +1675,7 @@ class FilterControlsWidget extends StatelessWidget {
                                       controller.originalImageBytes.value;
                                   controller.selectedPreset.value = null;
                                   controller.update();
+                                  Get.back();
                                 },
                                 child: Column(
                                   children: [
@@ -1929,6 +1709,7 @@ class FilterControlsWidget extends StatelessWidget {
                             return GestureDetector(
                               onTap: () {
                                 controller.applyPreset(preset);
+                                Get.back();
                               },
                               child: Column(
                                 children: [
@@ -1962,7 +1743,7 @@ class FilterControlsWidget extends StatelessWidget {
                 TabBar(
                   isScrollable: true,
                   labelPadding: EdgeInsets.symmetric(horizontal: 8),
-                  indicatorColor: Colors.transparent,
+                  indicatorColor: Color(ColorConst.bottomBarcolor),
                   dividerColor: Colors.transparent,
                   tabs: controller.presetCategories.keys.map((category) {
                     return Tab(
@@ -2004,6 +1785,7 @@ class FilterControlsWidget extends StatelessWidget {
                     children: [
                       GestureDetector(
                         onTap: () {
+                          Get.back();
                           controller.showPresetsEditOptions.value = false;
                           controller.selectedPreset.value = null;
                           controller.update();
@@ -2024,6 +1806,7 @@ class FilterControlsWidget extends StatelessWidget {
                       GestureDetector(
                         onTap: () {
                           controller.showPresetsEditOptions.value = false;
+                          Get.back();
                         },
                         child: SizedBox(
                           height: 30,
@@ -2041,3 +1824,385 @@ class FilterControlsWidget extends StatelessWidget {
     );
   }
 }
+
+class FilterControlsSheet extends StatelessWidget {
+  const FilterControlsSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+
+    return GetBuilder<ImageEditorController>(builder: (controller) {
+      return   Container(
+        decoration: BoxDecoration(
+          color: Color(ColorConst.bottomBarcolor),
+          borderRadius:  BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Prevent full screen unless needed
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding:  EdgeInsets.only(left: 10, top: 30, right: 10, bottom: 10),
+              child: ValueListenableBuilder(
+                valueListenable: controller.selectedCategory,
+                builder: (context, category, _) {
+                  final filters = controller.filterCategories[category]!;
+
+                  return SizedBox(
+                    height: 120,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding:  EdgeInsets.symmetric(horizontal: 12),
+                      itemCount: filters.length,
+                      separatorBuilder: (_, __) =>  SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final filter = filters[index];
+                        final isSelected = controller.selectedFilter.value?.name == filter.name;
+
+                        final img.Image? thumb = img.decodeImage(controller.thumbnailBytes.value!);
+                        if (thumb == null) return const SizedBox();
+
+                        final Uint8List thumbPixels = thumb.getBytes();
+                        filter.apply(thumbPixels, thumb.width, thumb.height);
+                        final img.Image filteredThumb = img.Image.fromBytes(
+                          thumb.width, thumb.height, thumbPixels,
+                        );
+                        final Uint8List filteredBytes = Uint8List.fromList(img.encodeJpg(filteredThumb));
+
+                        return GestureDetector(
+                          onTap: () => controller.applyFullResolutionFilter(filter),
+                          child: Column(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? Color(ColorConst.primaryColor)
+                                      : Color(ColorConst.greycontainer),
+                                  border: isSelected
+                                      ? Border.all(color: Colors.white, width: 2)
+                                      : null,
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.memory(
+                                    filteredBytes,
+                                    width: 75,
+                                    height: 75,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                filter.name,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: controller.filterCategories.keys.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final categoryName = controller.filterCategories.keys.elementAt(index);
+                          return ValueListenableBuilder(
+                            valueListenable: controller.selectedCategory,
+                            builder: (context, value, _) {
+                              final isSelected = value == categoryName;
+                              return GestureDetector(
+                                onTap: () => controller.selectedCategory.value = categoryName,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Color(ColorConst.primaryColor)
+                                        : Color(ColorConst.greycontainer),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    categoryName,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.black : Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Divider(color: Colors.grey.shade600),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      controller.editedImageBytes.value = controller.originalImageBytes.value;
+                      controller.selectedFilter.value = NoFilter();
+                      controller.showFilterEditOptions.value = false;
+                      Get.back();
+                    },
+                    child: SizedBox(
+                      height: 30,
+                      child: Image.asset('assets/cross.png'),
+                    ),
+                  ),
+                  const Text(
+                    'Filters',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 20,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Get.back(); // Use Get.back instead of onClose
+                    },
+                    child: SizedBox(
+                      height: 30,
+                      child: Image.asset('assets/right.png'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      );
+    },);
+
+
+  }
+}
+
+
+class EditCamera extends StatelessWidget {
+  const EditCamera({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<ImageEditorController>(builder: (controller) {
+      return  Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Color(ColorConst.bottomBarcolor),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(40),
+            topRight: Radius.circular(40),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: 20),
+            controller!.buildCameraButton(
+              "Select Image",
+              Colors.cyan,
+              Icons.flip,
+                  () async {
+                final ImagePicker picker = ImagePicker();
+                final XFile? photo =
+                await picker.pickImage(source: ImageSource.gallery);
+                if (photo != null) {
+                  controller!.LogoStcikerImage.value = File(photo.path);
+                  print('${controller!.LogoStcikerImage.value}');
+                  Widget widget = Container(
+                    height: 100,
+                    width: 100,
+                    padding: EdgeInsets.all(12),
+                    child: Image.file(controller!.LogoStcikerImage.value),
+                  );
+                  Get.back();
+                }
+              },
+                  (details) async {
+                final ImagePicker picker = ImagePicker();
+                final XFile? photo =
+                await picker.pickImage(source: ImageSource.gallery);
+                if (photo != null) {
+                  controller!.LogoStcikerImage.value = File(photo.path);
+                  print('${controller!.LogoStcikerImage.value}');
+                  Widget widget = Container(
+                    height: 100,
+                    width: 100,
+                    padding: EdgeInsets.all(12),
+                    child: Image.file(controller!.LogoStcikerImage.value),
+                  );
+                  controller!.selectedimagelayer.add(controller!.LogoStcikerImage.value);
+                  final tapPosition = details.globalPosition;
+                  final stickerWidgetBox = LindiStickerWidget
+                      .globalKey.currentContext
+                      ?.findRenderObject() as RenderBox?;
+                  Alignment initialPosition = Alignment.center;
+                  if (stickerWidgetBox != null) {
+                    final stickerSize = stickerWidgetBox.size;
+                    final stickerOffset =
+                    stickerWidgetBox.localToGlobal(Offset.zero);
+                    final alignmentX = ((tapPosition.dx - stickerOffset.dx) /
+                        stickerSize.width) *
+                        2 -
+                        1;
+                    final alignmentY = ((tapPosition.dy - stickerOffset.dy) /
+                        stickerSize.height) *
+                        2 -
+                        1;
+                    initialPosition = Alignment(
+                        alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
+                  } else {
+                    print(
+                        'Warning: LindiStickerWidget.globalKey is null, using default position');
+                  }
+                  print(
+                      'Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
+                  controller!.addWidget(
+                    widget,
+                    tapPosition,
+
+                  );
+                }
+              },
+            ),
+            SizedBox(height: 10),
+            controller!.buildCameraButton(
+              "Change Image",
+              Colors.deepPurpleAccent,
+              Icons.rotate_right,
+                  () async {
+                final ImagePicker picker = ImagePicker();
+                final XFile? photo =
+                await picker.pickImage(source: ImageSource.gallery);
+                if (photo != null) {
+                  controller!.LogoStcikerImage.value = File(photo.path);
+                  print('${controller!.LogoStcikerImage.value}');
+                  Widget widget = Container(
+                    height: 100,
+                    width: 100,
+                    padding: EdgeInsets.all(12),
+                    child: Image.file(controller!.LogoStcikerImage.value),
+                  );
+                }
+                Get.back();
+              },
+                  (details) async {
+                final ImagePicker picker = ImagePicker();
+                final XFile? photo =
+                await picker.pickImage(source: ImageSource.gallery);
+                if (photo != null) {
+                  controller!.LogoStcikerImage.value = File(photo.path);
+                  print('${controller!.LogoStcikerImage.value}');
+                  Widget widget = Container(
+                    height: 100,
+                    width: 100,
+                    padding: EdgeInsets.all(12),
+                    child: Image.file(controller!.LogoStcikerImage.value),
+                  );
+
+                  final tapPosition = details.globalPosition;
+                  final stickerWidgetBox = LindiStickerWidget
+                      .globalKey.currentContext
+                      ?.findRenderObject() as RenderBox?;
+                  Alignment initialPosition = Alignment.center;
+                  if (stickerWidgetBox != null) {
+                    final stickerSize = stickerWidgetBox.size;
+                    final stickerOffset =
+                    stickerWidgetBox.localToGlobal(Offset.zero);
+                    final alignmentX = ((tapPosition.dx - stickerOffset.dx) /
+                        stickerSize.width) *
+                        2 -
+                        1;
+                    final alignmentY = ((tapPosition.dy - stickerOffset.dy) /
+                        stickerSize.height) *
+                        2 -
+                        1;
+                    initialPosition = Alignment(
+                        alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
+                  } else {
+                    print(
+                        'Warning: LindiStickerWidget.globalKey is null, using default position');
+                  }
+                  print(
+                      'Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
+                  controller!.editWidget(widget, tapPosition);
+                }
+              },
+            ),
+            SizedBox(height: 20),
+            Divider(color: Colors.grey.shade600,),
+            SizedBox(height: 20),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    controller!.controller.selectedWidget!.delete();
+                    controller!.CameraEditSticker.value = false;
+                  },
+                  child: SizedBox(
+                    height: 30,
+                    child: Image.asset('assets/cross.png'),
+                  ),
+                ),
+                Text(
+                  'Camera',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 20,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () async {
+                    controller!.CameraEditSticker.value = false;
+                    controller!.controller.clearAllBorders();
+                  },
+                  child: SizedBox(
+                    height: 30,
+                    child: Image.asset('assets/right.png'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },);
+
+  }
+}
+
+
+

@@ -249,6 +249,7 @@ class ShapeSelectorController extends GetxController {
       editorController.flippedBytes.value = null;
     }
     Get.toNamed('/ImageEditorScreen', arguments: editorController.editedImage.value);
+    Get.back();
   }
 
   @override

@@ -14,8 +14,10 @@ import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_editor/Const/color_const.dart';
+import 'package:image_editor/Const/routes_const.dart';
 import 'package:image_editor/screens_ui/Collage/collage_controller.dart';
 import 'package:image_editor/screens_ui/Text/Text_controller.dart';
+import 'package:image_editor/screens_ui/crop/crop_screen.dart';
 import 'package:image_editor/screens_ui/dashboard/dashboard_screen.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_filter.dart';
@@ -219,22 +221,25 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   }
 
   void _updateCanvasSize() {
-    final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
-    if (canvasBox != null && canvasBox.hasSize) {
-      final size = canvasBox.size;
-      _controller.canvasWidth.value = size.width;
-      _controller.canvasHeight.value = size.height;
-      if (size.width > 0 && size.height > 0) {
-        _controller.lastValidCanvasSize = size;
-        print('Canvas size updated: ${size.width}x${size.height}');
-      } else {
-        _controller.lastValidCanvasSize = Size(360, 705);
-        print('Using default canvas size: 360x705 (invalid size: ${size.width}x${size.height})');
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      int retries = 5;
+      while (retries > 0) {
+        final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
+        if (canvasBox != null && canvasBox.hasSize && canvasBox.size.width > 0 && canvasBox.size.height > 0) {
+          final size = canvasBox.size;
+          _controller.canvasWidth.value = size.width;
+          _controller.canvasHeight.value = size.height;
+          _controller.lastValidCanvasSize = size;
+          print('Canvas size updated: ${size.width}x${size.height}');
+          return;
+        }
+        print('Canvas box not ready, retrying... ($retries retries left)');
+        await Future.delayed(const Duration(milliseconds: 100));
+        retries--;
       }
-    } else {
       _controller.lastValidCanvasSize = Size(360, 705);
-      print('Canvas box null or no size, using default: 360x705');
-    }
+      print('Canvas box not found after retries, using default: 360x705');
+    });
   }
 
   @override
@@ -246,6 +251,10 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     stickerController.stickers.clear();
     textEditorControllerWidget.text.clear();
     _controller.controller.clearAllBorders();
+    _controller.brightness.value = 0.0;
+    _controller.contrast.value = 0.0;
+
+
     super.dispose();
   }
 
@@ -924,11 +933,19 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     Uint8List? memoryImage;
     Map<String, dynamic>? savedState;
 
+    // Handle the arguments
     if (imageArg is File) {
       fileImage = imageArg;
-      _controller.setInitialImage(fileImage);
-      _controller.decodeEditedImage();
-      filterController.setInitialImage(fileImage);
+      if (fileImage.existsSync()) {
+        print('Received cropped image file: ${fileImage.path}');
+        _controller.setInitialImage(fileImage);
+        _controller.decodeEditedImage();
+        filterController.setInitialImage(fileImage);
+      } else {
+        print('Cropped image file does not exist: ${fileImage.path}');
+        Get.snackbar('Error', 'Cropped image file not found');
+        fileImage = null;
+      }
     } else if (imageArg is Uint8List) {
       memoryImage = imageArg;
       _controller.setInitialImage(File(''));
@@ -937,18 +954,23 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     } else if (imageArg is Map<String, dynamic>) {
       savedState = imageArg;
       fileImage = File(savedState['imagePath'] ?? '');
-      _controller.setInitialImage(fileImage);
-      _controller.decodeEditedImage();
-      filterController.setInitialImage(fileImage);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _loadSavedState(savedState!);
-      });
+      if (fileImage.existsSync()) {
+        _controller.setInitialImage(fileImage);
+        _controller.decodeEditedImage();
+        filterController.setInitialImage(fileImage);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _loadSavedState(savedState!);
+        });
+      } else {
+        print('Saved state image file not found: ${fileImage.path}');
+        Get.snackbar('Error', 'Image file not found at ${fileImage.path}');
+      }
     } else {
+      print('No valid image argument provided');
       _controller.setInitialImage(File(''));
       _controller.decodeEditedImage();
       filterController.setInitialImage(File(''));
     }
-
     return SafeArea(
       bottom: true,
       child: Scaffold(
@@ -1052,7 +1074,43 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                   _controller.isBottomSheetOpen = true;
                   _controller.showTextEditorBottomSheet(constraints, _controller.imageKey, context);
                 });
+              } else if (_controller.showPresetsEditOptions.value) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _controller.showFilterControlsBottomSheet(context, () {
+                    _controller.showFilterEditOptions.value = false;
+                  });
+                });
+              } else if (_controller.showFilterEditOptions.value) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _controller.buildFilterControlsSheet(onClose: () {
+                    _controller.showFilterEditOptions.value = false;
+                  });
+                });
+              } else if (_controller.CameraEditSticker.value) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _controller.buildEditCamera();
+                });
               }
+              else if (_controller.showStickerEditOptions.value){
+                WidgetsBinding.instance.addPostFrameCallback((_){
+                  _controller.StickerOption();
+                });}
+               else if (_controller.showtuneOptions.value){
+                 WidgetsBinding.instance.addPostFrameCallback((_){
+                   _controller.showTuneEditBottomSheet();
+                 });
+              }
+             else if (_controller.showEditOptions.value){
+                WidgetsBinding.instance.addPostFrameCallback((_){
+                  _controller.buildEditControls();
+                });
+              }
+             else if (_controller.showImageLayer.value){
+               WidgetsBinding.instance.addPostFrameCallback((_){
+                 _controller.buildImageLayerSheet();
+               });
+              }
+
               return Stack(
                 children: [
                   Container(
@@ -1172,27 +1230,25 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                             !_controller.showPresetsEditOptions.value &&
                             !_controller.showImageLayer.value)
                           _buildToolBar(context),
-                        if (_controller.showEditOptions.value) _controller.buildEditControls(),
-                        if (_controller.showStickerEditOptions.value)
-                          ShapeSelectorSheet(
-                            controller: _controller.controller,
-                            shapeCategories: _controller.shapeCategories,
-                          ),
-                        if (_controller.showImageLayer.value) _controller.buildImageLayerSheet(),
-                        if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
+
+
+
+                        // if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
                         // if (_controller.TextEditOptions.value)
                         //   _controller.showTextEditorBottomSheet(constraints, _controller.imageKey,context),
-                        if (_controller.CameraEditSticker.value) _controller.buildEditCamera(),
+
                         // if (collageController.showCollageOption.value)
                         //   collageTemplateController.openTemplatePickerBottomSheet(),
-                        if (_controller.showFilterEditOptions.value)
-                          _controller.buildFilterControlsSheet(onClose: () {
-                            _controller.showFilterEditOptions.value = false;
-                          }),
-                        if (_controller.showPresetsEditOptions.value)
-                          _controller.showFilterControlsBottomSheet(context, () {
-                            _controller.showFilterEditOptions.value = false;
-                          }),
+
+                        // if (_controller.showFilterEditOptions.value)
+                        //   _controller.buildFilterControlsSheet(onClose: () {
+                        //     _controller.showFilterEditOptions.value = false;
+                        //   }),
+
+                        // if (_controller.showPresetsEditOptions.value)
+                        //   _controller.showFilterControlsBottomSheet(context, () {
+                        //     _controller.showFilterEditOptions.value = false;
+                        //   }),
                       ],
                     ),
                   ),
@@ -1241,8 +1297,14 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             }),
             SizedBox(width: 40),
             _controller.buildToolButton('Crop', 'assets/crop.png', () {
-              SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-              _controller.pickAndCropImage();
+              final File? currentImage = _controller.editedImage.value;
+              print('====CurrentImage=======${currentImage}');
+              if (currentImage != null && currentImage.existsSync()) {
+                SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+             Get.to( CropImageScreen(imageFile: currentImage));
+              } else {
+                Get.snackbar('Error', 'No image available to crop');
+              }
             }),
             SizedBox(width: 40),
             _controller.buildToolButton('Text', 'assets/text.png', () {
