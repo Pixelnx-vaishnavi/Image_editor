@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:image_editor/Const/color_const.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/image_editor_controller.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stciker_model.dart';
 import 'package:image_editor/screens_ui/image_editor/controllers/sticker/stickers_controller.dart';
@@ -28,11 +29,11 @@ class ShapeSelectorSheet extends StatelessWidget {
       shapeCategories: shapeCategories,
     ));
 
-    return
-      DefaultTabController(
+    return DefaultTabController(
       length: shapeCategories.keys.length,
       child: Container(
-        decoration:  BoxDecoration(
+        height: 460,
+        decoration: BoxDecoration(
           color: Color(0xFF1E1E1E),
           borderRadius: BorderRadius.only(
             topRight: Radius.circular(20),
@@ -45,18 +46,18 @@ class ShapeSelectorSheet extends StatelessWidget {
             Obx(() => TabBar(
               onTap: (index) => controller.selectedTabIndex.value = index,
               isScrollable: true,
-              labelPadding:  EdgeInsets.symmetric(horizontal: 8),
+              labelPadding: EdgeInsets.symmetric(horizontal: 8),
               indicatorColor: Color(0xFF1E1E1E),
               dividerColor: Colors.transparent,
               tabs: shapeCategories.keys.map((category) {
                 final index = shapeCategories.keys.toList().indexOf(category);
                 return Tab(
                   child: Container(
-                    padding:  EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: index == controller.selectedTabIndex.value
-                          ?  Color(0xFF6200EE)
-                          :  Color(0xFF424242),
+                          ? Color(ColorConst.tabhighlightbutton)
+                          : Color(0xFF424242),
                       borderRadius: BorderRadius.circular(30),
                     ),
                     child: Text(
@@ -64,7 +65,9 @@ class ShapeSelectorSheet extends StatelessWidget {
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 14,
-                        fontWeight: index == controller.selectedTabIndex.value ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: index == controller.selectedTabIndex.value
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -72,7 +75,7 @@ class ShapeSelectorSheet extends StatelessWidget {
               }).toList(),
             )),
             SizedBox(
-              height: 250,
+              height: 300,
               child: TabBarView(
                 children: shapeCategories.values.map((imagePaths) {
                   return GridView.builder(
@@ -88,12 +91,12 @@ class ShapeSelectorSheet extends StatelessWidget {
                       final path = imagePaths[index];
                       return GestureDetector(
                         onTapDown: (details) {
-
                           _controller.selectedimagelayer.add(path);
                           print('Selected: ${_controller.selectedimagelayer.length}');
 
                           // Create a new StickerModel
-                          final uniqueId = 'Sticker_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}';
+                          final uniqueId =
+                              'Sticker_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}';
                           final newSticker = StickerModel(
                             path: path,
                             top: details.globalPosition.dy,
@@ -111,7 +114,8 @@ class ShapeSelectorSheet extends StatelessWidget {
                           );
 
                           final tapPosition = details.globalPosition;
-                          final stickerWidgetBox = LindiStickerWidget.globalKey.currentContext?.findRenderObject() as RenderBox?;
+                          final stickerWidgetBox = LindiStickerWidget.globalKey.currentContext?.findRenderObject()
+                          as RenderBox?;
                           Alignment initialPosition = Alignment.center;
                           if (stickerWidgetBox != null && stickerWidgetBox.hasSize) {
                             final stickerSize = stickerWidgetBox.size;
@@ -124,20 +128,19 @@ class ShapeSelectorSheet extends StatelessWidget {
                           }
                           print('Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
 
-                              _controller.addWidget(
-                                newWidget,
-                                tapPosition,
-                                model: newSticker,
-                              );
+                          _controller.addWidget(
+                            newWidget,
+                            tapPosition,
+                            model: newSticker,
+                          );
                           // Get.back();
                         },
-
                         child: Column(
                           children: [
                             Container(
                               width: 80,
                               height: 80,
-                              padding:  EdgeInsets.all(6),
+                              padding: EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
                                 color: Colors.grey.shade800,
@@ -152,9 +155,8 @@ class ShapeSelectorSheet extends StatelessWidget {
                 }).toList(),
               ),
             ),
-
             SizedBox(height: 20),
-            Divider(color: Colors.grey.shade600,),
+            Divider(color: Colors.grey.shade600),
             SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.only(left: 10, right: 10, bottom: 10),
@@ -180,11 +182,14 @@ class ShapeSelectorSheet extends StatelessWidget {
                           fontSize: 24,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: controller.confirmImage,
-                        child: SizedBox(
-                          height: 40,
-                          child: Image.asset('assets/right.png'),
+                      Visibility(
+                        visible: false,
+                        child: GestureDetector(
+                          onTap: controller.confirmImage,
+                          child: SizedBox(
+                            height: 40,
+                            child: Image.asset('assets/right.png'),
+                          ),
                         ),
                       ),
                     ],

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
@@ -547,9 +548,9 @@ List<CollageTemplate> collageTemplates = [
 ];
 
 
+
 class TemplateController extends GetxController {
-  final ImageEditorController imagecontroller =
-  Get.put(ImageEditorController());
+  final ImageEditorController imagecontroller = Get.put(ImageEditorController());
   final CollageController collageController = Get.put(CollageController());
 
   CollageTemplate selectedTemplate = collageTemplates[0];
@@ -557,19 +558,26 @@ class TemplateController extends GetxController {
   final GlobalKey collageKey = GlobalKey();
   var selectedfile = Rx<File?>(null);
   final RxInt selectedSlotIndex = (-1).obs;
-
-  // var selectedSlotIndex = RxInt(-1);
   var isDragging = false.obs;
+
+  // Store transformation controllers for each image to manage zoom state
+  final List<TransformationController> _transformationControllers = [];
 
   @override
   void onInit() {
     super.onInit();
     images = List<File?>.filled(selectedTemplate.slots.length, null);
+    // Initialize transformation controllers for each slot
+    _transformationControllers
+        .addAll(List.generate(selectedTemplate.slots.length, (_) => TransformationController()));
   }
 
   void selectTemplate(CollageTemplate template) {
     selectedTemplate = template;
     images = List<File?>.filled(template.slots.length, null);
+    _transformationControllers.clear();
+    _transformationControllers
+        .addAll(List.generate(template.slots.length, (_) => TransformationController()));
     selectedSlotIndex.value = -1;
     update();
   }
@@ -581,13 +589,17 @@ class TemplateController extends GetxController {
     );
   }
 
+
   Widget openTemplatePickerBottomSheet() {
     return GetBuilder<TemplateController>(
       builder: (controller) {
         final template = controller.selectedTemplate;
         final anyImageSelected = controller.images.any((img) => img != null);
         return Container(
-          height: 550,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(Get.context!).size.height * 0.8,
+            minHeight: 300,
+          ),
           decoration: BoxDecoration(
             color: Colors.grey,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -595,6 +607,7 @@ class TemplateController extends GetxController {
           padding: EdgeInsets.symmetric(horizontal: 8),
           margin: EdgeInsets.only(bottom: 20, top: 10),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Expanded(
                 child: Padding(
@@ -604,11 +617,10 @@ class TemplateController extends GetxController {
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         return Stack(
-                          children:
-                          List.generate(template.slots.length, (index) {
+                          clipBehavior: Clip.hardEdge,
+                          children: List.generate(template.slots.length, (index) {
                             final slot = template.slots[index];
-                            final isSelected =
-                                controller.selectedSlotIndex.value == index;
+                            final isSelected = controller.selectedSlotIndex.value == index;
 
                             return Positioned(
                               left: slot.left * constraints.maxWidth,
@@ -625,81 +637,55 @@ class TemplateController extends GetxController {
                                 },
                                 onAccept: (fromIndex) {
                                   final temp = controller.images[index];
-                                  controller.images[index] =
-                                  controller.images[fromIndex];
+                                  controller.images[index] = controller.images[fromIndex];
                                   controller.images[fromIndex] = temp;
+                                  final tempController = controller._transformationControllers[index];
+                                  controller._transformationControllers[index] =
+                                  controller._transformationControllers[fromIndex];
+                                  controller._transformationControllers[fromIndex] = tempController;
                                   controller.isDragging.value = false;
                                   controller.update();
                                 },
-                                builder:
-                                    (context, candidateData, rejectedData) {
+                                builder: (context, candidateData, rejectedData) {
                                   return Draggable<int>(
                                     data: index,
-                                    feedback: controller.buildImageContainer(
-                                        index,
-                                        isDragging: true),
+                                    feedback: controller.buildImageContainer(index, context, isDragging: true),
                                     childWhenDragging: Container(
                                       margin: EdgeInsets.all(2),
                                       color: Colors.grey.shade300,
-                                      child: Center(
-                                          child: Icon(Icons.add, size: 40)),
+                                      child: Center(child: Icon(Icons.add, size: 40)),
                                     ),
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        controller.selectedSlotIndex.value =
-                                            index;
-                                        controller.pickImage(index);
-                                      },
-                                      child: Container(
-                                          decoration: BoxDecoration(
-                                            border: Border.all(
-                                              color: isSelected
-                                                  ? Colors.yellowAccent
-                                                  : Colors.transparent,
-                                              width: 3,
-                                            ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: isSelected ? Colors.yellowAccent : Colors.transparent,
+                                          width: 3,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Expanded(
+                                            child: controller.buildImageContainer(index, context),
                                           ),
-                                          child: Stack(
-                                            children: [
-                                              controller
-                                                  .buildImageContainer(index),
-                                              controller.images[index] != null
-                                                  ? Text('')
-                                                  : Positioned(
-                                                left: 20,
-                                                top: 160,
-                                                child: Center(
-                                                  child: isSelected
-                                                      ? Text(
-                                                    'Tap to add image',
-                                                    style: TextStyle(
-                                                        color: Colors
-                                                            .yellow,
-                                                        fontWeight:
-                                                        FontWeight
-                                                            .bold,
-                                                        fontSize:
-                                                        15),
-                                                  )
-                                                      : Icon(Icons.add,
-                                                      size: 40,
-                                                      color: Colors
-                                                          .white24),
+                                          // if (controller.images[index] == null)
+                                            Padding(
+                                              padding: EdgeInsets.symmetric(vertical: 8),
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  controller.selectedSlotIndex.value = index;
+                                                  controller.pickImage(index);
+                                                },
+                                                child: Text(
+                                                  'Tap to add image',
+                                                  style: TextStyle(
+                                                    color: Color(ColorConst.primaryColor),
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                  ),
                                                 ),
                                               ),
-                                            ],
-                                          )
-
-                                        // child: controller.images[index] != null
-                                        //     ? controller.buildImageContainer(index)
-                                        //     : Center(
-                                        //   child: isSelected
-                                        //       ? Text(
-                                        //     'Tap to add image',
-                                        //     style: TextStyle(color: Colors.white70),
-                                        //   )
-                                        //       : Icon(Icons.add, size: 40, color: Colors.white24),
-                                        // ),
+                                            ),
+                                        ],
                                       ),
                                     ),
                                   );
@@ -713,9 +699,9 @@ class TemplateController extends GetxController {
                   ),
                 ),
               ),
-              SizedBox(height: 16),
+              SizedBox(height: 46),
               SizedBox(
-                height: 100,
+                height: 70,
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -727,58 +713,42 @@ class TemplateController extends GetxController {
                         },
                         child: Container(
                           margin: EdgeInsets.symmetric(horizontal: 3),
-                          width: 110,
+                          // width: 110,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                            Container(
-                            height: 44.0,
-                            decoration: BoxDecoration(
-                              border: Border.all(color:
-                                   controller.selectedTemplate == template
-                                  ? Color(ColorConst.lightpurple)
-                                 : Colors.transparent,),
-                              borderRadius: BorderRadius.circular(10),
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Color(ColorConst.skyBlue),
-                                  Color(ColorConst.lightpurple),
-                                ],
-                              )),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                controller.selectTemplate(template);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent),
-                              child: Text(template.name.value,style: TextStyle(fontSize: 10),),
-                            ),
-                          ),
-
-                              // Container(
-                              //   decoration: BoxDecoration(
-                              //       gradient: LinearGradient(
-                              //           colors: [Color.fromARGB(255, 2, 173, 102), Colors.blue])),
-                              //   child: ElevatedButton(
-                              //     style: ElevatedButton.styleFrom(
-                              //       backgroundColor: Colors.transparent,
-                              //       // controller.selectedTemplate == template
-                              //       //     ? Color(ColorConst.lightpurple)
-                              //       //     : Color(ColorConst.greycontainer),
-                              //       // foregroundColor: Colors.white,
-                              //       shape: RoundedRectangleBorder(
-                              //         borderRadius: BorderRadius.circular(8),
-                              //       ),
-                              //     ),
-                              //     onPressed: () {
-                              //       controller.selectTemplate(template);
-                              //     },
-                              //     child: Text(template.name.value),
-                              //   ),
-                              // ),
+                              Container(
+                                height: 44.0,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: controller.selectedTemplate == template
+                                        ? Color(ColorConst.lightpurple)
+                                        : Colors.transparent,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Color(ColorConst.skyBlue),
+                                      Color(ColorConst.lightpurple),
+                                    ],
+                                  ),
+                                ),
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    controller.selectTemplate(template);
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                  ),
+                                  child: Text(
+                                    template.name.value,
+                                    style: TextStyle(fontSize: 10),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -787,47 +757,49 @@ class TemplateController extends GetxController {
                   ),
                 ),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      collageController.showCollageOption.value = false;
-
-                    },
-                    child: SizedBox(
-                      height: 30,
-                      child: Image.asset('assets/cross.png'),
-                    ),
-                  ),
-                  const Text(
-                    'Collages',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 20,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: anyImageSelected
-                        ? () {
-                      controller._capturePng();
-                      controller.selectedSlotIndex.value =
-                      -1; // Deselect slot
-                      controller.update();
-                    }
-                        : null,
-                    child: Opacity(
-                      opacity: anyImageSelected ? 1.0 : 0.5,
+              Padding(
+                padding: const EdgeInsets.only(left: 8,right: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Get.back();
+                        collageController.showCollageOption.value = false;
+                      },
                       child: SizedBox(
-                        height: 30,
-                        child: Image.asset('assets/right.png'),
+                        height: 36,
+                        child: Image.asset('assets/cross.png'),
                       ),
                     ),
-                  ),
-                ],
+                    const Text(
+                      'Collages',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 20,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: anyImageSelected
+                          ? () {
+                        controller._capturePng();
+                        controller.selectedSlotIndex.value = -1;
+                        controller.update();
+                      }
+                          : null,
+                      child: Opacity(
+                        opacity: anyImageSelected ? 1.0 : 0.5,
+                        child: SizedBox(
+                          height: 36,
+                          child: Image.asset('assets/right.png'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              SizedBox(height: 30,)
+              SizedBox(height: 30),
             ],
           ),
         );
@@ -835,24 +807,39 @@ class TemplateController extends GetxController {
     );
   }
 
-  Widget buildImageContainer(int index, {bool isDragging = false}) {
+   buildImageContainer(int index, BuildContext context, {bool isDragging = false}) {
     return Container(
       margin: EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(4),
       ),
       child: images.length > index && images[index] != null
-          ? ClipRect(
-        child: Image.file(
-          images[index]!,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
+          ? ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: InteractiveViewer(
+          transformationController: _transformationControllers[index],
+          minScale: 1.0,
+          maxScale: 4.0,
+          clipBehavior: Clip.hardEdge,
+          child: Image.file(
+            images[index]!,
+            fit: BoxFit.contain, // Changed to contain to preserve aspect ratio
+            width: double.infinity,
+            height: double.infinity,
+          ),
         ),
       )
-          : Center(child: Icon(Icons.add, size: 40)),
+          : Center(
+        child: Icon(
+          Icons.add,
+          size: 40,
+          color: isDragging ? Colors.grey : Colors.white24,
+        ),
+      ),
     );
   }
+
 
   Future<void> pickImage(int index) async {
     final picker = ImagePicker();
@@ -860,22 +847,35 @@ class TemplateController extends GetxController {
 
     if (pickedFile != null) {
       images[index] = File(pickedFile.path);
+      // Reset zoom when a new image is loaded
+      _transformationControllers[index].value = Matrix4.identity();
       update();
     }
   }
 
   Future<Uint8List> _capturePng() async {
     try {
-      RenderRepaintBoundary? boundary = collageKey.currentContext!.findRenderObject() as RenderRepaintBoundary?;
+      RenderRepaintBoundary? boundary =
+      collageKey.currentContext!.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) throw Exception("Boundary is null");
 
       await Future.delayed(Duration(milliseconds: 300));
 
-
       double pixelRatio = ui.window.devicePixelRatio * 2;
+
+      // Temporarily reset transformations for capture
+      List<Matrix4> originalTransforms = _transformationControllers.map((c) => c.value).toList();
+      for (var controller in _transformationControllers) {
+        controller.value = Matrix4.identity();
+      }
 
       ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
       ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+      // Restore transformations after capture
+      for (int i = 0; i < _transformationControllers.length; i++) {
+        _transformationControllers[i].value = originalTransforms[i];
+      }
 
       if (byteData == null) throw Exception("Failed to get image bytes");
 
@@ -889,7 +889,6 @@ class TemplateController extends GetxController {
       selectedfile.value = outputFile;
       imagecontroller.editedImageBytes.value = outputFile.readAsBytesSync();
       imagecontroller.editedImage.value = outputFile;
-      // collageController.showCollageOption.value = false;
       Get.toNamed(Consts.ImageEditorScreen, arguments: outputFile);
 
       return byteData.buffer.asUint8List();
@@ -899,6 +898,14 @@ class TemplateController extends GetxController {
     }
   }
 
+  @override
+  void onClose() {
+    // Dispose transformation controllers to prevent memory leaks
+    for (var controller in _transformationControllers) {
+      controller.dispose();
+    }
+    super.onClose();
+  }
 }
 // class TemplatePickerScreen extends StatelessWidget {
 //   final TemplateController controller = Get.put(TemplateController());

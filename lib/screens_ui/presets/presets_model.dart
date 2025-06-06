@@ -697,6 +697,77 @@ class PresetCategory {
         ),
       ],
     ),
+    PresetCategory(
+      name: "Abstract",
+      presets: [
+        ImagePreset(
+          name: "Mosaic",
+          filters: [
+            {
+              "name": "crystallize",
+              "radius": 10.0,
+              "centerX": 0.5,
+              "centerY": 0.5
+            },
+            {
+              "name": "colorControls",
+              "saturation": 1.2,
+              "contrast": 1.1
+            },
+            {"name": "balanceColors"},
+          ],
+        ),
+        ImagePreset(
+          name: "Pixelated",
+          filters: [
+            {"name": "posterize", "levels": 6.0},
+            {
+              "name": "colorControls",
+              "contrast": 1.2,
+              "saturation": 1.3
+            },
+            {"name": "balanceColors"},
+          ],
+        ),
+        ImagePreset(
+          name: "Fractal",
+          filters: [
+            {"name": "kaleidoscope", "count": 8, "angle": 0.15},
+            {
+              "name": "colorControls",
+              "saturation": 1.5,
+              "contrast": 1.2
+            },
+            {"name": "balanceColors"},
+          ],
+        ),
+        ImagePreset(
+          name: "Patterned",
+          filters: [
+            {"name": "dotScreen", "angle": 0.1, "width": 5.0},
+            {
+              "name": "colorControls",
+              "contrast": 1.1,
+              "saturation": 1.2
+            },
+            {"name": "balanceColors"},
+          ],
+        ),
+        ImagePreset(
+          name: "Vivid Abstract",
+          filters: [
+            {
+              "name": "colorControls",
+              "contrast": 1.3,
+              "saturation": 1.8,
+              "brightness": 0.1
+            },
+            {"name": "gaussianBlur", "radius": 0.5},
+            {"name": "balanceColors"},
+          ],
+        ),
+      ],
+    ),
   ];
 }
 
@@ -705,7 +776,7 @@ class ImageProcessor {
 
   img.Image applyPreset(ImagePreset preset, img.Image image) {
     if (image.width == 0 || image.height == 0) {
-      return img.Image.from(image); // Return copy of empty image
+      return img.Image.from(image);
     }
 
     img.Image result = img.Image.from(image);

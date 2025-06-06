@@ -42,19 +42,22 @@ class DashboardScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(
+            icon:  Icon(
               Icons.search,
               color: Color(ColorConst.serachgreycolor),
               size: 30,
             ),
             onPressed: () {},
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundImage: AssetImage('assets/profile.png'),
-              backgroundColor: Colors.grey[300], // fallback color
+          Visibility(
+            visible: false,
+            child: Padding(
+              padding:  EdgeInsets.only(right: 12.0),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundImage: AssetImage('assets/profile.png'),
+                backgroundColor: Colors.grey[300], // fallback color
+              ),
             ),
           ),
         ],
@@ -64,7 +67,7 @@ class DashboardScreen extends StatelessWidget {
       body: Container(
         color: Colors.white60,
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding:  EdgeInsets.all(16.0),
           child: Column(
             children: [
               Container(
@@ -85,15 +88,14 @@ class DashboardScreen extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding:  EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   onPressed: () async {
                     await AppUpdateService.checkForUpdateAndPrompt();
-                    // If dialog is dismissed (user chose "Later"), still proceed to show sheet
-                    Future.delayed(const Duration(milliseconds: 300), () {
+                    Future.delayed( Duration(milliseconds: 300), () {
                       if (Get.isDialogOpen != true) {
                         _bottomSheetController.showCreateTemplateSheet();
                       }
@@ -129,9 +131,18 @@ class DashboardScreen extends StatelessWidget {
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     print('no Templates');
                     return Padding(
-                      padding: const EdgeInsets.only(top: 90),
+                      padding:  EdgeInsets.only(top: 90),
                       child: Center(
-                          child: Text('No templates found', style: TextStyle(color: Colors.black,fontSize: 18,fontWeight: FontWeight.bold))
+                          child: Column(
+                            children: [
+                              Image.asset('assets/template_not_found.png',height: 80,),
+                              SizedBox(height: 16,),
+                              Text('You have not created any images yet.', style: TextStyle(fontWeight: FontWeight.bold,fontSize: 15)),
+                              Container(
+                                width: 260,
+                                  child: Text('Use the Plus icon above to start \ncreating images.',textAlign: TextAlign.center,style: TextStyle(fontWeight: FontWeight.bold,fontSize: 16),)),
+                            ],
+                          )
                       ),
                     );
                   }
@@ -156,11 +167,11 @@ class DashboardScreen extends StatelessWidget {
                         return GestureDetector(
                           onTap: () {
                             print('=====state=======${displayImagePath}');
-                            Get.to(() => ImageEditorScreen(), arguments: state); // Pass full template state
+                            Get.to(() => ImageEditorScreen(), arguments: state);
                           },
                           child: Card(
                             color: Colors.grey[900],
-                            clipBehavior: Clip.antiAlias, // Prevent image overflow
+                            clipBehavior: Clip.antiAlias,
                             child: Image.file(
                               File(displayImagePath as String? ?? ''),
                               fit: BoxFit.cover,

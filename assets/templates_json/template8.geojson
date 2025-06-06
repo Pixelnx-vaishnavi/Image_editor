@@ -1,0 +1,310 @@
+{
+  "objects": [
+    {
+      "type": "path-group",
+      "originX": "left",
+      "originY": "top",
+      "left": 95.96,
+      "top": 275.66,
+      "width": 50,
+      "height": 50,
+      "fill": "",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 11.06,
+      "scaleY": 2.88,
+      "angle": 0,
+      "flipX": false,
+      "flipY": false,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "id": 1525858239637,
+      "paths": [
+        {
+          "type": "path",
+          "originX": "left",
+          "originY": "top",
+          "left": 0,
+          "top": 0,
+          "width": 50,
+          "height": 50,
+          "fill": "rgb(0,0,0)",
+          "stroke": null,
+          "strokeWidth": 1,
+          "strokeDashArray": null,
+          "strokeLineCap": "butt",
+          "strokeLineJoin": "miter",
+          "strokeMiterLimit": 10,
+          "scaleX": 1,
+          "scaleY": 1,
+          "angle": 0,
+          "flipX": false,
+          "flipY": false,
+          "opacity": 1,
+          "shadow": null,
+          "visible": true,
+          "clipTo": null,
+          "backgroundColor": "",
+          "fillRule": "evenodd",
+          "globalCompositeOperation": "source-over",
+          "transformMatrix": null,
+          "skewX": 0,
+          "skewY": 0,
+          "pathOffset": {
+            "x": 25,
+            "y": 25
+          },
+          "path": [
+            [
+              "M",
+              0,
+              0
+            ],
+            [
+              "L",
+              110,
+              0
+            ],
+            [
+              "L",
+              110,
+              50
+            ],
+            [
+              "L",
+              -60,
+              50
+            ],
+            [
+              "L",
+              -60,
+              0
+            ],
+            [
+              "Z"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "i-text",
+      "originX": "left",
+      "originY": "center",
+      "left": 13.95,
+      "top": 222.25,
+      "width": 791.25,
+      "height": 90.39999999999999,
+      "fill": "#ffffff",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 0.9,
+      "scaleY": 0.9,
+      "angle": 0,
+      "flipX": false,
+      "flipY": false,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "text": "DEliCIOUS+BURGER+",
+      "fontSize": 70,
+      "fontWeight": "bold",
+      "fontFamily": "Finger+Paint",
+      "fontStyle": "normal",
+      "lineHeight": 1.16,
+      "textDecoration": "normal",
+      "textAlign": "center",
+      "textBackgroundColor": "",
+      "charSpacing": 0,
+      "id": 1525858239638,
+      "styles": {
+        "0": {
+          "0": {
+            
+          },
+          "1": {
+            
+          },
+          "2": {
+            
+          },
+          "3": {
+            
+          },
+          "4": {
+            
+          },
+          "5": {
+            
+          },
+          "6": {
+            
+          },
+          "7": {
+            
+          },
+          "8": {
+            
+          },
+          "9": {
+            
+          },
+          "10": {
+            
+          },
+          "11": {
+            
+          },
+          "14": {
+            
+          }
+        }
+      }
+    },
+    {
+      "type": "i-text",
+      "originX": "left",
+      "originY": "top",
+      "left": 220.43,
+      "top": 297.83,
+      "width": 344.482421875,
+      "height": 113,
+      "fill": "#fbc02d",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 0.9,
+      "scaleY": 0.9,
+      "angle": 0,
+      "flipX": false,
+      "flipY": false,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "text": "RECIPE",
+      "fontSize": 90,
+      "fontWeight": "normal",
+      "fontFamily": "Finger+Paint",
+      "fontStyle": "normal",
+      "lineHeight": 1.16,
+      "textDecoration": "normal",
+      "textAlign": "left",
+      "textBackgroundColor": "",
+      "charSpacing": 0,
+      "id": 1525858239641,
+      "styles": {
+        "0": {
+          "0": {
+            
+          },
+          "1": {
+            
+          },
+          "2": {
+            
+          },
+          "3": {
+            
+          },
+          "4": {
+            
+          },
+          "5": {
+            
+          },
+          "6": {
+            
+          },
+          "7": {
+            
+          },
+          "8": {
+            
+          },
+          "9": {
+            
+          }
+        }
+      }
+    },
+    {
+      "type": "image",
+      "originX": "left",
+      "originY": "top",
+      "left": 12.19,
+      "top": 594.47,
+      "width": 857,
+      "height": 628,
+      "fill": "rgb(0,0,0)",
+      "stroke": null,
+      "strokeWidth": 0,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 0.84,
+      "scaleY": 0.84,
+      "angle": 0,
+      "flipX": false,
+      "flipY": false,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "crossOrigin": "anonymous",
+      "alignX": "none",
+      "alignY": "none",
+      "meetOrSlice": "meet",
+      "id": 1525858239641,
+      "src": "https://app.pixaguru.com/assets/images/background/burger01.png",
+      "filters": [
+        
+      ],
+      "resizeFilters": [
+        
+      ]
+    }
+  ],
+  "background": "#fbc02d",
+  "width": "735",
+  "height": "1102"
+}

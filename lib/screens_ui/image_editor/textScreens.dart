@@ -195,6 +195,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
           child: Container(
             height: 800,
             child: FontPicker(
+
               onFontChanged: (PickerFont font) {
                 if (font.fontFamily != null) {
                   try {
@@ -330,18 +331,18 @@ class TextUIWithTabsScreen extends StatelessWidget {
                     print('OK pressed, saving text: ${_controller.textController.value.text}');
                     _debounceTimer?.cancel();
                     _unfocus();
-                  
+
                     final text = _controller.textController.value.text;
                     if (!isAddingNewText && selectedTextModel != null) {
                     // Update existing text model
                     textController.selectText(selectedTextModel!);
                     textController.updateText(text);
-                  
+
                     if (selectedTextModel!.widgetKey == null) {
                     print('Error: widgetKey is null for selectedTextModel');
                     return;
                     }
-                  
+
                     final updatedWidget = Container(
                     key: selectedTextModel!.widgetKey,
                     padding: const EdgeInsets.all(12),
@@ -381,7 +382,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                     ),
                     ),
                     );
-                  
+
                     try {
                     _controller.editWidget(
                     updatedWidget,
@@ -403,14 +404,13 @@ class TextUIWithTabsScreen extends StatelessWidget {
                     print('No action: empty text or invalid state');
                     // Get.back();
                     }
-                  
+
                     _controller.isSelectingText.value = false;
                     _controller.TextEditOptions.value = false;
                     SystemChrome.setEnabledSystemUIMode(
-                    SystemUiMode.edgeToEdge,
+                    SystemUiMode.immersiveSticky,
                     overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
                     );
-                  
                             // _unfocus();
                           },
                           onChanged: (value) {
@@ -545,7 +545,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                               _controller.isSelectingText.value = false;
                               _controller.TextEditOptions.value = false;
                               SystemChrome.setEnabledSystemUIMode(
-                                SystemUiMode.edgeToEdge,
+                                SystemUiMode.immersiveSticky,
                                 overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
                               );
                               // Get.back();
@@ -650,7 +650,7 @@ class TextUIWithTabsScreen extends StatelessWidget {
                               _controller.isSelectingText.value = false;
                               _controller.TextEditOptions.value = false;
                               SystemChrome.setEnabledSystemUIMode(
-                                SystemUiMode.edgeToEdge,
+                                SystemUiMode.immersiveSticky,
                                 overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
                               );
                             },
@@ -888,8 +888,29 @@ class TextUIWithTabsScreen extends StatelessWidget {
                   width: 250,
                   child: Obx(() => ElevatedButton(
                     onPressed: () {
-                      _unfocus();
-                      _openFontPicker(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FontPicker(
+                            recentsCount: 10,
+                            onFontChanged: (PickerFont font) {
+                              if (font.fontFamily != null) {
+                                try {
+                                  textController.updateFontFamily(font.fontFamily!);
+                                  print('Font selected: ${font.fontFamily}');
+                                  Navigator.of(context).pop();
+                                  _isSelectingFont.value = false;
+                                } catch (e) {
+                                  print('Error updating font: $e');
+                                  _isSelectingFont.value = false;
+                                }
+                              }
+                            },
+                            googleFonts: availableFonts,
+                            initialFontFamily: textController.selectedText.value?.fontFamily.value ?? 'Roboto',
+                          ),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey[800],

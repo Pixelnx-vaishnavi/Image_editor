@@ -61,18 +61,192 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   static const _tapDurationThreshold = Duration(milliseconds: 300);
   static const _tapDistanceThreshold = 5.0;
 
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _repaintKey = GlobalKey();
+  //
+  //   // Initialize widgetList in controller
+  //   _controller.widgetList.value = [];
+  //
+  //   // Initialize LindiController with explicit settings
+  //   _controller.controller = LindiController(
+  //     borderColor: Colors.blue,
+  //     shouldRotate: true,
+  //     showBorders: true, // Ensure global borders are enabled
+  //     icons: [
+  //       LindiStickerIcon(
+  //         icon: Icons.rotate_90_degrees_ccw,
+  //         iconColor: Colors.purple,
+  //         alignment: Alignment.topRight,
+  //         type: IconType.resize,
+  //       ),
+  //       LindiStickerIcon(
+  //         icon: Icons.lock_open,
+  //         alignment: Alignment.topCenter,
+  //         onTap: () {
+  //           _controller.controller.clearAllBorders();
+  //           _controller.controller.notifyListeners();
+  //           print('Cleared all borders via lock_open icon');
+  //         },
+  //       ),
+  //       LindiStickerIcon(
+  //         icon: Icons.close,
+  //         alignment: Alignment.topLeft,
+  //         onTap: () {
+  //           final selectedWidget = _controller.controller.selectedWidget;
+  //           if (selectedWidget != null) {
+  //             final model = _controller.widgetModels[selectedWidget.key];
+  //             if (model is StickerModel) {
+  //               stickerController.stickers.remove(model);
+  //               _controller.widgetList.removeWhere((item) => item['model'] == model);
+  //             } else if (model is EditableTextModel) {
+  //               textEditorControllerWidget.text.remove(model);
+  //               _controller.widgetList.removeWhere((item) => item['model'] == model);
+  //             }
+  //             _controller.widgetModels.remove(selectedWidget.key);
+  //             selectedWidget.delete();
+  //             _controller.controller.notifyListeners();
+  //             print('Deleted widget with key: ${selectedWidget.key}');
+  //           }
+  //         },
+  //       ),
+  //       LindiStickerIcon(
+  //         icon: Icons.flip,
+  //         alignment: Alignment.bottomLeft,
+  //         onTap: () {
+  //           _controller.controller.selectedWidget?.flip();
+  //           _controller.controller.notifyListeners();
+  //           print('Flipped selected widget');
+  //         },
+  //       ),
+  //       LindiStickerIcon(
+  //         icon: Icons.crop_free,
+  //         alignment: Alignment.bottomRight,
+  //         type: IconType.resize,
+  //       ),
+  //     ],
+  //   );
+  //
+  //   // Initialize canvas size
+  //   WidgetsBinding.instance.addPostFrameCallback((_) {
+  //     _updateCanvasSize();
+  //   });
+  //
+  //   // Set up position change listener with detailed logging
+  //   _controller.controller.onPositionChange((index) async {
+  //     print('onPositionChange triggered for index: $index');
+  //     print('Widget list length: ${_controller.widgetList.length}, Controller widgets length: ${_controller.controller.widgets.length}');
+  //
+  //     if (index < 0 || index >= _controller.controller.widgets.length) {
+  //       print('Invalid widget index: $index');
+  //       return;
+  //     }
+  //     if (index >= _controller.widgetList.length) {
+  //       print('Widget index $index exceeds widgetList length: ${_controller.widgetList.length}');
+  //       return;
+  //     }
+  //
+  //     final DraggableWidget widget = _controller.controller.widgets[index];
+  //     final Map<String, dynamic> widgetItem = _controller.widgetList[index];
+  //     final GlobalKey widgetKey = widget.centerKey;
+  //     final model = widgetItem['model'];
+  //
+  //     if (model == null) {
+  //       print('No model found for widget at index $index');
+  //       return;
+  //     }
+  //
+  //     final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
+  //     if (canvasBox == null) {
+  //       print('Canvas RenderBox is null');
+  //       return;
+  //     }
+  //     final Size canvasSize = canvasBox.size;
+  //     if (canvasSize.width <= 0 || canvasSize.height <= 0) {
+  //       print('Invalid canvas size: $canvasSize');
+  //       return;
+  //     }
+  //     _controller.lastValidCanvasSize = canvasSize;
+  //     final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
+  //     print('Canvas size: $canvasSize, position: $canvasPosition');
+  //
+  //     final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+  //     if (widgetBox == null) {
+  //       print('Widget RenderBox is null for key: $widgetKey');
+  //       return;
+  //     }
+  //     final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
+  //     final double x = widgetPosition.dx - canvasPosition.dx;
+  //     final double y = widgetPosition.dy - canvasPosition.dy;
+  //     print('Widget position: ($x, $y)');
+  //
+  //     if (_interactionStartTime == null) {
+  //       _interactionStartTime = DateTime.now();
+  //       _lastPosition = Offset(x, y);
+  //     }
+  //
+  //     // Update model position
+  //     model.left.value = x;
+  //     model.top.value = y;
+  //     print('Updated model position: ${model.runtimeType} at ($x, $y)');
+  //
+  //     // Manage borders
+  //     _controller.controller.widgets.asMap().forEach((i, w) {
+  //       if (i != index && w is DraggableWidget) {
+  //         w.showBorder(false);
+  //       }
+  //     });
+  //     widget.showBorder(true);
+  //     _controller.controller.widgets[index] = widget;
+  //     print('Border shown for widget at index: $index');
+  //
+  //     // Handle model-specific logic
+  //     if (model is StickerModel) {
+  //       stickerController.selectSticker(model);
+  //       textEditorControllerWidget.clearSelection();
+  //       _controller.textController.value.text = '';
+  //       _controller.isSelectingText.value = false;
+  //       _controller.TextEditOptions.value = false;
+  //       print('Sticker selected: ${model.path}, text cleared');
+  //     } else if (model is EditableTextModel) {
+  //       textEditorControllerWidget.selectText(model);
+  //       stickerController.selectedSticker.value = null;
+  //       _controller.textController.value.text = model.text.value;
+  //       _controller.isSelectingText.value = true;
+  //       print('Text selected: "${model.text.value}" at position: ($x, $y)');
+  //
+  //       final duration = DateTime.now().difference(_interactionStartTime!);
+  //       final distance = (_lastPosition! - Offset(x, y)).distance;
+  //
+  //       if (duration < _tapDurationThreshold && distance < _tapDistanceThreshold) {
+  //         WidgetsBinding.instance.addPostFrameCallback((_) {
+  //           print('Navigating to TextUIWithTabsScreen with text: ${model.text.value}');
+  //           _controller.TextEditOptions.value = true; // Show text editor on tap
+  //         });
+  //       }
+  //
+  //       _lastPosition = Offset(x, y);
+  //       _controller.textController.value.notifyListeners();
+  //     }
+  //
+  //     _controller.controller.notifyListeners();
+  //     print('Notified listeners after position change');
+  //   });
+  // }
+
+
   @override
   void initState() {
     super.initState();
     _repaintKey = GlobalKey();
-
-    // Initialize widgetList in controller
     _controller.widgetList.value = [];
 
     // Initialize LindiController
     _controller.controller = LindiController(
       borderColor: Colors.blue,
       shouldRotate: true,
+      showBorders: true,
       icons: [
         LindiStickerIcon(
           icon: Icons.rotate_90_degrees_ccw,
@@ -84,7 +258,12 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           icon: Icons.lock_open,
           alignment: Alignment.topCenter,
           onTap: () {
-            _controller.controller.clearAllBorders();
+            final selectedWidget = _controller.controller.selectedWidget;
+            if (selectedWidget != null) {
+              selectedWidget.showBorder(false);
+              _controller.controller.notifyListeners();
+              print('Border hidden for selected widget');
+            }
           },
         ),
         LindiStickerIcon(
@@ -104,6 +283,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
               _controller.widgetModels.remove(selectedWidget.key);
               selectedWidget.delete();
               _controller.controller.notifyListeners();
+              print('Deleted widget with key: ${selectedWidget.key}');
             }
           },
         ),
@@ -112,6 +292,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           alignment: Alignment.bottomLeft,
           onTap: () {
             _controller.controller.selectedWidget?.flip();
+            _controller.controller.notifyListeners();
+            print('Flipped selected widget');
           },
         ),
         LindiStickerIcon(
@@ -122,101 +304,60 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       ],
     );
 
-    // Initialize canvas size
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateCanvasSize();
-    });
-
-    // Set up position change listener
-    _controller.controller.onPositionChange((index) {
-      print('Position change for widget index: $index');
-      _controller.controller.clearAllBorders();
-
+    // Set up onPositionChange listener
+    _controller.controller.onPositionChange((index) async {
+      print('onPositionChange called for index: $index');
       if (index < 0 || index >= _controller.controller.widgets.length) {
-        print('Invalid widget index: $index');
-        return;
-      }
-      if (index >= _controller.widgetList.length) {
-        print('Widget index $index exceeds widgetList length: ${_controller.widgetList.length}');
+        print('Invalid index: $index');
         return;
       }
 
       final DraggableWidget widget = _controller.controller.widgets[index];
-      final Map<String, dynamic> widgetItem = _controller.widgetList[index];
-      final GlobalKey widgetKey = widget.centerKey;
+      final widgetItem = _controller.widgetList[index];
       final model = widgetItem['model'];
+      final widgetKey = widgetItem['key'] ?? widget.key;
 
       if (model == null) {
         print('No model found for widget at index $index');
         return;
       }
 
-      final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
+      final canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
       if (canvasBox == null) {
         print('Canvas RenderBox is null');
         return;
       }
-      final Size canvasSize = canvasBox.size;
+      final canvasSize = canvasBox.size;
       if (canvasSize.width <= 0 || canvasSize.height <= 0) {
         print('Invalid canvas size: $canvasSize');
         return;
       }
       _controller.lastValidCanvasSize = canvasSize;
-      final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
+      final canvasPosition = canvasBox.localToGlobal(Offset.zero);
 
-      final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+      final widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
       if (widgetBox == null) {
         print('Widget RenderBox is null for key: $widgetKey');
         return;
       }
-      final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
+      final widgetPosition = widgetBox.localToGlobal(Offset.zero);
       final double x = widgetPosition.dx - canvasPosition.dx;
       final double y = widgetPosition.dy - canvasPosition.dy;
 
-      if (_interactionStartTime == null) {
-        _interactionStartTime = DateTime.now();
-        _lastPosition = Offset(x, y);
-      }
-
+      // Update model position
       model.left.value = x;
       model.top.value = y;
+      print('Updated position for ${model.runtimeType}: ($x, $y)');
 
-      if (model is StickerModel) {
-        stickerController.selectSticker(model);
-        textEditorControllerWidget.clearSelection();
-        _controller.textController.value.text = '';
-        _controller.isSelectingText.value = false;
-        _controller.TextEditOptions.value = false;
-        print('Sticker selected: ${model.path}, text cleared');
-      } else if (model is EditableTextModel) {
-        textEditorControllerWidget.selectText(model);
-        stickerController.selectedSticker.value = null;
-        _controller.textController.value.text = model.text.value;
-        _controller.isSelectingText.value = true;
-        print('Text selected: "${model.text.value}" at position: ($x, $y)');
+      // Select widget and manage borders
+      // _selectWidget(widgetKey);
 
-        final duration = DateTime.now().difference(_interactionStartTime!);
-        final distance = (_lastPosition! - Offset(x, y)).distance;
+      _controller.controller.notifyListeners();
+    });
 
-        if (duration < _tapDurationThreshold && distance < _tapDistanceThreshold) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            print('Navigating to TextUIWithTabsScreen with text: ${model.text.value}');
-            // Navigate to text editing screen if needed
-            // Get.to(() => TextUIWithTabsScreen());
-          });
-        }
-
-        _lastPosition = Offset(x, y);
-        _controller.textController.value.notifyListeners();
-
-        Future.delayed(_tapDurationThreshold, () {
-          if (_interactionStartTime != null &&
-              DateTime.now().difference(_interactionStartTime!) >= _tapDurationThreshold) {
-            _interactionStartTime = null;
-            _lastPosition = null;
-          }
-        });
-      }
+    // Initialize canvas size
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateCanvasSize();
     });
   }
 
@@ -230,21 +371,18 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           _controller.canvasWidth.value = size.width;
           _controller.canvasHeight.value = size.height;
           _controller.lastValidCanvasSize = size;
-          print('Canvas size updated: ${size.width}x${size.height}');
           return;
         }
-        print('Canvas box not ready, retrying... ($retries retries left)');
         await Future.delayed(const Duration(milliseconds: 100));
         retries--;
       }
       _controller.lastValidCanvasSize = Size(360, 705);
-      print('Canvas box not found after retries, using default: 360x705');
     });
   }
 
   @override
   void dispose() {
-    _controller.isBottomSheetOpen = false; // Reset the flag
+    _controller.isBottomSheetOpen = false;
     _controller.controller.widgets.clear();
     _controller.widgetModels.clear();
     _controller.widgetList.clear();
@@ -253,10 +391,47 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     _controller.controller.clearAllBorders();
     _controller.brightness.value = 0.0;
     _controller.contrast.value = 0.0;
-
-
     super.dispose();
   }
+
+
+  // void _updateCanvasSize() {
+  //   WidgetsBinding.instance.addPostFrameCallback((_) async {
+  //     int retries = 5;
+  //     while (retries > 0) {
+  //       final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
+  //       if (canvasBox != null && canvasBox.hasSize && canvasBox.size.width > 0 && canvasBox.size.height > 0) {
+  //         final size = canvasBox.size;
+  //         _controller.canvasWidth.value = size.width;
+  //         _controller.canvasHeight.value = size.height;
+  //         _controller.lastValidCanvasSize = size;
+  //         print('Canvas size updated: ${size.width}x${size.height}');
+  //         return;
+  //       }
+  //       print('Canvas box not ready, retrying... ($retries retries left)');
+  //       await Future.delayed(const Duration(milliseconds: 100));
+  //       retries--;
+  //     }
+  //     _controller.lastValidCanvasSize = Size(360, 705);
+  //     print('Canvas box not found after retries, using default: 360x705');
+  //   });
+  // }
+  //
+  // @override
+  // void dispose() {
+  //   _controller.isBottomSheetOpen = false; // Reset the flag
+  //   _controller.controller.widgets.clear();
+  //   _controller.widgetModels.clear();
+  //   _controller.widgetList.clear();
+  //   stickerController.stickers.clear();
+  //   textEditorControllerWidget.text.clear();
+  //   _controller.controller.clearAllBorders();
+  //   _controller.brightness.value = 0.0;
+  //   _controller.contrast.value = 0.0;
+  //
+  //
+  //   super.dispose();
+  // }
 
   Future<Uint8List?> captureView({bool applyFilter = false, bool applyPreset = false}) async {
     try {
@@ -279,6 +454,20 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         return imageBytes;
       }
 
+      // Hide borders for capture
+      setState(() {
+        _hideBorders = true;
+      });
+      _controller.controller.widgets.forEach((widget) {
+        if (widget is DraggableWidget) {
+          widget.showBorder(false);
+        }
+      });
+      _controller.controller.showBorders = false;
+      _controller.controller.notifyListeners();
+      print('Hiding borders for capture, hideBorders: $_hideBorders');
+      await Future.delayed(Duration(milliseconds: 200));
+
       final RenderRepaintBoundary? boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) {
         Get.snackbar("Error", "Failed to find render boundary");
@@ -288,6 +477,21 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       print('Capturing image, hideBorders: $_hideBorders');
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+      // Restore borders
+      setState(() {
+        _hideBorders = false;
+      });
+      final selectedWidget = _controller.controller.selectedWidget;
+      _controller.controller.widgets.forEach((widget) {
+        if (widget is DraggableWidget) {
+          widget.showBorder(widget == selectedWidget);
+        }
+      });
+      _controller.controller.showBorders = true;
+      _controller.controller.notifyListeners();
+      print('Borders restored, hideBorders: $_hideBorders');
+
       return byteData?.buffer.asUint8List();
     } catch (e) {
       Get.snackbar("Error", "Failed to capture view: $e");
@@ -296,13 +500,13 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     }
   }
 
+
   Future<void> saveImage() async {
 
     try {
-      // Check if a filter is applied
       final bool hasFilter = _controller.selectedFilter.value != null &&
           _controller.selectedFilter.value!.name != 'NoFilter';
-      final bool hasOverlays = _controller.widgetList.isNotEmpty; // Stickers or text
+      final bool hasOverlays = _controller.widgetList.isNotEmpty;
 
       Uint8List? finalImageBytes;
 
@@ -317,9 +521,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         print('Using filtered image directly from editedImageBytes');
       } else {
         // Hide borders for capture
-        setState(() {
-          _hideBorders = true;
-        });
+        // setState(() {
+        //   _hideBorders = true;
+        // });
         _controller.controller.showBorders = false;
         _controller.controller.notifyListeners();
         print('Hiding borders for capture, showBorders: ${_controller.controller.showBorders}, hideBorders: $_hideBorders');
@@ -971,304 +1175,498 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       _controller.decodeEditedImage();
       filterController.setInitialImage(File(''));
     }
-    return SafeArea(
-      bottom: true,
-      child: Scaffold(
-        resizeToAvoidBottomInset: true,
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          backgroundColor: Colors.black,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new, color: Colors.white),
-            onPressed: () => Get.back(),
-          ),
-          actions: [
-            Padding(
-              padding: EdgeInsets.only(right: 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      _controller.undo();
-                    },
-                    icon: Icon(Icons.undo, color: Colors.white),
-                  ),
-                  SizedBox(width: 10),
-                  IconButton(
-                    onPressed: () {
-                      _controller.redo();
-                    },
-                    icon: Icon(Icons.redo, color: Colors.white),
-                  ),
-                  SizedBox(width: 25),
-                  GestureDetector(
-                    onTap: () {
-                      _controller.showImageLayer.value = true;
-                    },
-                    child: SizedBox(
-                      height: 20,
-                      child: Image.asset(
-                        'assets/image_layer.png',
-                        errorBuilder: (context, error, stackTrace) => Icon(Icons.image, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 25),
-                  SizedBox(
-                    height: 20,
-                    child: GestureDetector(
-                      onTap: () {
-                        _controller.controller.clearAllBorders();
-                        print('====Save Template=========');
-                        saveTemplate();
-                      },
-                      child: Icon(Icons.save, color: Colors.white),
-                    ),
-                  ),
-                  SizedBox(width: 25),
-                  SizedBox(
-                    height: 20,
-                    child: GestureDetector(
-                      onTap: () async {
-                        try {
-                          final Uint8List? capturedImage = await captureView();
-                          if (capturedImage != null) {
-                            final tempDir = await getTemporaryDirectory();
-                            final file = await File('${tempDir.path}/shared_image.png').create();
-                            await file.writeAsBytes(capturedImage);
 
-                            await Share.shareXFiles(
-                              [XFile(file.path)],
-                              text: 'Check out my edited image!',
-                            );
-                          } else {
-                            Get.snackbar("Error", "Failed to capture image");
-                          }
-                        } catch (e) {
-                          Get.snackbar("Error", "Failed to share image: $e");
-                          print('Share error: $e');
-                        }
-                      },
-                      child: Image.asset(
-                        'assets/Export.png',
-                        errorBuilder: (context, error, stackTrace) => Icon(Icons.share, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+
+    // _repaintKey = GlobalKey();
+    //
+    // // Initialize widgetList in controller
+    // _controller.widgetList.value = [];
+    //
+    // // Initialize LindiController
+    // _controller.controller = LindiController(
+    //   borderColor: Colors.blue,
+    //   shouldRotate: true,
+    //   showBorders: true,
+    //
+    //   icons: [
+    //     LindiStickerIcon(
+    //       icon: Icons.rotate_90_degrees_ccw,
+    //       iconColor: Colors.purple,
+    //       alignment: Alignment.topRight,
+    //       type: IconType.resize,
+    //     ),
+    //     LindiStickerIcon(
+    //       icon: Icons.lock_open,
+    //       alignment: Alignment.topCenter,
+    //       onTap: () {
+    //         _controller.controller.clearAllBorders();
+    //       },
+    //     ),
+    //     LindiStickerIcon(
+    //       icon: Icons.close,
+    //       alignment: Alignment.topLeft,
+    //       onTap: () {
+    //         final selectedWidget = _controller.controller.selectedWidget;
+    //         if (selectedWidget != null) {
+    //           final model = _controller.widgetModels[selectedWidget.key];
+    //           if (model is StickerModel) {
+    //             stickerController.stickers.remove(model);
+    //             _controller.widgetList.removeWhere((item) => item['model'] == model);
+    //           } else if (model is EditableTextModel) {
+    //             textEditorControllerWidget.text.remove(model);
+    //             _controller.widgetList.removeWhere((item) => item['model'] == model);
+    //           }
+    //           _controller.widgetModels.remove(selectedWidget.key);
+    //           selectedWidget.delete();
+    //           _controller.controller.notifyListeners();
+    //         }
+    //       },
+    //     ),
+    //     LindiStickerIcon(
+    //       icon: Icons.flip,
+    //       alignment: Alignment.bottomLeft,
+    //       onTap: () {
+    //         _controller.controller.selectedWidget?.flip();
+    //       },
+    //     ),
+    //     LindiStickerIcon(
+    //       icon: Icons.crop_free,
+    //       alignment: Alignment.bottomRight,
+    //       type: IconType.resize,
+    //     ),
+    //   ],
+    // );
+    //
+    // // Initialize canvas size
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _updateCanvasSize();
+    // });
+    //
+    // // Set up position change listener
+    // _controller.controller.onPositionChange((index) {
+    //   print('Position change for widget index: $index');
+    //
+    //   // Validate index
+    //   if (index < 0 || index >= _controller.controller.widgets.length) {
+    //     print('Invalid widget index: $index');
+    //     return;
+    //   }
+    //   if (index >= _controller.widgetList.length) {
+    //     print('Widget index $index exceeds widgetList length: ${_controller.widgetList.length}');
+    //     return;
+    //   }
+    //
+    //   final DraggableWidget widget = _controller.controller.widgets[index];
+    //   final Map<String, dynamic> widgetItem = _controller.widgetList[index];
+    //   final GlobalKey widgetKey = widget.centerKey;
+    //   final model = widgetItem['model'];
+    //
+    //   if (model == null) {
+    //     print('No model found for widget at index $index');
+    //     return;
+    //   }
+    //
+    //   final RenderBox? canvasBox = _controller.imageKey.currentContext?.findRenderObject() as RenderBox?;
+    //   if (canvasBox == null) {
+    //     print('Canvas RenderBox is null');
+    //     return;
+    //   }
+    //   final Size canvasSize = canvasBox.size;
+    //   if (canvasSize.width <= 0 || canvasSize.height <= 0) {
+    //     print('Invalid canvas size: $canvasSize');
+    //     return;
+    //   }
+    //   _controller.lastValidCanvasSize = canvasSize;
+    //   final Offset canvasPosition = canvasBox.localToGlobal(Offset.zero);
+    //
+    //   final RenderBox? widgetBox = widgetKey.currentContext?.findRenderObject() as RenderBox?;
+    //   if (widgetBox == null) {
+    //     print('Widget RenderBox is null for key: $widgetKey');
+    //     return;
+    //   }
+    //   final Offset widgetPosition = widgetBox.localToGlobal(Offset.zero);
+    //   final double x = widgetPosition.dx - canvasPosition.dx;
+    //   final double y = widgetPosition.dy - canvasPosition.dy;
+    //
+    //   if (_interactionStartTime == null) {
+    //     _interactionStartTime = DateTime.now();
+    //     _lastPosition = Offset(x, y);
+    //   }
+    //
+    //   // Update model position
+    //   model.left.value = x;
+    //   model.top.value = y;
+    //
+    //   // Clear borders for all widgets except the selected one
+    //   _controller.controller.widgets.asMap().forEach((i, w) {
+    //     if (i != index && w is DraggableWidget) {
+    //       w.showBorder(false);
+    //     }
+    //   });
+    //   // Show border for the selected widget
+    //   widget.showBorder(true);
+    //
+    //   if (model is StickerModel) {
+    //     stickerController.selectSticker(model);
+    //     textEditorControllerWidget.clearSelection();
+    //     _controller.textController.value.text = '';
+    //     _controller.isSelectingText.value = false;
+    //     _controller.TextEditOptions.value = false;
+    //     print('Sticker selected: ${model.path}, text cleared');
+    //   } else if (model is EditableTextModel) {
+    //     textEditorControllerWidget.selectText(model);
+    //     stickerController.selectedSticker.value = null;
+    //     _controller.textController.value.text = model.text.value;
+    //     _controller.isSelectingText.value = true;
+    //     print('Text selected: "${model.text.value}" at position: ($x, $y)');
+    //
+    //     final duration = DateTime.now().difference(_interactionStartTime!);
+    //     final distance = (_lastPosition! - Offset(x, y)).distance;
+    //
+    //     if (duration < _tapDurationThreshold && distance < _tapDistanceThreshold) {
+    //       WidgetsBinding.instance.addPostFrameCallback((_) {
+    //         print('Navigating to TextUIWithTabsScreen with text: ${model.text.value}');
+    //         // Navigate to text editing screen if needed
+    //         // Get.to(() => TextUIWithTabsScreen());
+    //       });
+    //     }
+    //
+    //     _lastPosition = Offset(x, y);
+    //     _controller.textController.value.notifyListeners();
+    //
+    //     Future.delayed(_tapDurationThreshold, () {
+    //       if (_interactionStartTime != null &&
+    //           DateTime.now().difference(_interactionStartTime!) >= _tapDurationThreshold) {
+    //         _interactionStartTime = null;
+    //         _lastPosition = null;
+    //       }
+    //     });
+    //   }
+    //
+    //   // Notify listeners to update UI
+    //   _controller.controller.notifyListeners();
+    // });
+
+
+    return Scaffold(
+
+      resizeToAvoidBottomInset: true,
+      backgroundColor: Colors.black,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          shape:  RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(
+              bottom: Radius.circular(20),
             ),
-          ],
-        ),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _updateCanvasSize();
-            });
-            return Obx(() {
-              final Uint8List? editedMemoryImage = _controller.editedImageBytes.value;
-              final File? editedFileImage = _controller.editedImage.value;
-              if (_controller.TextEditOptions.value && !_controller.isBottomSheetOpen) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _controller.isBottomSheetOpen = true;
-                  _controller.showTextEditorBottomSheet(constraints, _controller.imageKey, context);
-                });
-              } else if (_controller.showPresetsEditOptions.value) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _controller.showFilterControlsBottomSheet(context, () {
-                    _controller.showFilterEditOptions.value = false;
-                  });
-                });
-              } else if (_controller.showFilterEditOptions.value) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _controller.buildFilterControlsSheet(onClose: () {
-                    _controller.showFilterEditOptions.value = false;
-                  });
-                });
-              } else if (_controller.CameraEditSticker.value) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _controller.buildEditCamera();
-                });
-              }
-              else if (_controller.showStickerEditOptions.value){
-                WidgetsBinding.instance.addPostFrameCallback((_){
-                  _controller.StickerOption();
-                });}
-               else if (_controller.showtuneOptions.value){
-                 WidgetsBinding.instance.addPostFrameCallback((_){
-                   _controller.showTuneEditBottomSheet();
-                 });
-              }
-             else if (_controller.showEditOptions.value){
-                WidgetsBinding.instance.addPostFrameCallback((_){
-                  _controller.buildEditControls();
-                });
-              }
-             else if (_controller.showImageLayer.value){
-               WidgetsBinding.instance.addPostFrameCallback((_){
-                 _controller.buildImageLayerSheet();
-               });
-              }
+          ),
 
-              return Stack(
-                children: [
-                  Container(
-                    height: constraints.maxHeight,
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: Obx(() {
-                            bool isAnyEditOpen = _controller.showEditOptions.value ||
-                                _controller.showFilterEditOptions.value ||
-                                _controller.showStickerEditOptions.value ||
-                                _controller.showtuneOptions.value;
-                            return ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: constraints.maxWidth,
-                                maxHeight: constraints.maxHeight,
-                              ),
-                              child: RepaintBoundary(
-                                key: _repaintKey,
-                                child: LindiStickerWidget(
-                                  controller: _controller.controller,
-                                  child: AnimatedContainer(
-                                    duration: Duration(milliseconds: 200),
-                                    curve: Curves.easeInOut,
-                                    transform: Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
-                                      ..scale(isAnyEditOpen ? 0.94 : 1.0),
-                                    child: Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 10),
-                                      child: Stack(
-                                        alignment: Alignment.center,
-                                        children: [
-                                          GestureDetector(
-                                            onScaleStart: (details) {
-                                              _controller.baseScale.value = _controller.scale.value;
-                                            },
-                                            onScaleUpdate: (details) {
-                                              final newScale =
-                                              (_controller.baseScale.value * details.scale).clamp(1.0, 5.0);
-                                              _controller.scale.value = newScale;
-                                            },
-                                            onTap: () {
-                                              _controller.controller.clearAllBorders();
-                                              _controller.textController.value.text = '';
-                                              _controller.isSelectingText.value = false;
-                                              textEditorControllerWidget.clearSelection();
-                                              _controller.TextEditOptions.value = false;
-                                            },
-                                            child: Obx(() {
-                                              return Transform.translate(
-                                                offset: _controller.offset.value,
-                                                child: Transform.scale(
-                                                  scale: _controller.scale.value,
-                                                  child: Center(
-                                                    child: Container(
-                                                      key: _controller.imageKey,
-                                                      child: ColorFiltered(
-                                                        colorFilter: ColorFilter.matrix(
-                                                          _controller.calculateColorMatrix(),
-                                                        ),
-                                                        child: editedMemoryImage != null
-                                                            ? Image.memory(
-                                                          editedMemoryImage,
-                                                          fit: BoxFit.contain,
-                                                        )
-                                                            : (editedFileImage != null && editedFileImage.path.isNotEmpty
-                                                            ? Image.file(
-                                                          editedFileImage,
-                                                          fit: BoxFit.contain,
-                                                          errorBuilder: (context, error, stackTrace) => Text(
-                                                            "Error loading image",
-                                                            style: TextStyle(color: Colors.white),
-                                                          ),
-                                                        )
-                                                            : (memoryImage != null
-                                                            ? Image.memory(
-                                                          memoryImage,
-                                                          fit: BoxFit.contain,
-                                                        )
-                                                            : (fileImage != null && fileImage.path.isNotEmpty
-                                                            ? Image.file(
-                                                          fileImage,
-                                                          fit: BoxFit.contain,
-                                                          errorBuilder: (context, error, stackTrace) =>
-                                                              Text(
-                                                                "Error loading image",
-                                                                style: TextStyle(color: Colors.white),
-                                                              ),
-                                                        )
-                                                            : Text(
-                                                          "No image loaded",
-                                                          style: TextStyle(color: Colors.white),
-                                                        )))),
+          backgroundColor:  Color(ColorConst.bottomBarcolor),
+          automaticallyImplyLeading: false,
+
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildAppBarItem(
+                child: IconButton(
+                  icon: Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                  onPressed: () => Get.back(),
+                ),
+              ),
+              _buildAppBarItem(
+                child: IconButton(
+                  onPressed: _controller.undo,
+                  icon: Icon(
+                    Icons.undo,
+                    color: _controller.imageUndoStack.isNotEmpty ? Colors.white : Colors.grey,
+                  ),
+                ),
+              ),
+              _buildAppBarItem(
+                child: IconButton(
+                  onPressed: _controller.redo,
+                  icon: Icon(
+                    Icons.redo,
+                    color: _controller.imageRedoStack.isNotEmpty ? Colors.white : Colors.grey,
+                  ),
+                ),
+              ),
+              _buildAppBarItem(
+                child: GestureDetector(
+                  onTap: () => _controller.showImageLayer.value = true,
+                  child: SizedBox(
+                    height: 24,
+                    child: Image.asset(
+                      'assets/image_layer.png',
+                      errorBuilder: (context, error, stackTrace) =>
+                          Icon(Icons.image, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+              _buildAppBarItem(
+                child: GestureDetector(
+                  onTap: () {
+                    _controller.controller.clearAllBorders();
+                    saveTemplate();
+                  },
+                  child: Icon(Icons.save, color: Colors.white),
+                ),
+              ),
+              _buildAppBarItem(
+                child: GestureDetector(
+                  onTap: () async {
+                    try {
+                      final Uint8List? capturedImage = await captureView();
+                      if (capturedImage != null) {
+                        final tempDir = await getTemporaryDirectory();
+                        final file = await File('${tempDir.path}/shared_image.png').create();
+                        await file.writeAsBytes(capturedImage);
+                        await Share.shareXFiles(
+                          [XFile(file.path)],
+                          text: 'Check out my edited image!',
+                        );
+                      } else {
+                        Get.snackbar("Error", "Failed to capture image");
+                      }
+                    } catch (e) {
+                      Get.snackbar("Error", "Failed to share image: $e");
+                    }
+                  },
+                  child: SizedBox(
+                    height: 24,
+                    child: Image.asset(
+                      'assets/Export.png',
+                      errorBuilder: (context, error, stackTrace) =>
+                          Icon(Icons.share, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+
+
+
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _updateCanvasSize();
+          });
+          return Obx(() {
+            final Uint8List? editedMemoryImage = _controller.editedImageBytes.value;
+            final File? editedFileImage = _controller.editedImage.value;
+            if (_controller.TextEditOptions.value && !_controller.isBottomSheetOpen) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _controller.isBottomSheetOpen = true;
+                _controller.showTextEditorBottomSheet(constraints, _controller.imageKey, context);
+              });
+            } else if (_controller.showPresetsEditOptions.value) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _controller.showFilterControlsBottomSheet(context, () {
+                  _controller.showFilterEditOptions.value = false;
+                });
+              });
+            } else if (_controller.showFilterEditOptions.value) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _controller.buildFilterControlsSheet(onClose: () {
+                  _controller.showFilterEditOptions.value = false;
+                });
+              });
+            } else if (_controller.CameraEditSticker.value) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _controller.buildEditCamera();
+              });
+            }
+            else if (_controller.showStickerEditOptions.value){
+              WidgetsBinding.instance.addPostFrameCallback((_){
+                _controller.StickerOption();
+              });}
+             else if (_controller.showtuneOptions.value){
+               WidgetsBinding.instance.addPostFrameCallback((_){
+                 _controller.showTuneEditBottomSheet();
+               });
+            }
+           else if (_controller.showEditOptions.value){
+              WidgetsBinding.instance.addPostFrameCallback((_){
+                _controller.buildEditControls();
+              });
+            }
+           else if (_controller.showImageLayer.value){
+             WidgetsBinding.instance.addPostFrameCallback((_){
+               _controller.buildImageLayerSheet();
+             });
+            }
+
+            return Stack(
+              children: [
+                Container(
+                  height: constraints.maxHeight,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Obx(() {
+                          bool isAnyEditOpen = _controller.showEditOptions.value ||
+                              _controller.showFilterEditOptions.value ||
+                              _controller.showStickerEditOptions.value ||
+                              _controller.showtuneOptions.value;
+                          return ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: constraints.maxWidth,
+                              maxHeight: constraints.maxHeight,
+                            ),
+                            child: RepaintBoundary(
+                              key: _repaintKey,
+                              child: LindiStickerWidget(
+                                controller: _controller.controller,
+                                child: AnimatedContainer(
+                                  margin: EdgeInsets.only(top: 20),
+                                  duration: Duration(milliseconds: 200),
+                                  curve: Curves.easeInOut,
+                                  transform: Matrix4.translationValues(0, isAnyEditOpen ? 20 : 0, 0)
+                                    ..scale(isAnyEditOpen ? 0.94 : 1.0),
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 10),
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        GestureDetector(
+                                          onScaleStart: (details) {
+                                            _controller.baseScale.value = _controller.scale.value;
+                                          },
+                                          onScaleUpdate: (details) {
+                                            final newScale =
+                                            (_controller.baseScale.value * details.scale).clamp(1.0, 5.0);
+                                            _controller.scale.value = newScale;
+                                          },
+                                          onTap: () {
+                                            // _controller.controller.clearAllBorders();
+                                            _controller.controller.widgets.forEach((widget) {
+                                              if (widget is DraggableWidget) {
+                                                widget.showBorder(false);
+                                              }
+                                            });
+                                            // _controller.controller.selectedWidget = null;
+                                            _controller.textController.value.text = '';
+                                            _controller.isSelectingText.value = false;
+                                            textEditorControllerWidget.clearSelection();
+                                            _controller.TextEditOptions.value = false;
+                                            stickerController.selectedSticker.value = null;
+                                            _controller.controller.notifyListeners();
+                                            print('Background tapped, deselected all widgets');
+                                          },
+                                          child: Obx(() {
+                                            return Transform.translate(
+                                              offset: _controller.offset.value,
+                                              child: Transform.scale(
+                                                scale: _controller.scale.value,
+                                                child: Center(
+                                                  child: Container(
+                                                    key: _controller.imageKey,
+                                                    child: ColorFiltered(
+                                                      colorFilter: ColorFilter.matrix(
+                                                        _controller.calculateColorMatrix(),
                                                       ),
+                                                      child: editedMemoryImage != null
+                                                          ? Image.memory(
+                                                        editedMemoryImage,
+                                                        fit: BoxFit.contain,
+                                                      )
+                                                          : (editedFileImage != null && editedFileImage.path.isNotEmpty
+                                                          ? Image.file(
+                                                        editedFileImage,
+                                                        fit: BoxFit.contain,
+                                                        errorBuilder: (context, error, stackTrace) => Text(
+                                                          "Error loading image",
+                                                          style: TextStyle(color: Colors.white),
+                                                        ),
+                                                      )
+                                                          : (memoryImage != null
+                                                          ? Image.memory(
+                                                        memoryImage,
+                                                        fit: BoxFit.contain,
+                                                      )
+                                                          : (fileImage != null && fileImage.path.isNotEmpty
+                                                          ? Image.file(
+                                                        fileImage,
+                                                        fit: BoxFit.contain,
+                                                        errorBuilder: (context, error, stackTrace) =>
+                                                            Text(
+                                                              "Error loading image",
+                                                              style: TextStyle(color: Colors.white),
+                                                            ),
+                                                      )
+                                                          : Text(
+                                                        "No image loaded",
+                                                        style: TextStyle(color: Colors.white),
+                                                      )))),
                                                     ),
                                                   ),
                                                 ),
-                                              );
-                                            }),
-                                          ),
-                                        ],
-                                      ),
+                                              ),
+                                            );
+                                          }),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
                               ),
-                            );
-                          }),
-                        ),
-                        SizedBox(height: 15),
-                        if (!_controller.showEditOptions.value &&
-                            !_controller.showFilterEditOptions.value &&
-                            !_controller.showStickerEditOptions.value &&
-                            !_controller.showtuneOptions.value &&
-                            !_controller.TextEditOptions.value &&
-                            !_controller.CameraEditSticker.value &&
-                            !collageController.showCollageOption.value &&
-                            !_controller.showPresetsEditOptions.value &&
-                            !_controller.showImageLayer.value)
-                          _buildToolBar(context),
+                            ),
+                          );
+                        }),
+                      ),
+                      SizedBox(height: 15),
+                      if (!_controller.showEditOptions.value &&
+                          !_controller.showFilterEditOptions.value &&
+                          !_controller.showStickerEditOptions.value &&
+                          !_controller.showtuneOptions.value &&
+                          !_controller.TextEditOptions.value &&
+                          !_controller.CameraEditSticker.value &&
+                          !collageController.showCollageOption.value &&
+                          !_controller.showPresetsEditOptions.value &&
+                          !_controller.showImageLayer.value)
+                        _buildToolBar(context),
 
 
 
-                        // if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
-                        // if (_controller.TextEditOptions.value)
-                        //   _controller.showTextEditorBottomSheet(constraints, _controller.imageKey,context),
+                      // if (_controller.showtuneOptions.value) _controller.TuneEditControls(),
+                      // if (_controller.TextEditOptions.value)
+                      //   _controller.showTextEditorBottomSheet(constraints, _controller.imageKey,context),
 
-                        // if (collageController.showCollageOption.value)
-                        //   collageTemplateController.openTemplatePickerBottomSheet(),
+                      // if (collageController.showCollageOption.value)
+                      //   collageTemplateController.openTemplatePickerBottomSheet(),
 
-                        // if (_controller.showFilterEditOptions.value)
-                        //   _controller.buildFilterControlsSheet(onClose: () {
-                        //     _controller.showFilterEditOptions.value = false;
-                        //   }),
+                      // if (_controller.showFilterEditOptions.value)
+                      //   _controller.buildFilterControlsSheet(onClose: () {
+                      //     _controller.showFilterEditOptions.value = false;
+                      //   }),
 
-                        // if (_controller.showPresetsEditOptions.value)
-                        //   _controller.showFilterControlsBottomSheet(context, () {
-                        //     _controller.showFilterEditOptions.value = false;
-                        //   }),
-                      ],
-                    ),
+                      // if (_controller.showPresetsEditOptions.value)
+                      //   _controller.showFilterControlsBottomSheet(context, () {
+                      //     _controller.showFilterEditOptions.value = false;
+                      //   }),
+                    ],
                   ),
-                  if (_controller.isFlipping.value)
-                    Positioned.fill(
-                      child: Container(
-                        color: Colors.black.withOpacity(0.8),
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 6.0,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
+                ),
+                if (_controller.isFlipping.value)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withOpacity(0.8),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 6.0,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       ),
                     ),
-                ],
-              );
-            });
-          },
-        ),
+                  ),
+              ],
+            );
+          });
+        },
       ),
     );
   }
@@ -1288,15 +1686,15 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _controller.buildToolButton('Rotate', 'assets/rotate.png', () {
+            _controller.buildToolButton('Rotate', 'assets/bottom_elements_icon/rotate.png', () {
               _controller.showEditOptions.value = true;
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Tune', 'assets/tune.png', () {
+            _controller.buildToolButton('Tune', 'assets/bottom_elements_icon/tune.png', () {
               _controller.showtuneOptions.value = true;
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Crop', 'assets/crop.png', () {
+            _controller.buildToolButton('Crop', 'assets/bottom_elements_icon/crop.png', () {
               final File? currentImage = _controller.editedImage.value;
               print('====CurrentImage=======${currentImage}');
               if (currentImage != null && currentImage.existsSync()) {
@@ -1307,19 +1705,19 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
               }
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Text', 'assets/text.png', () {
+            _controller.buildToolButton('Text', 'assets/bottom_elements_icon/text.png', () {
               _controller.TextEditOptions.value = true;
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Camera', 'assets/camera.png', () {
+            _controller.buildToolButton('Camera', 'assets/bottom_elements_icon/camera.png', () {
               _controller.CameraEditSticker.value = true;
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Filter', 'assets/filter.png', () {
+            _controller.buildToolButton('Filter', 'assets/bottom_elements_icon/filter.png', () {
               _controller.showFilterEditOptions.value = true;
             }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Sticker', 'assets/elements.png', () {
+            _controller.buildToolButton('Sticker', 'assets/bottom_elements_icon/elements.png', () {
               _controller.showStickerEditOptions.value = true;
             }),
             // SizedBox(width: 40),
@@ -1327,7 +1725,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             //   collageController.showCollageOption.value = true;
             // }),
             SizedBox(width: 40),
-            _controller.buildToolButton('Presets', 'assets/presets.png', () {
+            _controller.buildToolButton('Presets', 'assets/bottom_elements_icon/Preset.png', () {
               _controller.showPresetsEditOptions.value = true;
             }),
           ],
@@ -1335,4 +1733,10 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       ),
     );
   }
+  Widget _buildAppBarItem({required Widget child}) {
+    return Expanded(
+      child: Center(child: child),
+    );
+  }
+
 }

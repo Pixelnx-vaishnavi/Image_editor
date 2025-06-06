@@ -1,0 +1,572 @@
+{
+  "objects": [
+    {
+      "type": "path-group",
+      "originX": "center",
+      "originY": "center",
+      "left": 248.1,
+      "top": 929.18,
+      "width": 50,
+      "height": 50,
+      "fill": "#1c71b4",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 11.41,
+      "scaleY": 10.2,
+      "angle": -169.81,
+      "flipX": false,
+      "flipY": true,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "id": 1525668786488,
+      "paths": [
+        {
+          "type": "path",
+          "originX": "left",
+          "originY": "top",
+          "left": 0,
+          "top": 0,
+          "width": 50,
+          "height": 50,
+          "fill": "#1c71b4",
+          "stroke": null,
+          "strokeWidth": 1,
+          "strokeDashArray": null,
+          "strokeLineCap": "butt",
+          "strokeLineJoin": "miter",
+          "strokeMiterLimit": 10,
+          "scaleX": 1,
+          "scaleY": 1,
+          "angle": 0,
+          "flipX": false,
+          "flipY": false,
+          "opacity": 1,
+          "shadow": null,
+          "visible": true,
+          "clipTo": null,
+          "backgroundColor": "",
+          "fillRule": "evenodd",
+          "globalCompositeOperation": "source-over",
+          "transformMatrix": null,
+          "skewX": 0,
+          "skewY": 0,
+          "pathOffset": {
+            "x": 25,
+            "y": 25
+          },
+          "path": [
+            [
+              "M",
+              0,
+              0
+            ],
+            [
+              "L",
+              50,
+              0
+            ],
+            [
+              "L",
+              50,
+              50
+            ],
+            [
+              "L",
+              0,
+              50
+            ],
+            [
+              "L",
+              0,
+              0
+            ],
+            [
+              "Z"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "path-group",
+      "originX": "center",
+      "originY": "center",
+      "left": 197.74,
+      "top": 1075.08,
+      "width": 50,
+      "height": 50,
+      "fill": "",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 13.94,
+      "scaleY": 15.79,
+      "angle": -163.14,
+      "flipX": false,
+      "flipY": true,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "id": 1525668786489,
+      "paths": [
+        {
+          "type": "path",
+          "originX": "left",
+          "originY": "top",
+          "left": 0,
+          "top": 0,
+          "width": 50,
+          "height": 50,
+          "fill": "#f13535",
+          "stroke": null,
+          "strokeWidth": 1,
+          "strokeDashArray": null,
+          "strokeLineCap": "butt",
+          "strokeLineJoin": "miter",
+          "strokeMiterLimit": 10,
+          "scaleX": 1,
+          "scaleY": 1,
+          "angle": 0,
+          "flipX": false,
+          "flipY": false,
+          "opacity": 1,
+          "shadow": null,
+          "visible": true,
+          "clipTo": null,
+          "backgroundColor": "",
+          "fillRule": "evenodd",
+          "globalCompositeOperation": "source-over",
+          "transformMatrix": null,
+          "skewX": 0,
+          "skewY": 0,
+          "pathOffset": {
+            "x": 25,
+            "y": 100
+          },
+          "path": [
+            [
+              "M",
+              0,
+              100
+            ],
+            [
+              "L",
+              50,
+              0
+            ],
+            [
+              "L",
+              50,
+              -80
+            ],
+            [
+              "L",
+              0,
+              -50
+            ],
+            [
+              "L",
+              0,
+              0
+            ],
+            [
+              "Z"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "type": "i-text",
+      "originX": "left",
+      "originY": "center",
+      "left": 7.41,
+      "top": 211.27,
+      "width": 2,
+      "height": 50.849999999999994,
+      "fill": "#ffffff",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 0.33,
+      "scaleY": 0.33,
+      "angle": 0,
+      "flipX": false,
+      "flipY": false,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "text": "",
+      "fontSize": 45,
+      "fontWeight": "bold",
+      "fontFamily": "Josefin+Sans",
+      "fontStyle": "normal",
+      "lineHeight": 1.16,
+      "textDecoration": "normal",
+      "textAlign": "center",
+      "textBackgroundColor": "",
+      "charSpacing": 0,
+      "id": 1525668786491,
+      "styles": {
+        "0": {
+          "0": {
+            
+          },
+          "1": {
+            
+          }
+        }
+      }
+    },
+    {
+      "type": "i-text",
+      "originX": "left",
+      "originY": "center",
+      "left": 12.79,
+      "top": 215.48,
+      "width": 2,
+      "height": 146.44799999999998,
+      "fill": "#191a1b",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 0.33,
+      "scaleY": 0.33,
+      "angle": 0,
+      "flipX": false,
+      "flipY": false,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "text": "\n",
+      "fontSize": 60,
+      "fontWeight": "bold",
+      "fontFamily": "Josefin+Sans",
+      "fontStyle": "normal",
+      "lineHeight": 1.16,
+      "textDecoration": "normal",
+      "textAlign": "left",
+      "textBackgroundColor": "",
+      "charSpacing": 0,
+      "id": 1525668786493,
+      "styles": {
+        "0": {
+          "1": {
+            
+          }
+        }
+      }
+    },
+    {
+      "type": "i-text",
+      "originX": "left",
+      "originY": "center",
+      "left": 15.32,
+      "top": 882.48,
+      "width": 613.671875,
+      "height": 113,
+      "fill": "#000000",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 0.89,
+      "scaleY": 0.89,
+      "angle": 0,
+      "flipX": false,
+      "flipY": false,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "text": "Promote+Your",
+      "fontSize": 80,
+      "fontWeight": "bold",
+      "fontFamily": "Josefin+Sans",
+      "fontStyle": "normal",
+      "lineHeight": 1.16,
+      "textDecoration": "normal",
+      "textAlign": "left",
+      "textBackgroundColor": "",
+      "charSpacing": 0,
+      "id": 1526460385360,
+      "styles": {
+        "0": {
+          "1": {
+            
+          }
+        }
+      }
+    },
+    {
+      "type": "i-text",
+      "originX": "left",
+      "originY": "center",
+      "left": 4.84,
+      "top": 961.01,
+      "width": 634.1015625,
+      "height": 79.09999999999998,
+      "fill": "#ffffff",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 0.89,
+      "scaleY": 0.89,
+      "angle": 0,
+      "flipX": false,
+      "flipY": false,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "text": "Business+Brand+With",
+      "fontSize": 52,
+      "fontWeight": "bold",
+      "fontFamily": "Josefin+Sans",
+      "fontStyle": "normal",
+      "lineHeight": 1.16,
+      "textDecoration": "normal",
+      "textAlign": "left",
+      "textBackgroundColor": "",
+      "charSpacing": 0,
+      "id": 1526460421991,
+      "styles": {
+        "0": {
+          "1": {
+            
+          }
+        }
+      }
+    },
+    {
+      "type": "i-text",
+      "originX": "left",
+      "originY": "center",
+      "left": 84.17,
+      "top": 1045.66,
+      "width": 444.53125,
+      "height": 113,
+      "fill": "#000000",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 0.89,
+      "scaleY": 0.89,
+      "angle": 0,
+      "flipX": false,
+      "flipY": false,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "text": "Campaign",
+      "fontSize": 70,
+      "fontWeight": "bold",
+      "fontFamily": "Josefin+Sans",
+      "fontStyle": "normal",
+      "lineHeight": 1.16,
+      "textDecoration": "normal",
+      "textAlign": "left",
+      "textBackgroundColor": "",
+      "charSpacing": 0,
+      "id": 1526460469226,
+      "styles": {
+        "0": {
+          
+        }
+      }
+    },
+    {
+      "type": "i-text",
+      "originX": "left",
+      "originY": "center",
+      "left": 79.74,
+      "top": 792.46,
+      "width": 471.1328125,
+      "height": 90.39999999999999,
+      "fill": "#ffffff",
+      "stroke": null,
+      "strokeWidth": 1,
+      "strokeDashArray": null,
+      "strokeLineCap": "butt",
+      "strokeLineJoin": "miter",
+      "strokeMiterLimit": 10,
+      "scaleX": 0.89,
+      "scaleY": 0.89,
+      "angle": 0,
+      "flipX": false,
+      "flipY": false,
+      "opacity": 1,
+      "shadow": null,
+      "visible": true,
+      "clipTo": null,
+      "backgroundColor": "",
+      "fillRule": "nonzero",
+      "globalCompositeOperation": "source-over",
+      "transformMatrix": null,
+      "skewX": 0,
+      "skewY": 0,
+      "text": "Know+How+to",
+      "fontSize": 60,
+      "fontWeight": "bold",
+      "fontFamily": "Josefin+Sans",
+      "fontStyle": "normal",
+      "lineHeight": 1.16,
+      "textDecoration": "normal",
+      "textAlign": "left",
+      "textBackgroundColor": "",
+      "charSpacing": 0,
+      "id": 1527759730991,
+      "styles": {
+        "0": {
+          "1": {
+            
+          },
+          "2": {
+            
+          },
+          "3": {
+            
+          },
+          "4": {
+            
+          },
+          "5": {
+            
+          },
+          "6": {
+            
+          },
+          "7": {
+            
+          },
+          "8": {
+            
+          },
+          "9": {
+            
+          },
+          "10": {
+            
+          },
+          "11": {
+            
+          }
+        }
+      }
+    }
+  ],
+  "background": "#ffffff",
+  "backgroundImage": {
+    "type": "image",
+    "originX": "left",
+    "originY": "top",
+    "left": -536.22,
+    "top": 0,
+    "width": 1920,
+    "height": 1080,
+    "fill": "rgb(0,0,0)",
+    "stroke": null,
+    "strokeWidth": 0,
+    "strokeDashArray": null,
+    "strokeLineCap": "butt",
+    "strokeLineJoin": "miter",
+    "strokeMiterLimit": 10,
+    "scaleX": 1.02,
+    "scaleY": 1.02,
+    "angle": 0,
+    "flipX": false,
+    "flipY": false,
+    "opacity": 1,
+    "shadow": null,
+    "visible": true,
+    "clipTo": null,
+    "backgroundColor": "",
+    "fillRule": "nonzero",
+    "globalCompositeOperation": "source-over",
+    "transformMatrix": null,
+    "skewX": 0,
+    "skewY": 0,
+    "crossOrigin": "",
+    "alignX": "none",
+    "alignY": "none",
+    "meetOrSlice": "meet",
+    "src": "https://app.pixaguru.com/assets/images/background/business-gir2.jpg",
+    "filters": [
+      
+    ],
+    "resizeFilters": [
+      
+    ]
+  },
+  "width": "735",
+  "height": "1102"
+}

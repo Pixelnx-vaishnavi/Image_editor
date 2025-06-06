@@ -234,6 +234,7 @@ class ShapeSelectorController extends GetxController {
     editorController.controller.widgets.clear();
     editorController.controller.clearAllBorders();
     editorController.controller.notifyListeners();
+    Get.back();
   }
 
   Future<void> confirmImage() async {
@@ -249,12 +250,12 @@ class ShapeSelectorController extends GetxController {
       editorController.flippedBytes.value = null;
     }
     Get.toNamed('/ImageEditorScreen', arguments: editorController.editedImage.value);
-    Get.back();
+    // Get.back();
   }
 
-  @override
-  void onClose() {
-    lindiController.close();
-    super.onClose();
-  }
+  // @override
+  // void onClose() {
+  //   lindiController.close();
+  //   super.onClose();
+  // }
 }

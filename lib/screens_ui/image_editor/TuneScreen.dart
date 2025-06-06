@@ -40,12 +40,14 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
       ),
         child: Column(
           children: [
-            Row(
-              children: [
-                _toggleButton("All", !_controller.isBrushSelected.value, Icon(Icons.grid_view_outlined, color: Colors.white, size: 15)),
-                SizedBox(width: 8),
-                // _toggleButton("Brush", _controller.isBrushSelected.value, Icon(Icons.brush, color: Colors.white, size: 15)),
-              ],
+            Center(
+              child: Row(
+                children: [
+                  _toggleButton("All", !_controller.isBrushSelected.value, Icon(Icons.grid_view_outlined, color: Colors.white, size: 15)),
+                  // SizedBox(width: 8),
+                  // _toggleButton("Brush", _controller.isBrushSelected.value, Icon(Icons.brush, color: Colors.white, size: 15)),
+                ],
+              ),
             ),
             SizedBox(height: 20),
             // Show sliders based on the selection
@@ -80,7 +82,7 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
                     _controller.showtuneOptions.value = false;
                   },
                   child: SizedBox(
-                    height: 30,
+                    height: 36,
                     child: Image.asset('assets/cross.png'),
                   ),
                 ),
@@ -99,7 +101,7 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
     },
 
                   child: SizedBox(
-                    height: 30,
+                    height: 36,
                     child: Image.asset('assets/right.png'),
                   ),
                 ),
@@ -140,6 +142,7 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             icon,
             const SizedBox(width: 5),
@@ -159,16 +162,19 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
   Widget _buildSlider(String title, double value, double min, double max, ValueChanged<double> onChanged) {
     return Row(
       children: [
-        Text(title, style:  TextStyle(color: Colors.white)),
-         Spacer(),
-        Slider(
-          value: value,
-          min: min,
-          max: max,
-          divisions: (max - min).toInt(),
-          onChanged: onChanged,
-          activeColor: Colors.purpleAccent,
-          inactiveColor: Colors.white24,
+        Text(title, style: TextStyle(color: Colors.white)),
+        Spacer(),
+        SizedBox(
+          width: 250, // Adjust this value to increase/decrease the slider width
+          child: Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: (max - min).toInt(),
+            onChanged: onChanged,
+            activeColor: Colors.purpleAccent,
+            inactiveColor: Colors.white24,
+          ),
         ),
         Container(
           height: 25,
@@ -180,7 +186,7 @@ class _TuneControlsPanelState extends State<TuneControlsPanel> {
           child: Center(
             child: Text(
               value.toInt().toString(),
-              style:  TextStyle(color: Colors.white, fontSize: 12),
+              style: TextStyle(color: Colors.white, fontSize: 12),
             ),
           ),
         ),

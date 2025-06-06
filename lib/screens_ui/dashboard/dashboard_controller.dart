@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_editor/Const/color_const.dart';
 import 'package:image_editor/Const/routes_const.dart';
+import 'package:image_editor/screens_ui/template/template_controller.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
@@ -13,6 +14,7 @@ class BottomSheetController extends GetxController {
   final ImagePicker pickerCamera = ImagePicker();
   final CollageController collageController = Get.put(CollageController());
   final TemplateController collageTemplateController = Get.put(TemplateController());
+  final CreateTemplateController createTemplateController = Get.put(CreateTemplateController());
 
 
   // List of available whiteboard types
@@ -45,10 +47,10 @@ class BottomSheetController extends GetxController {
   void showCreateTemplateSheet() {
     Get.bottomSheet(
       Padding(
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.only(bottom: 0),
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.all(16),
+          // margin: const EdgeInsets.symmetric(horizontal: 16),
+          // padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -66,7 +68,7 @@ class BottomSheetController extends GetxController {
                 padding: EdgeInsets.only(left: 5, right: 5, top: 15, bottom: 8),
                 child: Center(
                   child: Text(
-                    'New Template',
+                    'Create New Template',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -77,17 +79,17 @@ class BottomSheetController extends GetxController {
               ),
               const SizedBox(height: 25),
               Padding(
-                padding: const EdgeInsets.only(left: 2, right: 2, top: 25, bottom: 8),
+                padding: const EdgeInsets.only(left: 8, right: 8, top: 25, bottom: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     GestureDetector(
                       onTap: () {
-                        Get.find<BottomSheetController>().pickImageFromCamera();
+                        pickImageFromCamera();
                       },
                       child: Container(
-                        height: 120,
-                        width: 130,
+                        height: 100,
+                        width: 160,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Color(ColorConst.lightishbordercolorgrey)),
@@ -96,7 +98,7 @@ class BottomSheetController extends GetxController {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Image.asset('assets/addsquare.png'),
+                              Image.asset('assets/addsquare.png',height: 38,width: 38,),
                               const SizedBox(height: 7),
                               Text(
                                 'From Camera',
@@ -104,7 +106,7 @@ class BottomSheetController extends GetxController {
                                   color: Color(ColorConst.textblackcolor),
                                   fontFamily: 'Outfit',
                                   fontWeight: FontWeight.w400,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   height: 1.0,
                                   letterSpacing: 0.0,
                                 ),
@@ -117,11 +119,11 @@ class BottomSheetController extends GetxController {
                     const SizedBox(width: 10),
                     GestureDetector(
                       onTap: () {
-                        Get.find<BottomSheetController>().pickImageFromGallery();
+                        pickImageFromGallery();
                       },
                       child: Container(
-                        height: 120,
-                        width: 130,
+                        height: 100,
+                        width: 160,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Color(ColorConst.lightishbordercolorgrey)),
@@ -130,7 +132,7 @@ class BottomSheetController extends GetxController {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Image.asset('assets/magicpen.png'),
+                              Image.asset('assets/magicpen.png',height: 38,width: 38,),
                               const SizedBox(height: 7),
                               Text(
                                 'From Gallery',
@@ -138,7 +140,7 @@ class BottomSheetController extends GetxController {
                                   color: Color(ColorConst.textblackcolor),
                                   fontFamily: 'Outfit',
                                   fontWeight: FontWeight.w400,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   height: 1.0,
                                   letterSpacing: 0.0,
                                 ),
@@ -152,18 +154,22 @@ class BottomSheetController extends GetxController {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(left: 2, right: 2, top: 25, bottom: 8),
+                padding: const EdgeInsets.only(left: 8, right: 8, top: 8, bottom: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     GestureDetector(
                       onTap: () {
-                        Get.find<TemplateController>().showTemplatePicker();
-                        Get.back();
+                        Get.back(); // Close the current bottom sheet
+                        Get.bottomSheet(
+                          createTemplateController.openTemplatePickerBottomSheet(),
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                        );
                       },
                       child: Container(
-                        height: 120,
-                        width: 130,
+                        height: 100,
+                        width: 160,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Color(ColorConst.lightishbordercolorgrey)),
@@ -172,15 +178,15 @@ class BottomSheetController extends GetxController {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Image.asset('assets/category.png'),
-                              const SizedBox(height: 7),
+                              Image.asset('assets/category.png',height: 38,width: 38,),
+                               SizedBox(height: 7),
                               Text(
                                 'From Template',
                                 style: TextStyle(
                                   color: Color(ColorConst.textblackcolor),
                                   fontFamily: 'Outfit',
                                   fontWeight: FontWeight.w400,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   height: 1.0,
                                   letterSpacing: 0.0,
                                 ),
@@ -190,14 +196,15 @@ class BottomSheetController extends GetxController {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                     SizedBox(width: 10),
                     GestureDetector(
                       onTap: () {
-                        Get.find<BottomSheetController>().showWhiteboardSelectionSheet();
+                        Get.back();
+                        showWhiteboardSelectionSheet();
                       },
                       child: Container(
-                        height: 120,
-                        width: 130,
+                        height: 100,
+                        width: 160,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Color(ColorConst.lightishbordercolorgrey)),
@@ -206,19 +213,15 @@ class BottomSheetController extends GetxController {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              SizedBox(
-                                height: 60,
-                                width: 60,
-                                child: Image.asset('assets/whiteboards/whiteboard.png'),
-                              ),
-                              const SizedBox(height: 7),
+                              Image.asset('assets/whiteboards/whiteboard.png',height: 38,width: 38,),
+                               SizedBox(height: 7),
                               Text(
                                 'From Whiteboard',
                                 style: TextStyle(
                                   color: Color(ColorConst.textblackcolor),
                                   fontFamily: 'Outfit',
                                   fontWeight: FontWeight.w400,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   height: 1.0,
                                   letterSpacing: 0.0,
                                 ),
@@ -233,42 +236,36 @@ class BottomSheetController extends GetxController {
               ),
               Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.only(left: 14,right: 14,top: 8,bottom: 14),
                   child: GestureDetector(
                     onTap: () {
-                      // collageController.showCollageOption.value = true;
-                      Get.back(); // Close the create template sheet
+                      Get.back();
                       Get.bottomSheet(
                         collageTemplateController.openTemplatePickerBottomSheet(),
-
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
                       );
                     },
                     child: Container(
-                      height: 120,
+                      height: 100,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Color(ColorConst.lightishbordercolorgrey)),
                       ),
                       child: Center(
-                        child: Column(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            SizedBox(
-                              height: 40,
-                              width: 40,
-                              child: Image.asset('assets/from_collage.png'),
-                            ),
-                            const SizedBox(height: 7),
+                            Image.asset('assets/from_collage.png',height: 34,width: 34,),
+                             SizedBox(width: 10,),
                             Text(
                               'From Collage',
                               style: TextStyle(
                                 color: Color(ColorConst.textblackcolor),
                                 fontFamily: 'Outfit',
                                 fontWeight: FontWeight.w400,
-                                fontSize: 12,
+                                fontSize: 14,
                                 height: 1.0,
                                 letterSpacing: 0.0,
                               ),
@@ -294,7 +291,7 @@ class BottomSheetController extends GetxController {
       Padding(
         padding: const EdgeInsets.only(bottom: 0),
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
+          // margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -350,7 +347,7 @@ class BottomSheetController extends GetxController {
                                     child: Text(
                                       whiteboard['name']!,
                                       style: TextStyle(
-                                        color: Color(ColorConst.textblackcolor),
+                                        color: Colors.white,
                                         fontFamily: 'Outfit',
                                         fontWeight: FontWeight.w400,
                                         fontSize: 12,
@@ -363,7 +360,7 @@ class BottomSheetController extends GetxController {
                                   Text(
                                     whiteboard['size']!,
                                     style: TextStyle(
-                                      color: Color(ColorConst.textblackcolor),
+                                      color: Colors.white,
                                       fontFamily: 'Outfit',
                                       fontWeight: FontWeight.w400,
                                       fontSize: 12,
@@ -429,3 +426,7 @@ class BottomSheetController extends GetxController {
     }
   }
 }
+
+
+
+

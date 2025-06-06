@@ -267,6 +267,22 @@ flutter:
      - assets/cropimages/5ratio4.png
      - assets/cropimages/9ratio16.png
      - assets/cropimages/16ratio9.png
+     - assets/bottom_elements_icon/camera.png
+     - assets/bottom_elements_icon/crop.png
+     - assets/bottom_elements_icon/elements.png
+     - assets/bottom_elements_icon/filter.png
+     - assets/bottom_elements_icon/Group.png
+     - assets/bottom_elements_icon/Preset.png
+     - assets/bottom_elements_icon/rotate.png
+     - assets/bottom_elements_icon/text.png
+     - assets/bottom_elements_icon/tune.png
+     - assets/template/Template_1.jpg
+     - assets/template/Template_2.png
+     - assets/template/Template_3.png
+     - assets/template/Template_4.png
+     - assets/template/Template_5.png
+     - assets/template/Template_6.png
+     - assets/template_not_found.png
 #     - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

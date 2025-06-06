@@ -87,7 +87,7 @@ class ImageEditorController extends GetxController {
   var yvalue = 0.0.obs;
 
   var brightness = 0.0.obs;
-  var opacity = 0.0.obs;
+  var opacity = 1.0.obs;
   var filePath = ''.obs;
   String? fileName;
   List<Filter> filters = presetFiltersList;
@@ -103,7 +103,7 @@ class ImageEditorController extends GetxController {
   final StickerController stickerController = Get.put(StickerController());
 
   RxBool isBrushSelected = true.obs;
-  final RxString selectedTab = 'Font'.obs;
+  final RxString selectedTab = 'Alignment'.obs;
   final indexlayer = ValueNotifier<int>(0);
   late LindiController controller;
   final GlobalKey globalkey = GlobalKey();
@@ -360,6 +360,7 @@ class ImageEditorController extends GetxController {
     });
   }
 
+
   saveImageState({
     Filter? filter,
     ImagePreset? preset,
@@ -388,53 +389,188 @@ class ImageEditorController extends GetxController {
 
   void addWidget(Widget widget, Offset position, {dynamic model}) {
     try {
-      // Calculate alignment based on canvas size
       final maxWidth = canvasWidth.value > 0 ? canvasWidth.value : lastValidCanvasSize?.width ?? 400.0;
       final maxHeight = canvasHeight.value > 0 ? canvasHeight.value : lastValidCanvasSize?.height ?? 600.0;
-      final alignment = Alignment(
-        (position.dx / maxWidth) * 2 - 1,
-        (position.dy / maxHeight) * 2 - 1,
-      );
 
-      // Generate unique key
+      final left = position.dx.clamp(0.0, maxWidth);
+      final top = position.dy.clamp(0.0, maxHeight);
+
       GlobalKey widgetKey = model?.widgetKey ?? GlobalKey(debugLabel: 'Widget_${DateTime.now().millisecondsSinceEpoch}');
-      if (usedKeys.contains(widgetKey)) {
-        print('Duplicate key detected: $widgetKey, generating new key');
+      int attempt = 0;
+      while (usedKeys.contains(widgetKey) && attempt < 100) {
         widgetKey = GlobalKey(debugLabel: 'Widget_${DateTime.now().millisecondsSinceEpoch}_${widgetList.length}_${Random().nextInt(1000)}');
+        attempt++;
+      }
+      if (attempt >= 100) {
+        print('Error: Could not generate unique key after 100 attempts');
+        return;
       }
       usedKeys.add(widgetKey);
 
-      // Handle image file case (no model provided, widget contains Image.file)
-      if ( widget is Container && widget.child is Image) {
-        final imageWidget = widget.child as Image;
-        if (imageWidget.image is FileImage) {
-          final filePath = (imageWidget.image as FileImage).file.path;
-          model = StickerModel(
-            path: filePath,
-            top: position.dy,
-            left: position.dx,
-            scale: 1.0,
-            rotation: 0.0,
-            isFlipped: RxBool(false),
-            widgetKey: widgetKey,
-          );
-          print('Created StickerModel for image: $filePath at position: (${position.dx}, ${position.dy})');
-        }
-      }
-
-      // Update model with new key
       if (model != null) {
+        model.left.value = left;
+        model.top.value = top;
         model.widgetKey = widgetKey;
       }
 
-      // Create DraggableWidget
       final draggableWidget = DraggableWidget(
+        key: widgetKey,
+        icons: controller.icons,
+        position: Alignment(
+          (left / maxWidth) * 2 - 1,
+          (top / maxHeight) * 2 - 1,
+        ),
+        borderColor: Colors.blue,
+        borderWidth: 2.0,
+        showBorders: false, // Start with border off
+        shouldMove: true,
+        shouldRotate: controller.shouldRotate,
+        shouldScale: true,
+        minScale: 0.5,
+        maxScale: 2.0,
+        insidePadding: 8.0,
+        onBorder: (_) {
+          print('Border tapped for widget: $widgetKey');
+          _selectWidget(widgetKey);
+        },
+        onDelete: (_) {
+          widgetList.removeWhere((item) => item['key'] == widgetKey);
+          widgetModels.remove(widgetKey);
+          usedKeys.remove(widgetKey);
+          if (model is StickerModel) {
+            stickerController.stickers.remove(model);
+          } else if (model is EditableTextModel) {
+            Get.put(TextEditorControllerWidget(), permanent: true).text.remove(model);
+          }
+          controller.notifyListeners();
+        },
+        onLayer: (_) {},
+        child: GestureDetector(
+          onTap: () {
+            print('Widget tapped: $widgetKey');
+            _selectWidget(widgetKey);
+          },
+          child: widget,
+        ),
+      );
+
+
+      // Widget widgets = Container(
+      //     alignment: Alignment(
+      //       (left / maxWidth) * 2 - 1,
+      //       (top / maxHeight) * 2 - 1,
+      //     ),
+      //   child: widget
+      // );
+      controller.add(widget);
+
+
+      widgetList.add({
+        'widget': draggableWidget,
+        'key': widgetKey,
+        'model': model,
+      });
+      if (model != null) {
+        widgetModels[widgetKey] = model;
+      }
+
+      undoStack.add(WidgetWithPosition(
+        widget: draggableWidget,
+        position: Offset(left, top),
+        globalKey: widgetKey,
+      ));
+      redoStack.clear();
+
+      controller.notifyListeners();
+      print('Added widget at ($left, $top) with key: $widgetKey');
+    } catch (e, stackTrace) {
+      print('Error adding widget: $e');
+      print(stackTrace);
+      usedKeys.remove(model?.widgetKey);
+    }
+  }
+
+// New method to handle widget selection
+  void _selectWidget(GlobalKey widgetKey) {
+    final index = controller.widgets.indexWhere((w) => w.key == widgetKey);
+    if (index == -1) {
+      print('Widget with key $widgetKey not found');
+      return;
+    }
+
+    final selectedWidget = controller.widgets[index];
+    // controller.widgets[index] = selectedWidget;
+
+    // Hide borders for all other widgets
+    controller.widgets.asMap().forEach((i, w) {
+      if (i != index && w is DraggableWidget) {
+        w.showBorder(false);
+      }
+    });
+
+    // Show border for the selected widget
+    if (selectedWidget is DraggableWidget) {
+      selectedWidget.showBorder(true);
+    }
+
+    // Update model-specific logic
+    final widgetItem = widgetList.firstWhere((item) => item['key'] == widgetKey, orElse: () => {});
+    final model = widgetItem['model'];
+    if (model is StickerModel) {
+      stickerController.selectSticker(model);
+      Get.put(TextEditorControllerWidget()).clearSelection();
+      textController.value.text = '';
+      isSelectingText.value = false;
+      TextEditOptions.value = false;
+      print('Sticker selected: ${model.path}');
+    } else if (model is EditableTextModel) {
+      Get.put(TextEditorControllerWidget()).selectText(model);
+      stickerController.selectedSticker.value = null;
+      textController.value.text = model.text.value;
+      isSelectingText.value = true;
+      TextEditOptions.value = true;
+      print('Text selected: "${model.text.value}"');
+    }
+
+    controller.notifyListeners();
+    print('Selected widget: $widgetKey, border shown');
+  }
+
+
+  void editWidget(Widget widget, Offset position, {dynamic model}) {
+    try {
+      final alignment = Alignment(
+        (position.dx / canvasWidth.value) * 2 - 1,
+        (position.dy / canvasHeight.value) * 2 - 1,
+      );
+
+      final selectedWidget = controller.selectedWidget;
+      if (selectedWidget == null) {
+        print('No widget selected to edit');
+        return;
+      }
+
+      final widgetKey = selectedWidget.centerKey;
+      if (widgetKey == null) {
+        print('Error: Selected widget has no key');
+        return;
+      }
+      controller.selectedWidget!.edit(widget);
+      // Find index of selected widget
+      final index = controller.widgets.indexWhere((w) => w.key == widgetKey);
+      if (index == -1) {
+        print('Error: Selected widget not found in controller.widgets');
+        // return;
+      }
+
+      // Create new DraggableWidget with updated child
+      final newDraggableWidget = DraggableWidget(
         key: widgetKey,
         icons: controller.icons,
         position: Alignment.topLeft,
         borderColor: controller.borderColor,
         borderWidth: 2.0,
-        showBorders: controller.showBorders,
+        showBorders: false, // Initially hide borders
         shouldMove: true,
         shouldRotate: controller.shouldRotate,
         shouldScale: true,
@@ -453,86 +589,11 @@ class ImageEditorController extends GetxController {
           }
         },
         onLayer: (_) {},
-        child: widget, // Use input widget directly, no ConstrainedBox
+        child: widget,
       );
 
-      // Wrap DraggableWidget in SizedBox to define draggable area
-      final sizedDraggableWidget = Container(
-        width: maxWidth,
-        height: maxHeight,
-        child: draggableWidget,
-      );
-
-      // Add widget based on model type
-      if (model is EditableTextModel) {
-        controller.add(sizedDraggableWidget, position: alignment);
-        try {
-          final textController = Get.find<TextEditorControllerWidget>();
-          textController.text.add(model);
-        } catch (e) {
-          print('Error accessing TextEditorControllerWidget: $e');
-          Get.put(TextEditorControllerWidget(), permanent: true).text.add(model);
-        }
-        widgetModels[widgetKey] = model;
-        widgetList.add({
-          'widget': controller.widgets.last,
-          'model': model,
-          'key': widgetKey,
-        });
-        print('Added text to widgetList: ${widgetList.length}');
-      }
-      else if (model is StickerModel) {
-        controller.add(sizedDraggableWidget, position: alignment);
-        stickerController.stickers.add(model);
-        widgetModels[widgetKey] = model;
-        widgetList.add({
-          'widget': controller.widgets.last,
-          'model': model,
-          'key': widgetKey,
-        });
-        print('Added sticker to widgetList: ${widgetList.length}');
-      } else {
-        print('Error: Invalid model type or no model provided');
-        usedKeys.remove(widgetKey);
-        return;
-      }
-
-      // Update undo stack
-      undoStack.add(WidgetWithPosition(
-        widget: controller.widgets.last,
-        position: position,
-        globalKey: widgetKey,
-      ));
-      redoStack.clear();
-      print('Added widget at $position, undoStack length: ${undoStack.length}');
-      controller.notifyListeners();
-    } catch (e, stackTrace) {
-      print('Error adding widget: $e');
-      print(stackTrace);
-      usedKeys.remove(model?.widgetKey);
-    }
-  }
-
-  void editWidget(Widget widget, Offset position, {dynamic model}) {
-    try {
-      final alignment = Alignment(
-        (position.dx / canvasWidth.value) * 2 - 1,
-        (position.dy / canvasHeight.value) * 2 - 1,
-      );
-
-      final selectedWidget = controller.selectedWidget;
-      if (selectedWidget == null) {
-        print('No widget selected to edit');
-        return;
-      }
-
-      final widgetKey = selectedWidget.key as GlobalKey?;
-      if (widgetKey == null) {
-        print('Error: Selected widget has no key');
-        return;
-      }
-
-      selectedWidget.edit(widget);
+      // Replace the old widget in controller.widgets
+      controller.widgets[index] = newDraggableWidget;
 
       dynamic currentModel = model ?? widgetModels[widgetKey];
       if (currentModel == null) {
@@ -548,38 +609,37 @@ class ImageEditorController extends GetxController {
       } else if (currentModel is StickerModel) {
         currentModel.left.value = position.dx;
         currentModel.top.value = position.dy;
-        print(
-            'Updated sticker widget position: (${position.dx}, ${position.dy})');
+        print('Updated sticker widget position: (${position.dx}, ${position.dy})');
       } else {
         print('Error: Unknown model type for widget');
         return;
       }
 
       // Update widgetList
-      final index =
-          widgetList.indexWhere((item) => item['widget'].key == widgetKey);
-      if (index != -1) {
-        widgetList[index] = {
-          'widget': selectedWidget,
+      final listIndex = widgetList.indexWhere((item) => item['key'] == widgetKey);
+      if (listIndex != -1) {
+        widgetList[listIndex] = {
+          'widget': newDraggableWidget,
           'model': currentModel,
+          'key': widgetKey,
         };
       } else {
         widgetList.add({
-          'widget': selectedWidget,
+          'widget': newDraggableWidget,
           'model': currentModel,
+          'key': widgetKey,
         });
       }
 
       // Add to undo stack
       undoStack.add(WidgetWithPosition(
-        widget: selectedWidget,
+        widget: newDraggableWidget,
         position: position,
         globalKey: widgetKey,
       ));
 
-      redoStack.clear();
-      print(
-          'Edited widget at $position, widgetList length: ${widgetList.length}');
+          redoStack.clear();
+      print('Edited widget at $position, widgetList length: ${widgetList.length}');
       controller.notifyListeners();
     } catch (e, stackTrace) {
       print('Error editing widget: $e');
@@ -652,8 +712,9 @@ class ImageEditorController extends GetxController {
         print(stackTrace);
       }
     } else {
-      controller!.widgets.last.delete();
       print('Nothing to undo');
+      controller!.widgets.last.delete();
+
     }
   }
 
@@ -963,191 +1024,192 @@ print('======Called while load state==========');
 
   }
 
-  Widget buildPresetsControlsSheet({required VoidCallback onClose}) {
-    return GetBuilder<ImageEditorController>(
-      builder: (controller) {
-        return DefaultTabController(
-          length: controller.presetCategories.keys.length,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Color(ColorConst.bottomBarcolor),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(top: 30, right: 10),
-                  child: SizedBox(
-                    height: 120,
-                    child: TabBarView(
-                      children:
-                          controller.presetCategories.values.map((presets) {
-                        return ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          itemCount: presets.length + 1,
-                          separatorBuilder: (_, __) => SizedBox(width: 12),
-                          itemBuilder: (context, index) {
-                            if (index == 0) {
-                              return GestureDetector(
-                                onTap: () {
-                                  controller.editedImageBytes.value =
-                                      controller.originalImageBytes.value;
-                                  controller.selectedPreset.value = null;
-                                  controller.update();
-                                  Get.back();
-                                },
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      height: 90,
-                                      width: 150,
-                                      decoration: BoxDecoration(
-                                        color:
-                                            Color(ColorConst.defaultcontainer),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                            color: Colors.transparent),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          "Original",
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              color: Colors.white),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-
-                            final preset = presets[index - 1];
-                            final thumbnailBytes =
-                                controller.generatePresetThumbnail(preset);
-                            return GestureDetector(
-                              onTap: () {
-                                controller.applyPreset(preset);
-                                Get.back();
-                              },
-                              child: Column(
-                                children: [
-                                  SizedBox(height: 4),
-                                  Container(
-                                    height: 90,
-                                    width: 150,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10),
-                                      color: Color(ColorConst.defaultcontainer),
-                                      border:
-                                          Border.all(color: Colors.transparent),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        preset.name,
-                                        style: TextStyle(
-                                            fontSize: 16, color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-                TabBar(
-                  isScrollable: true,
-                  labelPadding: EdgeInsets.symmetric(horizontal: 8),
-                  indicatorColor: Colors.transparent,
-                  dividerColor: Colors.transparent,
-                  tabs: controller.presetCategories.keys.map((category) {
-                    return Tab(
-                      child: Container(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: controller.selectedCategory.value == category
-                              ? Color(ColorConst.lightpurple)
-                              : Colors.grey[800],
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          category,
-                          style: TextStyle(
-                            color: controller.selectedCategory.value == category
-                                ? Colors.black
-                                : Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                  onTap: (index) {
-                    controller.selectedCategory.value =
-                        controller.presetCategories.keys.elementAt(index);
-                    controller.update();
-                  },
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 18, vertical: 22),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          controller.showPresetsEditOptions.value = false;
-                          controller.selectedPreset.value = null;
-                          controller.update();
-                        },
-                        child: SizedBox(
-                          height: 30,
-                          child: Image.asset('assets/cross.png'),
-                        ),
-                      ),
-                      Text(
-                        'Presets',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: 20,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          controller.showPresetsEditOptions.value = false;
-                        },
-                        child: SizedBox(
-                          height: 30,
-                          child: Image.asset('assets/right.png'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+  // Widget buildPresetsControlsSheet({required VoidCallback onClose}) {
+  //   return GetBuilder<ImageEditorController>(
+  //     builder: (controller) {
+  //       return DefaultTabController(
+  //         length: controller.presetCategories.keys.length,
+  //         child: Container(
+  //           decoration: BoxDecoration(
+  //             color: Color(ColorConst.bottomBarcolor),
+  //             borderRadius: BorderRadius.only(
+  //               topLeft: Radius.circular(20),
+  //               topRight: Radius.circular(20),
+  //             ),
+  //           ),
+  //           child: Column(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             mainAxisSize: MainAxisSize.min,
+  //             children: [
+  //               Padding(
+  //                 padding: EdgeInsets.only(top: 30, right: 10),
+  //                 child: SizedBox(
+  //                   height: 120,
+  //                   child: TabBarView(
+  //                     children:
+  //                         controller.presetCategories.values.map((presets) {
+  //                       return ListView.separated(
+  //                         scrollDirection: Axis.horizontal,
+  //                         padding: EdgeInsets.symmetric(horizontal: 12),
+  //                         itemCount: presets.length + 1,
+  //                         separatorBuilder: (_, __) => SizedBox(width: 12),
+  //                         itemBuilder: (context, index) {
+  //                           if (index == 0) {
+  //                             return GestureDetector(
+  //                               onTap: () {
+  //                                 controller.editedImageBytes.value =
+  //                                     controller.originalImageBytes.value;
+  //                                 controller.selectedPreset.value = null;
+  //                                 controller.update();
+  //                                 Get.back();
+  //                               },
+  //                               child: Column(
+  //                                 children: [
+  //                                   Container(
+  //                                     height: 90,
+  //                                     width: 150,
+  //                                     decoration: BoxDecoration(
+  //                                       color:
+  //                                           Color(ColorConst.defaultcontainer),
+  //                                       borderRadius: BorderRadius.circular(10),
+  //                                       border: Border.all(
+  //                                           color: Colors.transparent),
+  //                                     ),
+  //                                     child: Center(
+  //                                       child: Text(
+  //                                         "Original",
+  //                                         style: TextStyle(
+  //                                             fontSize: 16,
+  //                                             color: Colors.white),
+  //                                       ),
+  //                                     ),
+  //                                   ),
+  //                                 ],
+  //                               ),
+  //                             );
+  //                           }
+  //
+  //                           final preset = presets[index - 1];
+  //                           final thumbnailBytes =
+  //                               controller.generatePresetThumbnail(preset);
+  //                           return GestureDetector(
+  //                             onTap: () {
+  //                               controller.applyPreset(preset);
+  //                               Get.back();
+  //                             },
+  //                             child: Column(
+  //                               children: [
+  //                                 SizedBox(height: 4),
+  //                                 Container(
+  //                                   height: 90,
+  //                                   width: 150,
+  //                                   decoration: BoxDecoration(
+  //                                     borderRadius: BorderRadius.circular(10),
+  //                                     color: Color(ColorConst.defaultcontainer),
+  //                                     border:
+  //                                         Border.all(color: Colors.transparent),
+  //                                   ),
+  //                                   child: Center(
+  //                                     child: Text(
+  //                                       preset.name,
+  //                                       style: TextStyle(
+  //                                           fontSize: 16, color: Colors.white),
+  //                                     ),
+  //                                   ),
+  //                                 ),
+  //                               ],
+  //                             ),
+  //                           );
+  //                         },
+  //                       );
+  //                     }).toList(),
+  //                   ),
+  //                 ),
+  //               ),
+  //               TabBar(
+  //                 isScrollable: true,
+  //                 labelPadding: EdgeInsets.symmetric(horizontal: 8),
+  //                 indicatorColor: Colors.transparent,
+  //                 dividerColor: Colors.transparent,
+  //                 tabs: controller.presetCategories.keys.map((category) {
+  //                   return Tab(
+  //                     child: Container(
+  //                       padding:
+  //                           EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  //                       decoration: BoxDecoration(
+  //                         color: controller.selectedCategory.value == category
+  //                             ? Color(ColorConst.lightpurple)
+  //                             : Colors.grey[800],
+  //                         borderRadius: BorderRadius.circular(20),
+  //                       ),
+  //                       child: Text(
+  //                         category,
+  //                         style: TextStyle(
+  //                           color: controller.selectedCategory.value == category
+  //                               ? Colors.black
+  //                               : Colors.white,
+  //                           fontWeight: FontWeight.bold,
+  //                           fontSize: 14,
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   );
+  //                 }).toList(),
+  //                 onTap: (index) {
+  //                   controller.selectedCategory.value =
+  //                       controller.presetCategories.keys.elementAt(index);
+  //                   controller.update();
+  //                 },
+  //               ),
+  //               Padding(
+  //                 padding: EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+  //                 child: Row(
+  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //                   children: [
+  //                     GestureDetector(
+  //                       onTap: () {
+  //                         controller.showPresetsEditOptions.value = false;
+  //                         controller.selectedPreset.value = null;
+  //                         controller.update();
+  //                       },
+  //                       child: SizedBox(
+  //                         height: 30,
+  //                         child: Image.asset('assets/cross.png'),
+  //                       ),
+  //                     ),
+  //                     Text(
+  //                       'Presets',
+  //                       style: TextStyle(
+  //                         fontWeight: FontWeight.bold,
+  //                         color: Colors.white,
+  //                         fontSize: 20,
+  //                       ),
+  //                     ),
+  //                     GestureDetector(
+  //                       onTap: () {
+  //                         controller.showPresetsEditOptions.value = false;
+  //                       },
+  //                       child: SizedBox(
+  //                         height: 30,
+  //                         child: Image.asset('assets/right.png'),
+  //                       ),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 
    showFilterControlsBottomSheet(
       BuildContext context, VoidCallback onClose) {
 
     Get.bottomSheet( Container(
+      height: 350,
       child: FilterControlsWidget(),
     )
     ).then((value) {
@@ -1299,13 +1361,27 @@ print('======Called while load state==========');
 
   StickerOption() {
     Get.bottomSheet(
-        isScrollControlled: false,
+      isScrollControlled: true,
+        // isScrollControlled: false,
         backgroundColor: Colors.transparent,
         isDismissible: true,
         ShapeSelectorSheet( controller: controller,
           shapeCategories: shapeCategories,)
-    ).then((value) {
+    ).then((value) async {
       showStickerEditOptions.value = false;
+    showEditOptions.value = false;
+
+      if (flippedBytes.value != null) {
+        final tempDir = await getTemporaryDirectory();
+        final path = '${tempDir.path}/confirmed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final file = File(path);
+        await file.writeAsBytes(flippedBytes.value!);
+        editedImage.value = file;
+        editedImageBytes.value = null;
+       flippedBytes.value = null;
+      }
+      Get.toNamed('/ImageEditorScreen', arguments: editedImage.value);
+
     },);
   }
 
@@ -1370,10 +1446,9 @@ print('======Called while load state==========');
 
 
   void showTextEditorBottomSheet(BoxConstraints constraints, GlobalKey imageKey, BuildContext context) {
-
       Get.bottomSheet(
         Container(
-          height: 450, // Fixed height for the bottom sheet
+
           padding: EdgeInsets.all(5),
           decoration: BoxDecoration(
             color: Color(ColorConst.bottomBarcolor),
@@ -1426,7 +1501,7 @@ print('======Called while load state==========');
       onTap: onTap,
       child: Column(
         children: [
-          SizedBox(height: 22, child: Image.asset(imagePath)),
+          SizedBox(height: 18, child: Image.asset(imagePath)),
           SizedBox(height: 4),
           Text(label,
               style: TextStyle(
@@ -1555,7 +1630,7 @@ print('======Called while load state==========');
     }
 
     // Restore system UI
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
 // Helper method to resize image
@@ -1643,7 +1718,9 @@ class FilterControlsWidget extends StatelessWidget {
       builder: (controller) {
         return DefaultTabController(
           length: controller.presetCategories.keys.length,
+          initialIndex: 0,
           child: Container(
+            margin: EdgeInsets.only(top: 20),
             decoration: BoxDecoration(
               color: Color(ColorConst.bottomBarcolor),
               borderRadius: BorderRadius.only(
@@ -1655,101 +1732,16 @@ class FilterControlsWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Padding(
-                  padding: EdgeInsets.only(top: 30, right: 10),
-                  child: SizedBox(
-                    height: 120,
-                    child: TabBarView(
-                      children:
-                          controller.presetCategories.values.map((presets) {
-                        return ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          itemCount: presets.length + 1,
-                          separatorBuilder: (_, __) => SizedBox(width: 12),
-                          itemBuilder: (context, index) {
-                            if (index == 0) {
-                              return GestureDetector(
-                                onTap: () {
-                                  controller.editedImageBytes.value =
-                                      controller.originalImageBytes.value;
-                                  controller.selectedPreset.value = null;
-                                  controller.update();
-                                  Get.back();
-                                },
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      height: 90,
-                                      width: 150,
-                                      decoration: BoxDecoration(
-                                        color:
-                                            Color(ColorConst.defaultcontainer),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                            color: Colors.transparent),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          "Original",
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              color: Colors.white),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-
-                            final preset = presets[index - 1];
-                            final thumbnailBytes =
-                                controller.generatePresetThumbnail(preset);
-                            return GestureDetector(
-                              onTap: () {
-                                controller.applyPreset(preset);
-                                Get.back();
-                              },
-                              child: Column(
-                                children: [
-                                  SizedBox(height: 4),
-                                  Container(
-                                    height: 90,
-                                    width: 150,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10),
-                                      color: Color(ColorConst.defaultcontainer),
-                                      border:
-                                          Border.all(color: Colors.transparent),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        preset.name,
-                                        style: TextStyle(
-                                            fontSize: 16, color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
                 TabBar(
                   isScrollable: true,
-                  labelPadding: EdgeInsets.symmetric(horizontal: 8),
+                  labelPadding: EdgeInsets.only(left: 10,top: 20),
+                  padding: EdgeInsets.symmetric(horizontal: 0),
                   indicatorColor: Color(ColorConst.bottomBarcolor),
                   dividerColor: Colors.transparent,
                   tabs: controller.presetCategories.keys.map((category) {
                     return Tab(
                       child: Container(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: controller.selectedCategory.value == category
                               ? Color(ColorConst.lightpurple)
@@ -1775,9 +1767,120 @@ class FilterControlsWidget extends StatelessWidget {
                     controller.update();
                   },
                 ),
-                SizedBox(height: 20),
-                Divider(color: Colors.grey.shade600,),
-                SizedBox(height: 20),
+                Padding(
+                  padding: EdgeInsets.only(top: 30, right: 10),
+                  child: SizedBox(
+                    height: 120,
+                    child: TabBarView(
+                      children:
+                      controller.presetCategories.values.map((presets) {
+                        return ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          itemCount: presets.length + 1,
+                          separatorBuilder: (_, __) => SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              return GestureDetector(
+                                onTap: () {
+                                  controller.editedImageBytes.value =
+                                      controller.originalImageBytes.value;
+                                  controller.selectedPreset.value = null;
+                                  controller.update();
+                                  Get.back();
+                                },
+                                child: Column(
+                                  children: [
+                                    SizedBox(height: 4),
+                                    Container(
+                                      height: 90,
+                                      width: 150,
+                                      decoration: BoxDecoration(
+                                        color:
+                                       Color(
+                                            ColorConst.defaultcontainer),
+                                        borderRadius:
+                                        BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color:
+                                          controller.selectedPreset.value ==
+                                              null
+                                              ? Color(ColorConst.lightpurple)
+                                              : Colors.transparent,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          "Original",
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color:
+                                                 Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            final preset = presets[index - 1];
+                            final thumbnailBytes =
+                            controller.generatePresetThumbnail(preset);
+                            return GestureDetector(
+                              onTap: () {
+                                controller.applyPreset(preset);
+                                Get.back();
+                              },
+                              child: Column(
+                                children: [
+                                  SizedBox(height: 4),
+                                  Container(
+                                    height: 90,
+                                    width: 150,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10),
+                                      color:
+                                      controller.selectedPreset.value == preset
+                                          ? Color(ColorConst.lightpurple)
+                                          : Color(
+                                          ColorConst.defaultcontainer),
+                                      border: Border.all(
+                                        color:
+                                        controller.selectedPreset.value ==
+                                            preset
+                                            ? Colors.white
+                                            : Colors.transparent,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        preset.name,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: controller.selectedPreset.value ==
+                                              preset
+                                              ? Colors.black
+                                              : Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 10),
+                Divider(color: Colors.grey.shade600),
+                SizedBox(height: 0),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 18, vertical: 22),
                   child: Row(
@@ -1791,7 +1894,7 @@ class FilterControlsWidget extends StatelessWidget {
                           controller.update();
                         },
                         child: SizedBox(
-                          height: 30,
+                          height: 36,
                           child: Image.asset('assets/cross.png'),
                         ),
                       ),
@@ -1809,7 +1912,7 @@ class FilterControlsWidget extends StatelessWidget {
                           Get.back();
                         },
                         child: SizedBox(
-                          height: 30,
+                          height: 36,
                           child: Image.asset('assets/right.png'),
                         ),
                       ),
@@ -1841,11 +1944,57 @@ class FilterControlsSheet extends StatelessWidget {
           ),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min, // Prevent full screen unless needed
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
             Padding(
-              padding:  EdgeInsets.only(left: 10, top: 30, right: 10, bottom: 10),
+              padding:  EdgeInsets.only(left: 15, top: 30, right: 10, bottom: 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: controller.filterCategories.keys.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final categoryName = controller.filterCategories.keys.elementAt(index);
+                          return ValueListenableBuilder(
+                            valueListenable: controller.selectedCategory,
+                            builder: (context, value, _) {
+                              final isSelected = value == categoryName;
+                              return GestureDetector(
+                                onTap: () => controller.selectedCategory.value = categoryName,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Color(ColorConst.primaryColor)
+                                        : Color(ColorConst.greycontainer),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    categoryName,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.black : Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding:  EdgeInsets.only(left: 10, top: 30, right: 10, bottom: 0),
               child: ValueListenableBuilder(
                 valueListenable: controller.selectedCategory,
                 builder: (context, category, _) {
@@ -1913,56 +2062,14 @@ class FilterControlsSheet extends StatelessWidget {
                 },
               ),
             ),
+             SizedBox(height: 0),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 40,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: controller.filterCategories.keys.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 12),
-                        itemBuilder: (context, index) {
-                          final categoryName = controller.filterCategories.keys.elementAt(index);
-                          return ValueListenableBuilder(
-                            valueListenable: controller.selectedCategory,
-                            builder: (context, value, _) {
-                              final isSelected = value == categoryName;
-                              return GestureDetector(
-                                onTap: () => controller.selectedCategory.value = categoryName,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? Color(ColorConst.primaryColor)
-                                        : Color(ColorConst.greycontainer),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    categoryName,
-                                    style: TextStyle(
-                                      color: isSelected ? Colors.black : Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              padding: const EdgeInsets.only(left: 5,right: 5),
+              child: Divider(color: Colors.grey.shade600),
             ),
-            const SizedBox(height: 20),
-            Divider(color: Colors.grey.shade600),
-            const SizedBox(height: 20),
+             SizedBox(height: 0),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+              padding:  EdgeInsets.symmetric(horizontal: 18, vertical: 22),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1974,7 +2081,7 @@ class FilterControlsSheet extends StatelessWidget {
                       Get.back();
                     },
                     child: SizedBox(
-                      height: 30,
+                      height: 36,
                       child: Image.asset('assets/cross.png'),
                     ),
                   ),
@@ -1991,7 +2098,7 @@ class FilterControlsSheet extends StatelessWidget {
                       Get.back(); // Use Get.back instead of onClose
                     },
                     child: SizedBox(
-                      height: 30,
+                      height: 36,
                       child: Image.asset('assets/right.png'),
                     ),
                   ),
@@ -2009,13 +2116,51 @@ class FilterControlsSheet extends StatelessWidget {
 }
 
 
+
+
 class EditCamera extends StatelessWidget {
   const EditCamera({super.key});
+
+  // Reusable slider widget
+  Widget _buildSlider(String title, double value, double min, double max, ValueChanged<double> onChanged) {
+    return Row(
+      children: [
+        Text(title, style: TextStyle(color: Colors.white)),
+        Spacer(),
+        SizedBox(
+          width: 250, // Increased width for the slider
+          child: Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: 100, // Increased divisions for smoother sliding
+            onChanged: onChanged,
+            activeColor: Colors.purpleAccent,
+            inactiveColor: Colors.white24,
+          ),
+        ),
+        Container(
+          height: 25,
+          width: 35,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(5),
+            color: Colors.white10,
+          ),
+          child: Center(
+            child: Text(
+              value.toStringAsFixed(1), // Show one decimal for opacity
+              style: TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return GetBuilder<ImageEditorController>(builder: (controller) {
-      return  Container(
+      return Container(
         padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Color(ColorConst.bottomBarcolor),
@@ -2028,148 +2173,133 @@ class EditCamera extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(height: 20),
-            controller!.buildCameraButton(
+            controller.buildCameraButton(
               "Select Image",
               Colors.cyan,
               Icons.flip,
-                  () async {
+                  () {
+                // Placeholder for non-tap action (if needed)
+              },
+                  (details) async {
                 final ImagePicker picker = ImagePicker();
-                final XFile? photo =
-                await picker.pickImage(source: ImageSource.gallery);
+                final XFile? photo = await picker.pickImage(source: ImageSource.gallery);
+                // Get.back();
                 if (photo != null) {
-                  controller!.LogoStcikerImage.value = File(photo.path);
-                  print('${controller!.LogoStcikerImage.value}');
-                  Widget widget = Container(
-                    height: 100,
-                    width: 100,
-                    padding: EdgeInsets.all(12),
-                    child: Image.file(controller!.LogoStcikerImage.value),
+                  controller.LogoStcikerImage.value = File(photo.path);
+                  controller.opacity.value = 1.0;
+                  print('${controller.LogoStcikerImage.value}');
+                  Widget widget = Opacity(
+                    opacity: controller.opacity.value,
+                    child: Container(
+                      height: 100,
+                      width: 100,
+                      padding: EdgeInsets.all(12),
+                      child: Image.file(controller.LogoStcikerImage.value),
+                    ),
+                  );
+                  controller.selectedimagelayer.add(controller.LogoStcikerImage.value);
+                  final tapPosition = details.globalPosition;
+                  final stickerWidgetBox =
+                  LindiStickerWidget.globalKey.currentContext?.findRenderObject() as RenderBox?;
+                  Alignment initialPosition = Alignment.center;
+                  if (stickerWidgetBox != null) {
+                    final stickerSize = stickerWidgetBox.size;
+                    final stickerOffset = stickerWidgetBox.localToGlobal(Offset.zero);
+                    final alignmentX = ((tapPosition.dx - stickerOffset.dx) / stickerSize.width) * 2 - 1;
+                    final alignmentY = ((tapPosition.dy - stickerOffset.dy) / stickerSize.height) * 2 - 1;
+                    initialPosition = Alignment(alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
+                  } else {
+                    print('Warning: LindiStickerWidget.globalKey is null, using default position');
+                  }
+                  print('Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
+                  controller.addWidget(
+                    widget,
+                    tapPosition,
                   );
                   Get.back();
                 }
               },
+            ),
+            SizedBox(height: 10),
+            controller.buildCameraButton(
+              "Change Image",
+              Colors.deepPurpleAccent,
+              Icons.rotate_right,
+                  () {
+                // Placeholder for non-tap action (if needed)
+              },
                   (details) async {
                 final ImagePicker picker = ImagePicker();
-                final XFile? photo =
-                await picker.pickImage(source: ImageSource.gallery);
+                final XFile? photo = await picker.pickImage(source: ImageSource.gallery);
+                // Get.back();
                 if (photo != null) {
-                  controller!.LogoStcikerImage.value = File(photo.path);
-                  print('${controller!.LogoStcikerImage.value}');
-                  Widget widget = Container(
-                    height: 100,
-                    width: 100,
-                    padding: EdgeInsets.all(12),
-                    child: Image.file(controller!.LogoStcikerImage.value),
+                  controller.LogoStcikerImage.value = File(photo.path);
+                  controller.opacity.value = 1.0;
+                  print('${controller.LogoStcikerImage.value}');
+                  Widget widget = Opacity(
+                    opacity: controller.opacity.value,
+                    child: Container(
+                      height: 100,
+                      width: 100,
+                      padding: EdgeInsets.all(12),
+                      child: Image.file(controller.LogoStcikerImage.value),
+                    ),
                   );
-                  controller!.selectedimagelayer.add(controller!.LogoStcikerImage.value);
                   final tapPosition = details.globalPosition;
-                  final stickerWidgetBox = LindiStickerWidget
-                      .globalKey.currentContext
-                      ?.findRenderObject() as RenderBox?;
+                  final stickerWidgetBox =
+                  LindiStickerWidget.globalKey.currentContext?.findRenderObject() as RenderBox?;
                   Alignment initialPosition = Alignment.center;
                   if (stickerWidgetBox != null) {
                     final stickerSize = stickerWidgetBox.size;
-                    final stickerOffset =
-                    stickerWidgetBox.localToGlobal(Offset.zero);
-                    final alignmentX = ((tapPosition.dx - stickerOffset.dx) /
-                        stickerSize.width) *
-                        2 -
-                        1;
-                    final alignmentY = ((tapPosition.dy - stickerOffset.dy) /
-                        stickerSize.height) *
-                        2 -
-                        1;
-                    initialPosition = Alignment(
-                        alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
+                    final stickerOffset = stickerWidgetBox.localToGlobal(Offset.zero);
+                    final alignmentX = ((tapPosition.dx - stickerOffset.dx) / stickerSize.width) * 2 - 1;
+                    final alignmentY = ((tapPosition.dy - stickerOffset.dy) / stickerSize.height) * 2 - 1;
+                    initialPosition = Alignment(alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
                   } else {
-                    print(
-                        'Warning: LindiStickerWidget.globalKey is null, using default position');
+                    print('Warning: LindiStickerWidget.globalKey is null, using default position');
                   }
-                  print(
-                      'Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
-                  controller!.addWidget(
-                    widget,
-                    tapPosition,
-
-                  );
+                  print('Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
+                  controller.editWidget(widget, tapPosition);
+                  Get.back();
                 }
               },
             ),
             SizedBox(height: 10),
-            controller!.buildCameraButton(
-              "Change Image",
-              Colors.deepPurpleAccent,
-              Icons.rotate_right,
-                  () async {
-                final ImagePicker picker = ImagePicker();
-                final XFile? photo =
-                await picker.pickImage(source: ImageSource.gallery);
-                if (photo != null) {
-                  controller!.LogoStcikerImage.value = File(photo.path);
-                  print('${controller!.LogoStcikerImage.value}');
-                  Widget widget = Container(
-                    height: 100,
-                    width: 100,
-                    padding: EdgeInsets.all(12),
-                    child: Image.file(controller!.LogoStcikerImage.value),
+            // Opacity Slider
+            Obx(() => _buildSlider(
+              "Opacity",
+              controller.opacity.value,
+              0.0,
+              1.0,
+                  (value) {
+                controller.opacity.value = value;
+                // Update the selected widget's opacity
+                if (controller.controller.selectedWidget != null && controller.LogoStcikerImage.value.path.isNotEmpty) {
+                  Widget updatedWidget = Opacity(
+                    opacity: controller.opacity.value,
+                    child: Container(
+                      height: 100,
+                      width: 100,
+                      padding: EdgeInsets.all(12),
+                      child: Image.file(controller.LogoStcikerImage.value),
+                    ),
                   );
-                }
-                Get.back();
-              },
-                  (details) async {
-                final ImagePicker picker = ImagePicker();
-                final XFile? photo =
-                await picker.pickImage(source: ImageSource.gallery);
-                if (photo != null) {
-                  controller!.LogoStcikerImage.value = File(photo.path);
-                  print('${controller!.LogoStcikerImage.value}');
-                  Widget widget = Container(
-                    height: 100,
-                    width: 100,
-                    padding: EdgeInsets.all(12),
-                    child: Image.file(controller!.LogoStcikerImage.value),
-                  );
-
-                  final tapPosition = details.globalPosition;
-                  final stickerWidgetBox = LindiStickerWidget
-                      .globalKey.currentContext
-                      ?.findRenderObject() as RenderBox?;
-                  Alignment initialPosition = Alignment.center;
-                  if (stickerWidgetBox != null) {
-                    final stickerSize = stickerWidgetBox.size;
-                    final stickerOffset =
-                    stickerWidgetBox.localToGlobal(Offset.zero);
-                    final alignmentX = ((tapPosition.dx - stickerOffset.dx) /
-                        stickerSize.width) *
-                        2 -
-                        1;
-                    final alignmentY = ((tapPosition.dy - stickerOffset.dy) /
-                        stickerSize.height) *
-                        2 -
-                        1;
-                    initialPosition = Alignment(
-                        alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
-                  } else {
-                    print(
-                        'Warning: LindiStickerWidget.globalKey is null, using default position');
-                  }
-                  print(
-                      'Tapped at position: $initialPosition (dx: ${tapPosition.dx}, dy: ${tapPosition.dy})');
-                  controller!.editWidget(widget, tapPosition);
+                  controller.editWidget(updatedWidget, Offset.zero);
+                  // Get.back();// Update widget with new opacity
                 }
               },
-            ),
+            )),
             SizedBox(height: 20),
-            Divider(color: Colors.grey.shade600,),
+            Divider(color: Colors.grey.shade600),
             SizedBox(height: 20),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 GestureDetector(
                   onTap: () {
-                    controller!.controller.selectedWidget!.delete();
-                    controller!.CameraEditSticker.value = false;
+                    controller.controller.selectedWidget?.delete();
+                    controller.CameraEditSticker.value = false;
+                    Get.back();
                   },
                   child: SizedBox(
                     height: 30,
@@ -2186,8 +2316,9 @@ class EditCamera extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () async {
-                    controller!.CameraEditSticker.value = false;
-                    controller!.controller.clearAllBorders();
+                    controller.CameraEditSticker.value = false;
+                    controller.controller.clearAllBorders();
+                    Get.back();
                   },
                   child: SizedBox(
                     height: 30,
@@ -2199,8 +2330,7 @@ class EditCamera extends StatelessWidget {
           ],
         ),
       );
-    },);
-
+    });
   }
 }
 
